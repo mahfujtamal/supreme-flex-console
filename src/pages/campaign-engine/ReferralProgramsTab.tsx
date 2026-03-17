@@ -55,6 +55,21 @@ export default function ReferralProgramsTab() {
     },
   });
 
+  // Fetch product rules for selected campaign in the modal
+  const { data: campaignProductRules } = useQuery({
+    queryKey: ["campaign-product-rules-for-referral", campaignId],
+    queryFn: async () => {
+      if (!campaignId) return [];
+      const { data, error } = await supabase
+        .from("campaign_product_rules")
+        .select("rule_id, rule_type, discount_type, discount_value, products(product_name)")
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!campaignId && dialogOpen,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["referral-programs", page, search],
     queryFn: async () => {
