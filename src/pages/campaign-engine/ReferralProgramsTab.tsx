@@ -122,8 +122,8 @@ export default function ReferralProgramsTab() {
     setGlobalLimit(String(r.global_referral_limit));
     setDiscountType(r.referrer_discount_type);
     setDiscountValue(String(r.referrer_discount_value));
-    setDurationMonths(String(r.referrer_reward_duration_months));
-    setProductType(r.referrer_applicable_product_type);
+    setBillingCycles(String(r.referrer_reward_billing_cycles));
+    setProductCategory(r.referrer_applicable_product_category);
     setDialogOpen(true);
   }
 
