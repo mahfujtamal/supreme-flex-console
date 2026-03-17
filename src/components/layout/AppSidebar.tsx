@@ -28,7 +28,7 @@ const navItems = [
   { title: "Pricing Engine", url: "/pricing-engine", icon: DollarSign },
   { title: "Campaign Engine", url: "/campaign-engine", icon: Megaphone },
   { title: "Operations", url: "/operations", icon: Settings },
-  { title: "Governance", url: "/governance/roles", icon: Shield },
+  { title: "Governance", url: "/governance", icon: Shield },
   { title: "Logs", url: "/logs", icon: FileText },
 ];
 

@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_roles: {
+        Row: {
+          created_at: string
+          permissions: Json
+          role_id: string
+          role_name: string
+        }
+        Insert: {
+          created_at?: string
+          permissions?: Json
+          role_id?: string
+          role_name: string
+        }
+        Update: {
+          created_at?: string
+          permissions?: Json
+          role_id?: string
+          role_name?: string
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          admin_id: string
+          created_at: string
+          email: string
+          full_name: string
+          is_active: boolean
+          last_login: string | null
+          role_id: string | null
+        }
+        Insert: {
+          admin_id?: string
+          created_at?: string
+          email: string
+          full_name: string
+          is_active?: boolean
+          last_login?: string | null
+          role_id?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          is_active?: boolean
+          last_login?: string | null
+          role_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_users_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "admin_roles"
+            referencedColumns: ["role_id"]
+          },
+        ]
+      }
       areas: {
         Row: {
           area_id: string
@@ -62,6 +121,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "network_zones"
             referencedColumns: ["network_zone_id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          admin_id: string | null
+          created_at: string
+          ip_address: string | null
+          log_id: string
+          new_state: Json | null
+          previous_state: Json | null
+          target_record_id: string
+          target_table: string
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          admin_id?: string | null
+          created_at?: string
+          ip_address?: string | null
+          log_id?: string
+          new_state?: Json | null
+          previous_state?: Json | null
+          target_record_id: string
+          target_table: string
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["audit_action_type"]
+          admin_id?: string | null
+          created_at?: string
+          ip_address?: string | null
+          log_id?: string
+          new_state?: Json | null
+          previous_state?: Json | null
+          target_record_id?: string
+          target_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["admin_id"]
           },
         ]
       }
@@ -917,6 +1020,12 @@ export type Database = {
     Enums: {
       addon_type: "PHYSICAL" | "DIGITAL"
       app_role: "admin" | "moderator" | "user"
+      audit_action_type:
+        | "CREATE"
+        | "UPDATE"
+        | "DELETE"
+        | "BULK_IMPORT"
+        | "STATUS_CHANGE"
       billing_type: "ONE_TIME" | "RECURRING"
       campaign_network_type: "4G" | "5G" | "ANY"
       campaign_rule_type: "EXCLUSIVE" | "UNAVAILABLE" | "DISCOUNT"
@@ -1083,6 +1192,13 @@ export const Constants = {
     Enums: {
       addon_type: ["PHYSICAL", "DIGITAL"],
       app_role: ["admin", "moderator", "user"],
+      audit_action_type: [
+        "CREATE",
+        "UPDATE",
+        "DELETE",
+        "BULK_IMPORT",
+        "STATUS_CHANGE",
+      ],
       billing_type: ["ONE_TIME", "RECURRING"],
       campaign_network_type: ["4G", "5G", "ANY"],
       campaign_rule_type: ["EXCLUSIVE", "UNAVAILABLE", "DISCOUNT"],
