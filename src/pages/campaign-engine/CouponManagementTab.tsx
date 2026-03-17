@@ -200,16 +200,6 @@ export default function CouponManagementTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Valid From *</Label>
-                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
-              </div>
-              <div>
-                <Label>Valid To</Label>
-                <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
                 <Label>Max Uses / Customer</Label>
                 <Input type="number" value={maxUsesPerCustomer} onChange={(e) => setMaxUsesPerCustomer(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
