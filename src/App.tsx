@@ -10,6 +10,7 @@ import MasterData from "./pages/master-data/MasterData";
 import ProductEngine from "./pages/product-engine/ProductEngine";
 import PricingEngine from "./pages/pricing-engine/PricingEngine";
 import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
+import Operations from "./pages/operations/Operations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
