@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/currency";
+import { formatBDT } from "@/lib/currency";
 
 const PAGE_SIZE = 10;
 
