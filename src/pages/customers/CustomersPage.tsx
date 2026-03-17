@@ -39,6 +39,18 @@ export default function CustomersPage() {
   const { data: customers, isLoading } = useQuery({
     queryKey: ["customers", filterStatus, search],
     queryFn: async () => {
+      const trimmed = search.trim();
+
+      // If searching, also look up customer IDs that match gpfi_msisdn
+      let gpfiCustomerIds: string[] = [];
+      if (trimmed) {
+        const { data: serviceMatches } = await supabase
+          .from("active_services")
+          .select("customer_id")
+          .ilike("gpfi_msisdn", `%${trimmed}%`);
+        gpfiCustomerIds = (serviceMatches || []).map((s) => s.customer_id);
+      }
+
       let query = supabase
         .from("customers")
         .select("*")
@@ -47,10 +59,20 @@ export default function CustomersPage() {
       if (filterStatus !== "ALL") {
         query = query.eq("account_status", filterStatus as any);
       }
-      if (search.trim()) {
-        query = query.or(
-          `full_name.ilike.%${search.trim()}%,contact_msisdn.ilike.%${search.trim()}%`
-        );
+
+      if (trimmed) {
+        // Build OR filter: name, primary_contact_number, or customer_id in gpfi matches
+        const orFilters = [
+          `full_name.ilike.%${trimmed}%`,
+          `primary_contact_number.ilike.%${trimmed}%`,
+        ];
+        if (gpfiCustomerIds.length > 0) {
+          query = query.or(
+            `${orFilters.join(",")},customer_id.in.(${gpfiCustomerIds.join(",")})`
+          );
+        } else {
+          query = query.or(orFilters.join(","));
+        }
       }
 
       const { data, error } = await query;
@@ -76,7 +98,7 @@ export default function CustomersPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name or MSISDN..."
+            placeholder="Search by name, contact number, or GPFI MSISDN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -101,7 +123,7 @@ export default function CustomersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>MSISDN</TableHead>
+              <TableHead>Primary Contact</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Joined</TableHead>
@@ -125,7 +147,7 @@ export default function CustomersPage() {
               customers.map((c) => (
                 <TableRow key={c.customer_id}>
                   <TableCell className="font-medium">{c.full_name}</TableCell>
-                  <TableCell className="font-mono text-sm">{c.contact_msisdn}</TableCell>
+                  <TableCell className="font-mono text-sm">{c.primary_contact_number}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{c.customer_type}</Badge>
                   </TableCell>

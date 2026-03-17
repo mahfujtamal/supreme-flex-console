@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { User, Wifi, Package, FileText } from "lucide-react";
+import { User, Wifi, Package } from "lucide-react";
 import { formatBDT } from "@/lib/currency";
 
 interface Customer360DialogProps {
@@ -111,8 +111,8 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                     <p className="font-medium">{customer.full_name}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">MSISDN</p>
-                    <p className="font-mono font-medium">{customer.contact_msisdn}</p>
+                    <p className="text-muted-foreground">Primary Contact Number</p>
+                    <p className="font-mono font-medium">{customer.primary_contact_number}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Customer Type</p>
@@ -145,6 +145,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>GPFI MSISDN</TableHead>
                       <TableHead>Plan ID</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Activation</TableHead>
@@ -155,7 +156,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                   <TableBody>
                     {!services?.length ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
                           No active services
                         </TableCell>
                       </TableRow>
@@ -168,6 +169,9 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                         );
                         return (
                           <TableRow key={s.service_id}>
+                            <TableCell className="font-mono text-sm font-medium">
+                              {s.gpfi_msisdn || "—"}
+                            </TableCell>
                             <TableCell className="font-mono text-sm">{s.product_id}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-xs">

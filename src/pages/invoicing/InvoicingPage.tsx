@@ -33,7 +33,7 @@ export default function InvoicingPage() {
     queryFn: async () => {
       let query = supabase
         .from("onetime_invoices")
-        .select("*, customers(full_name, contact_msisdn)")
+        .select("*, customers(full_name, primary_contact_number)")
         .order("created_at", { ascending: false });
 
       if (filterTrigger !== "ALL") {
@@ -92,7 +92,7 @@ export default function InvoicingPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Customer</TableHead>
-              <TableHead>MSISDN</TableHead>
+              <TableHead>Primary Contact</TableHead>
               <TableHead>Trigger</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Payment</TableHead>
@@ -119,7 +119,7 @@ export default function InvoicingPage() {
                     {inv.customers?.full_name || "—"}
                   </TableCell>
                   <TableCell className="font-mono text-sm">
-                    {inv.customers?.contact_msisdn || "—"}
+                    {inv.customers?.primary_contact_number || "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
