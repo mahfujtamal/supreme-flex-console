@@ -248,6 +248,33 @@ export default function ReferralProgramsTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Referee reward summary from campaign product rules */}
+            {campaignId && (
+              <Alert className="border-primary/30 bg-primary/5">
+                <Info className="h-4 w-4" />
+                <AlertTitle className="text-sm font-semibold">Referee Reward (From Campaign Rules)</AlertTitle>
+                <AlertDescription className="mt-1.5">
+                  {!campaignProductRules?.length ? (
+                    <span className="text-xs text-muted-foreground">No product discount rules found for this campaign.</span>
+                  ) : (
+                    <ul className="space-y-1">
+                      {campaignProductRules.map((rule: any) => (
+                        <li key={rule.rule_id} className="text-xs flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{rule.rule_type}</Badge>
+                          <span className="font-medium">{(rule.products as any)?.product_name ?? "Unknown"}</span>
+                          {rule.rule_type === "DISCOUNT" && rule.discount_value != null && (
+                            <span className="text-muted-foreground">
+                              — {rule.discount_type === "FLAT" ? formatBDT(rule.discount_value) : `${rule.discount_value}%`} {rule.discount_type}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Discount Type *</Label>
