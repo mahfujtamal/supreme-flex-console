@@ -14,6 +14,129 @@ export type Database = {
   }
   public: {
     Tables: {
+      areas: {
+        Row: {
+          area_id: string
+          area_name: string
+          created_at: string
+          district_id: string
+          is_4g_area: boolean
+          is_5g_area: boolean
+          network_zone_id: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string
+          area_name: string
+          created_at?: string
+          district_id: string
+          is_4g_area?: boolean
+          is_5g_area?: boolean
+          network_zone_id: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string
+          area_name?: string
+          created_at?: string
+          district_id?: string
+          is_4g_area?: boolean
+          is_5g_area?: boolean
+          network_zone_id?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "areas_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "areas_network_zone_id_fkey"
+            columns: ["network_zone_id"]
+            isOneToOne: false
+            referencedRelation: "network_zones"
+            referencedColumns: ["network_zone_id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          channel_id: string
+          channel_name: string
+          created_at: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string
+          channel_name: string
+          created_at?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          channel_name?: string
+          created_at?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      districts: {
+        Row: {
+          created_at: string
+          district_id: string
+          district_name: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          district_id?: string
+          district_name: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          district_id?: string
+          district_name?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      network_zones: {
+        Row: {
+          created_at: string
+          network_zone_id: string
+          network_zone_name: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          network_zone_id?: string
+          network_zone_name: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          network_zone_id?: string
+          network_zone_name?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       permission_master: {
         Row: {
           description: string | null
@@ -83,6 +206,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "role_master"
             referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      sub_channels: {
+        Row: {
+          channel_id: string
+          created_at: string
+          status: boolean
+          sub_channel_id: string
+          sub_channel_name: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          status?: boolean
+          sub_channel_id?: string
+          sub_channel_name: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          status?: boolean
+          sub_channel_id?: string
+          sub_channel_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_channels_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["channel_id"]
           },
         ]
       }
