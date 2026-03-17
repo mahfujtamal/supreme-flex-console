@@ -110,8 +110,8 @@ export default function ReferralProgramsTab() {
     setGlobalLimit("-1");
     setDiscountType("FLAT");
     setDiscountValue("");
-    setDurationMonths("1");
-    setProductType("WIFI_PLAN");
+    setBillingCycles("1");
+    setProductCategory("WIFI_PLAN");
     setDialogOpen(true);
   }
 
