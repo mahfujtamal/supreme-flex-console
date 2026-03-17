@@ -7,6 +7,8 @@ import {
   Settings,
   Shield,
   FileText,
+  Users,
+  Receipt,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
