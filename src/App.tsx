@@ -11,7 +11,7 @@ import PricingEngine from "./pages/pricing-engine/PricingEngine";
 import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
 import Operations from "./pages/operations/Operations";
 import Governance from "./pages/governance/Governance";
-import AuditLogs from "./pages/logs";
+import AuditLogs from "./pages/governance/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
