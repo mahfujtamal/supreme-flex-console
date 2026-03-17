@@ -158,6 +158,131 @@ export type Database = {
         }
         Relationships: []
       }
+      physical_addon_compatibility: {
+        Row: {
+          addon_product_id: string
+          compatibility_id: string
+          cpe_product_id: string
+          created_at: string
+        }
+        Insert: {
+          addon_product_id: string
+          compatibility_id?: string
+          cpe_product_id: string
+          created_at?: string
+        }
+        Update: {
+          addon_product_id?: string
+          compatibility_id?: string
+          cpe_product_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physical_addon_compatibility_addon_product_id_fkey"
+            columns: ["addon_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "physical_addon_compatibility_cpe_product_id_fkey"
+            columns: ["cpe_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      product_price_versions: {
+        Row: {
+          base_price_bdt: number
+          created_at: string
+          end_date: string | null
+          price_version_id: string
+          product_id: string
+          start_date: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          base_price_bdt: number
+          created_at?: string
+          end_date?: string | null
+          price_version_id?: string
+          product_id: string
+          start_date: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          base_price_bdt?: number
+          created_at?: string
+          end_date?: string | null
+          price_version_id?: string
+          product_id?: string
+          start_date?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_versions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          addon_type: Database["public"]["Enums"]["addon_type"] | null
+          billing_type: Database["public"]["Enums"]["billing_type"]
+          created_at: string
+          is_exclusive: boolean
+          network_capability: Database["public"]["Enums"]["network_capability"]
+          product_category: Database["public"]["Enums"]["product_category"]
+          product_id: string
+          product_name: string
+          serial_required: boolean
+          status: boolean
+          updated_at: string
+          warranty_unit: Database["public"]["Enums"]["warranty_unit"] | null
+          warranty_value: number | null
+        }
+        Insert: {
+          addon_type?: Database["public"]["Enums"]["addon_type"] | null
+          billing_type: Database["public"]["Enums"]["billing_type"]
+          created_at?: string
+          is_exclusive?: boolean
+          network_capability?: Database["public"]["Enums"]["network_capability"]
+          product_category: Database["public"]["Enums"]["product_category"]
+          product_id?: string
+          product_name: string
+          serial_required?: boolean
+          status?: boolean
+          updated_at?: string
+          warranty_unit?: Database["public"]["Enums"]["warranty_unit"] | null
+          warranty_value?: number | null
+        }
+        Update: {
+          addon_type?: Database["public"]["Enums"]["addon_type"] | null
+          billing_type?: Database["public"]["Enums"]["billing_type"]
+          created_at?: string
+          is_exclusive?: boolean
+          network_capability?: Database["public"]["Enums"]["network_capability"]
+          product_category?: Database["public"]["Enums"]["product_category"]
+          product_id?: string
+          product_name?: string
+          serial_required?: boolean
+          status?: boolean
+          updated_at?: string
+          warranty_unit?: Database["public"]["Enums"]["warranty_unit"] | null
+          warranty_value?: number | null
+        }
+        Relationships: []
+      }
       role_master: {
         Row: {
           created_at: string
@@ -315,7 +440,12 @@ export type Database = {
       }
     }
     Enums: {
+      addon_type: "PHYSICAL" | "DIGITAL"
       app_role: "admin" | "moderator" | "user"
+      billing_type: "ONE_TIME" | "RECURRING"
+      network_capability: "4G" | "5G" | "BOTH" | "ANY"
+      product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
+      warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -443,7 +573,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      addon_type: ["PHYSICAL", "DIGITAL"],
       app_role: ["admin", "moderator", "user"],
+      billing_type: ["ONE_TIME", "RECURRING"],
+      network_capability: ["4G", "5G", "BOTH", "ANY"],
+      product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
+      warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
   },
 } as const
