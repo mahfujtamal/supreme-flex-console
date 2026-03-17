@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_services: {
+        Row: {
+          activation_date: string
+          created_at: string
+          current_cpe_inventory_id: string | null
+          customer_id: string
+          expiry_date: string | null
+          product_category: string
+          product_id: string
+          service_id: string
+          service_status: Database["public"]["Enums"]["service_status"]
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          activation_date?: string
+          created_at?: string
+          current_cpe_inventory_id?: string | null
+          customer_id: string
+          expiry_date?: string | null
+          product_category?: string
+          product_id: string
+          service_id?: string
+          service_status?: Database["public"]["Enums"]["service_status"]
+          updated_at?: string
+          validity_days?: number
+        }
+        Update: {
+          activation_date?: string
+          created_at?: string
+          current_cpe_inventory_id?: string | null
+          customer_id?: string
+          expiry_date?: string | null
+          product_category?: string
+          product_id?: string
+          service_id?: string
+          service_status?: Database["public"]["Enums"]["service_status"]
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_services_current_cpe_inventory_id_fkey"
+            columns: ["current_cpe_inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_master"
+            referencedColumns: ["inventory_id"]
+          },
+          {
+            foreignKeyName: "active_services_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
       admin_roles: {
         Row: {
           created_at: string
@@ -438,6 +495,39 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          contact_msisdn: string
+          created_at: string
+          customer_id: string
+          customer_type: string
+          full_name: string
+          joined_date: string
+          updated_at: string
+        }
+        Insert: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          contact_msisdn: string
+          created_at?: string
+          customer_id?: string
+          customer_type?: string
+          full_name: string
+          joined_date?: string
+          updated_at?: string
+        }
+        Update: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          contact_msisdn?: string
+          created_at?: string
+          customer_id?: string
+          customer_type?: string
+          full_name?: string
+          joined_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       districts: {
         Row: {
           created_at: string
@@ -535,6 +625,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      onetime_invoices: {
+        Row: {
+          charged_amount_bdt: number
+          created_at: string
+          customer_id: string
+          invoice_id: string
+          parent_summary_invoice_id: string | null
+          payment_status: Database["public"]["Enums"]["invoice_payment_status"]
+          trigger_type: Database["public"]["Enums"]["invoice_trigger_type"]
+        }
+        Insert: {
+          charged_amount_bdt?: number
+          created_at?: string
+          customer_id: string
+          invoice_id?: string
+          parent_summary_invoice_id?: string | null
+          payment_status?: Database["public"]["Enums"]["invoice_payment_status"]
+          trigger_type: Database["public"]["Enums"]["invoice_trigger_type"]
+        }
+        Update: {
+          charged_amount_bdt?: number
+          created_at?: string
+          customer_id?: string
+          invoice_id?: string
+          parent_summary_invoice_id?: string | null
+          payment_status?: Database["public"]["Enums"]["invoice_payment_status"]
+          trigger_type?: Database["public"]["Enums"]["invoice_trigger_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onetime_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -1018,6 +1146,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_status: "ACTIVE" | "EXPIRED" | "CHURNED"
       addon_type: "PHYSICAL" | "DIGITAL"
       app_role: "admin" | "moderator" | "user"
       audit_action_type:
@@ -1045,6 +1174,8 @@ export type Database = {
         | "WITH_AGENT"
         | "DELIVERED"
         | "DEFECTIVE"
+      invoice_payment_status: "PENDING" | "PAID"
+      invoice_trigger_type: "ACQUISITION" | "CPE_CHANGE" | "PHYSICAL_ADDON"
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
       order_status:
         | "PENDING_DISPATCH"
@@ -1062,6 +1193,7 @@ export type Database = {
         | "ANY"
       referrer_product_type: "WIFI_PLAN" | "ADDON" | "BOTH"
       reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
+      service_status: "ACTIVE" | "SUSPENDED"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
     CompositeTypes: {
@@ -1190,6 +1322,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: ["ACTIVE", "EXPIRED", "CHURNED"],
       addon_type: ["PHYSICAL", "DIGITAL"],
       app_role: ["admin", "moderator", "user"],
       audit_action_type: [
@@ -1220,6 +1353,8 @@ export const Constants = {
         "DELIVERED",
         "DEFECTIVE",
       ],
+      invoice_payment_status: ["PENDING", "PAID"],
+      invoice_trigger_type: ["ACQUISITION", "CPE_CHANGE", "PHYSICAL_ADDON"],
       network_capability: ["4G", "5G", "BOTH", "ANY"],
       order_status: [
         "PENDING_DISPATCH",
@@ -1239,6 +1374,7 @@ export const Constants = {
       ],
       referrer_product_type: ["WIFI_PLAN", "ADDON", "BOTH"],
       reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
+      service_status: ["ACTIVE", "SUSPENDED"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
   },

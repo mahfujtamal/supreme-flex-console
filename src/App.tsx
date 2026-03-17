@@ -13,6 +13,8 @@ import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
 import Operations from "./pages/operations/Operations";
 import Governance from "./pages/governance/Governance";
 import AuditLogs from "./pages/governance/AuditLogs";
+import CustomersPage from "./pages/customers/CustomersPage";
+import InvoicingPage from "./pages/invoicing/InvoicingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/operations" element={<Operations />} />
               <Route path="/governance" element={<Governance />} />
               <Route path="/logs" element={<AuditLogs />} />
+              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/invoicing" element={<InvoicingPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
