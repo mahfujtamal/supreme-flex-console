@@ -7,6 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import RoleManagement from "./pages/governance/RoleManagement";
 import MasterData from "./pages/master-data/MasterData";
+import ProductEngine from "./pages/product-engine/ProductEngine";
+import PricingEngine from "./pages/pricing-engine/PricingEngine";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +23,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/master-data" element={<MasterData />} />
+            <Route path="/product-engine" element={<ProductEngine />} />
+            <Route path="/pricing-engine" element={<PricingEngine />} />
             <Route path="/governance/roles" element={<RoleManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
