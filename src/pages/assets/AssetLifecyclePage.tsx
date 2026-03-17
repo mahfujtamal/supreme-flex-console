@@ -157,7 +157,8 @@ export default function AssetLifecyclePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Serial Number</TableHead>
-              <TableHead>MAC Address</TableHead>
+              <TableHead>MAC/IMEI</TableHead>
+              <TableHead>GPFI MSISDN</TableHead>
               <TableHead>Asset Type</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Status</TableHead>
