@@ -14,16 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      permission_master: {
+        Row: {
+          description: string | null
+          module: string
+          permission_id: string
+          permission_name: string
+        }
+        Insert: {
+          description?: string | null
+          module: string
+          permission_id?: string
+          permission_name: string
+        }
+        Update: {
+          description?: string | null
+          module?: string
+          permission_id?: string
+          permission_name?: string
+        }
+        Relationships: []
+      }
+      role_master: {
+        Row: {
+          created_at: string
+          role_description: string | null
+          role_id: string
+          role_name: string
+        }
+        Insert: {
+          created_at?: string
+          role_description?: string | null
+          role_id?: string
+          role_name: string
+        }
+        Update: {
+          created_at?: string
+          role_description?: string | null
+          role_id?: string
+          role_name?: string
+        }
+        Relationships: []
+      }
+      role_permission: {
+        Row: {
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permission_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permission_master"
+            referencedColumns: ["permission_id"]
+          },
+          {
+            foreignKeyName: "role_permission_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "role_master"
+            referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      user_account: {
+        Row: {
+          created_at: string
+          email: string
+          employee_id: string | null
+          role_status: boolean | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          employee_id?: string | null
+          role_status?: boolean | null
+          user_id?: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          employee_id?: string | null
+          role_status?: boolean | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      user_role: {
+        Row: {
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "role_master"
+            referencedColumns: ["role_id"]
+          },
+          {
+            foreignKeyName: "user_role_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_account"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +284,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
