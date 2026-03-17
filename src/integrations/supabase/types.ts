@@ -21,6 +21,7 @@ export type Database = {
           current_cpe_inventory_id: string | null
           customer_id: string
           expiry_date: string | null
+          gpfi_msisdn: string | null
           product_category: string
           product_id: string
           service_id: string
@@ -34,6 +35,7 @@ export type Database = {
           current_cpe_inventory_id?: string | null
           customer_id: string
           expiry_date?: string | null
+          gpfi_msisdn?: string | null
           product_category?: string
           product_id: string
           service_id?: string
@@ -47,6 +49,7 @@ export type Database = {
           current_cpe_inventory_id?: string | null
           customer_id?: string
           expiry_date?: string | null
+          gpfi_msisdn?: string | null
           product_category?: string
           product_id?: string
           service_id?: string
@@ -498,32 +501,32 @@ export type Database = {
       customers: {
         Row: {
           account_status: Database["public"]["Enums"]["account_status"]
-          contact_msisdn: string
           created_at: string
           customer_id: string
           customer_type: string
           full_name: string
           joined_date: string
+          primary_contact_number: string
           updated_at: string
         }
         Insert: {
           account_status?: Database["public"]["Enums"]["account_status"]
-          contact_msisdn: string
           created_at?: string
           customer_id?: string
           customer_type?: string
           full_name: string
           joined_date?: string
+          primary_contact_number: string
           updated_at?: string
         }
         Update: {
           account_status?: Database["public"]["Enums"]["account_status"]
-          contact_msisdn?: string
           created_at?: string
           customer_id?: string
           customer_type?: string
           full_name?: string
           joined_date?: string
+          primary_contact_number?: string
           updated_at?: string
         }
         Relationships: []
