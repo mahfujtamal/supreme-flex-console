@@ -6,16 +6,19 @@ import { Plus, Search, Pencil, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import CampaignFormDialog from "./CampaignFormDialog";
 import ManageCampaignDialog from "./ManageCampaignDialog";
+import CouponManagementTab from "./CouponManagementTab";
+import ReferralProgramsTab from "./ReferralProgramsTab";
 
 const PAGE_SIZE = 10;
 
-export default function CampaignEngine() {
+function CampaignDashboard() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -46,12 +49,7 @@ export default function CampaignEngine() {
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Campaign Engine</h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns, targeting rules, and product discount rules.</p>
-      </div>
-
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,6 +121,28 @@ export default function CampaignEngine() {
           onClose={() => setManageCampaignId(null)}
         />
       )}
+    </div>
+  );
+}
+
+export default function CampaignEngine() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Campaign Engine</h1>
+        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns, coupons, and referral programs.</p>
+      </div>
+
+      <Tabs defaultValue="campaigns" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="coupons">Coupon Management</TabsTrigger>
+          <TabsTrigger value="referrals">Referral Programs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="campaigns"><CampaignDashboard /></TabsContent>
+        <TabsContent value="coupons"><CouponManagementTab /></TabsContent>
+        <TabsContent value="referrals"><ReferralProgramsTab /></TabsContent>
+      </Tabs>
     </div>
   );
 }
