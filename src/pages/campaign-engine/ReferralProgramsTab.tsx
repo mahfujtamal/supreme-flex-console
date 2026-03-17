@@ -76,8 +76,8 @@ export default function ReferralProgramsTab() {
         global_referral_limit: parseInt(globalLimit),
         referrer_discount_type: discountType,
         referrer_discount_value: parseFloat(discountValue),
-        referrer_reward_duration_months: parseInt(durationMonths),
-        referrer_applicable_product_type: productType,
+        referrer_reward_billing_cycles: parseInt(billingCycles),
+        referrer_applicable_product_category: productCategory,
       };
       if (editItem) {
         const { error } = await supabase.from("referral_programs").update(payload).eq("referral_program_id", editItem.referral_program_id);
