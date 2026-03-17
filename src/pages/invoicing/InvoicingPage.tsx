@@ -92,7 +92,7 @@ export default function InvoicingPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Customer</TableHead>
-              <TableHead>MSISDN</TableHead>
+              <TableHead>Primary Contact</TableHead>
               <TableHead>Trigger</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Payment</TableHead>
