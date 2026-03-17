@@ -251,6 +251,61 @@ export type Database = {
           },
         ]
       }
+      asset_replacement_history: {
+        Row: {
+          anchor_id: string
+          charge_amount_bdt: number
+          new_asset_id: string
+          notes: string | null
+          old_asset_id: string
+          reason: Database["public"]["Enums"]["replacement_reason"]
+          replaced_at: string
+          replacement_id: string
+        }
+        Insert: {
+          anchor_id: string
+          charge_amount_bdt?: number
+          new_asset_id: string
+          notes?: string | null
+          old_asset_id: string
+          reason: Database["public"]["Enums"]["replacement_reason"]
+          replaced_at?: string
+          replacement_id?: string
+        }
+        Update: {
+          anchor_id?: string
+          charge_amount_bdt?: number
+          new_asset_id?: string
+          notes?: string | null
+          old_asset_id?: string
+          reason?: Database["public"]["Enums"]["replacement_reason"]
+          replaced_at?: string
+          replacement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_replacement_history_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "anchors"
+            referencedColumns: ["anchor_id"]
+          },
+          {
+            foreignKeyName: "asset_replacement_history_new_asset_id_fkey"
+            columns: ["new_asset_id"]
+            isOneToOne: false
+            referencedRelation: "customer_assets"
+            referencedColumns: ["asset_id"]
+          },
+          {
+            foreignKeyName: "asset_replacement_history_old_asset_id_fkey"
+            columns: ["old_asset_id"]
+            isOneToOne: false
+            referencedRelation: "customer_assets"
+            referencedColumns: ["asset_id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action_type: Database["public"]["Enums"]["audit_action_type"]
@@ -1334,6 +1389,7 @@ export type Database = {
         | "DIGITAL_ADDON"
         | "ANY"
       referrer_product_type: "WIFI_PLAN" | "ADDON" | "BOTH"
+      replacement_reason: "WARRANTY" | "PAID" | "UPGRADE"
       reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
       service_status: "ACTIVE" | "SUSPENDED"
       test_status: "PENDING" | "SUCCESS" | "FAIL"
@@ -1518,6 +1574,7 @@ export const Constants = {
         "ANY",
       ],
       referrer_product_type: ["WIFI_PLAN", "ADDON", "BOTH"],
+      replacement_reason: ["WARRANTY", "PAID", "UPGRADE"],
       reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
       service_status: ["ACTIVE", "SUSPENDED"],
       test_status: ["PENDING", "SUCCESS", "FAIL"],
