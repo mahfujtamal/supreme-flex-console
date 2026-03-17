@@ -13,6 +13,8 @@ import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
 import Operations from "./pages/operations/Operations";
 import Governance from "./pages/governance/Governance";
 import AuditLogs from "./pages/governance/AuditLogs";
+import CustomersPage from "./pages/customers/CustomersPage";
+import InvoicingPage from "./pages/invoicing/InvoicingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
