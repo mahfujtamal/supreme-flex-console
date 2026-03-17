@@ -119,7 +119,7 @@ export default function InvoicingPage() {
                     {inv.customers?.full_name || "—"}
                   </TableCell>
                   <TableCell className="font-mono text-sm">
-                    {inv.customers?.contact_msisdn || "—"}
+                    {inv.customers?.primary_contact_number || "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
