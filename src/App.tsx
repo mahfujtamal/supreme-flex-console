@@ -5,12 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
-import RoleManagement from "./pages/governance/RoleManagement";
 import MasterData from "./pages/master-data/MasterData";
 import ProductEngine from "./pages/product-engine/ProductEngine";
 import PricingEngine from "./pages/pricing-engine/PricingEngine";
 import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
 import Operations from "./pages/operations/Operations";
+import Governance from "./pages/governance/Governance";
+import AuditLogs from "./pages/logs/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +30,8 @@ const App = () => (
             <Route path="/pricing-engine" element={<PricingEngine />} />
             <Route path="/campaign-engine" element={<CampaignEngine />} />
             <Route path="/operations" element={<Operations />} />
-            <Route path="/governance/roles" element={<RoleManagement />} />
+            <Route path="/governance" element={<Governance />} />
+            <Route path="/logs" element={<AuditLogs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>
