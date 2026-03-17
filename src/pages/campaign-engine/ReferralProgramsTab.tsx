@@ -235,15 +235,16 @@ export default function ReferralProgramsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Reward Duration (months) *</Label>
-                <Input type="number" value={durationMonths} onChange={(e) => setDurationMonths(e.target.value)} min="1" />
+                <Label>Billing Cycles *</Label>
+                <Input type="number" value={billingCycles} onChange={(e) => setBillingCycles(e.target.value)} min="1" />
+                <p className="text-xs text-muted-foreground mt-1">If rewarding a physical item (CPE/Addon), Billing Cycles should remain 1.</p>
               </div>
               <div>
-                <Label>Applicable Product Type *</Label>
-                <Select value={productType} onValueChange={setProductType}>
+                <Label>Applicable Category *</Label>
+                <Select value={productCategory} onValueChange={setProductCategory}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PRODUCT_TYPE_OPTIONS.map(t => (
+                    {PRODUCT_CATEGORY_OPTIONS.map(t => (
                       <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
                     ))}
                   </SelectContent>
