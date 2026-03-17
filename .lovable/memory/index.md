@@ -11,9 +11,10 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB tables (Phase 4): campaign_master, campaign_product_rules, campaign_targeting_rules, coupons, referral_programs, customer_referral_codes, referral_usage_history
 - DB tables (Phase 5): inventory_master, orders, order_items
 - DB tables (Phase 6): admin_roles (JSONB permissions), admin_users, audit_logs (audit_action_type enum)
-- RLS: Broad anon+authenticated access for dev (to be tightened later)
+- RLS: Dev-mode open policies (dev_full_*) on all public tables for testing
 - Supabase client: auto-generated at src/integrations/supabase/client.ts — do NOT overwrite
 - Master Data: tabbed layout at /master-data with 5 CRUD tabs
 - Governance: tabbed layout at /governance with Admin Users + Admin Roles tabs
-- Logs: /logs with filterable audit trail + JSON diff viewer
+- Logs: /logs (component at src/pages/governance/AuditLogs.tsx) with filterable audit trail + JSON diff viewer
+- Dev/Secure Mode: Toggle in header via DevModeContext (src/contexts/DevModeContext.tsx), persisted in localStorage. Use `useDevMode()` hook to check `isDevMode` before enforcing RBAC.
 - updated_at trigger function: public.update_updated_at_column() — reuse for all new tables
