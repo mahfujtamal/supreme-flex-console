@@ -151,8 +151,6 @@ export default function CouponManagementTab() {
               <TableRow key={c.coupon_id}>
                 <TableCell className="font-mono font-medium text-sm">{c.coupon_code}</TableCell>
                 <TableCell className="text-sm">{c.campaign_master?.campaign_name ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{format(new Date(c.valid_from), "dd MMM yyyy")}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{c.valid_to ? format(new Date(c.valid_to), "dd MMM yyyy") : "∞"}</TableCell>
                 <TableCell className="text-center text-sm">{c.max_uses_per_customer === -1 ? "∞" : c.max_uses_per_customer}</TableCell>
                 <TableCell className="text-center text-sm">{c.global_usage_limit === -1 ? "∞" : c.global_usage_limit}</TableCell>
                 <TableCell className="text-center text-sm">{c.current_global_uses}</TableCell>
