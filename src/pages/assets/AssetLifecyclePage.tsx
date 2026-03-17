@@ -192,6 +192,9 @@ export default function AssetLifecyclePage() {
                     <TableCell className="font-mono text-xs">
                       {a.mac_address || "—"}
                     </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {a._gpfi_msisdn || "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         {a.asset_type?.replace(/_/g, " ")}
