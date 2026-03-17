@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DevModeProvider } from "@/contexts/DevModeContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import MasterData from "./pages/master-data/MasterData";
@@ -18,25 +19,27 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/master-data" element={<MasterData />} />
-            <Route path="/product-engine" element={<ProductEngine />} />
-            <Route path="/pricing-engine" element={<PricingEngine />} />
-            <Route path="/campaign-engine" element={<CampaignEngine />} />
-            <Route path="/operations" element={<Operations />} />
-            <Route path="/governance" element={<Governance />} />
-            <Route path="/logs" element={<AuditLogs />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
-      </BrowserRouter>
-    </TooltipProvider>
+    <DevModeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/master-data" element={<MasterData />} />
+              <Route path="/product-engine" element={<ProductEngine />} />
+              <Route path="/pricing-engine" element={<PricingEngine />} />
+              <Route path="/campaign-engine" element={<CampaignEngine />} />
+              <Route path="/operations" element={<Operations />} />
+              <Route path="/governance" element={<Governance />} />
+              <Route path="/logs" element={<AuditLogs />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </BrowserRouter>
+      </TooltipProvider>
+    </DevModeProvider>
   </QueryClientProvider>
 );
 
