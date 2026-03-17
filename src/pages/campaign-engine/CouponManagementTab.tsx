@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Search } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarDays, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +53,7 @@ export default function CouponManagementTab() {
     queryFn: async () => {
       let q = supabase
         .from("coupons")
-        .select("*, campaign_master(campaign_name)", { count: "exact" })
+        .select("*, campaign_master(campaign_name, start_date, end_date)", { count: "exact" })
         .order("created_at", { ascending: false });
       if (search) q = q.ilike("coupon_code", `%${search}%`);
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -134,6 +135,7 @@ export default function CouponManagementTab() {
             <TableRow>
               <TableHead>Coupon Code</TableHead>
               <TableHead>Campaign</TableHead>
+              <TableHead className="w-[160px]">Campaign Dates</TableHead>
               <TableHead className="w-[90px] text-center">Per User</TableHead>
               <TableHead className="w-[90px] text-center">Global Limit</TableHead>
               <TableHead className="w-[90px] text-center">Used</TableHead>
@@ -143,13 +145,27 @@ export default function CouponManagementTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
               <TableRow key={c.coupon_id}>
                 <TableCell className="font-mono font-medium text-sm">{c.coupon_code}</TableCell>
                 <TableCell className="text-sm">{c.campaign_master?.campaign_name ?? "—"}</TableCell>
+                <TableCell>
+                  {c.campaign_master?.start_date ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {format(new Date(c.campaign_master.start_date), "dd MMM yy")}
+                        {" → "}
+                        {c.campaign_master.end_date ? format(new Date(c.campaign_master.end_date), "dd MMM yy") : "∞"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-center text-sm">{c.max_uses_per_customer === -1 ? "∞" : c.max_uses_per_customer}</TableCell>
                 <TableCell className="text-center text-sm">{c.global_usage_limit === -1 ? "∞" : c.global_usage_limit}</TableCell>
                 <TableCell className="text-center text-sm">{c.current_global_uses}</TableCell>
