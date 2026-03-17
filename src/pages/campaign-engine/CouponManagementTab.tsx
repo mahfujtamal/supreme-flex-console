@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +30,6 @@ export default function CouponManagementTab() {
   // Form state
   const [campaignId, setCampaignId] = useState("");
   const [couponCode, setCouponCode] = useState("");
-  const [validFrom, setValidFrom] = useState("");
-  const [validTo, setValidTo] = useState("");
   const [maxUsesPerCustomer, setMaxUsesPerCustomer] = useState("-1");
   const [globalUsageLimit, setGlobalUsageLimit] = useState("-1");
 
@@ -69,8 +66,6 @@ export default function CouponManagementTab() {
       const payload = {
         campaign_id: campaignId,
         coupon_code: couponCode.trim().toUpperCase(),
-        valid_from: validFrom,
-        valid_to: validTo || null,
         max_uses_per_customer: parseInt(maxUsesPerCustomer),
         global_usage_limit: parseInt(globalUsageLimit),
       };
@@ -102,8 +97,6 @@ export default function CouponManagementTab() {
     setEditCoupon(null);
     setCampaignId("");
     setCouponCode("");
-    setValidFrom("");
-    setValidTo("");
     setMaxUsesPerCustomer("-1");
     setGlobalUsageLimit("-1");
     setDialogOpen(true);
@@ -113,8 +106,6 @@ export default function CouponManagementTab() {
     setEditCoupon(c);
     setCampaignId(c.campaign_id);
     setCouponCode(c.coupon_code);
-    setValidFrom(c.valid_from ? c.valid_from.slice(0, 10) : "");
-    setValidTo(c.valid_to ? c.valid_to.slice(0, 10) : "");
     setMaxUsesPerCustomer(String(c.max_uses_per_customer));
     setGlobalUsageLimit(String(c.global_usage_limit));
     setDialogOpen(true);
@@ -143,8 +134,6 @@ export default function CouponManagementTab() {
             <TableRow>
               <TableHead>Coupon Code</TableHead>
               <TableHead>Campaign</TableHead>
-              <TableHead className="w-[100px]">Valid From</TableHead>
-              <TableHead className="w-[100px]">Valid To</TableHead>
               <TableHead className="w-[90px] text-center">Per User</TableHead>
               <TableHead className="w-[90px] text-center">Global Limit</TableHead>
               <TableHead className="w-[90px] text-center">Used</TableHead>
@@ -154,15 +143,13 @@ export default function CouponManagementTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
               <TableRow key={c.coupon_id}>
                 <TableCell className="font-mono font-medium text-sm">{c.coupon_code}</TableCell>
                 <TableCell className="text-sm">{c.campaign_master?.campaign_name ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{format(new Date(c.valid_from), "dd MMM yyyy")}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{c.valid_to ? format(new Date(c.valid_to), "dd MMM yyyy") : "∞"}</TableCell>
                 <TableCell className="text-center text-sm">{c.max_uses_per_customer === -1 ? "∞" : c.max_uses_per_customer}</TableCell>
                 <TableCell className="text-center text-sm">{c.global_usage_limit === -1 ? "∞" : c.global_usage_limit}</TableCell>
                 <TableCell className="text-center text-sm">{c.current_global_uses}</TableCell>
@@ -212,16 +199,6 @@ export default function CouponManagementTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Valid From *</Label>
-                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
-              </div>
-              <div>
-                <Label>Valid To</Label>
-                <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
                 <Label>Max Uses / Customer</Label>
                 <Input type="number" value={maxUsesPerCustomer} onChange={(e) => setMaxUsesPerCustomer(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
@@ -235,7 +212,7 @@ export default function CouponManagementTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!campaignId || !couponCode.trim() || !validFrom || saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate()} disabled={!campaignId || !couponCode.trim() || saveMutation.isPending}>
               {saveMutation.isPending ? "Saving..." : editCoupon ? "Update" : "Create"}
             </Button>
           </DialogFooter>
