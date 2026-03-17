@@ -168,6 +168,20 @@ export default function ReferralProgramsTab() {
             ) : data.items.map((r: any) => (
               <TableRow key={r.referral_program_id}>
                 <TableCell className="font-medium text-sm">{r.campaign_master?.campaign_name ?? "—"}</TableCell>
+                <TableCell>
+                  {r.campaign_master?.start_date ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {format(new Date(r.campaign_master.start_date), "dd MMM yy")}
+                        {" → "}
+                        {r.campaign_master.end_date ? format(new Date(r.campaign_master.end_date), "dd MMM yy") : "∞"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm">
                   {r.referrer_discount_type === "FLAT"
                     ? formatBDT(r.referrer_discount_value)
