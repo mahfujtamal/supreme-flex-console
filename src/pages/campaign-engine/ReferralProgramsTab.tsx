@@ -149,6 +149,7 @@ export default function ReferralProgramsTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Campaign</TableHead>
+              <TableHead className="w-[160px]">Campaign Dates</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
               <TableHead className="w-[90px] text-center">Billing Cycles</TableHead>
               <TableHead className="w-[120px]">Applicable Category</TableHead>
