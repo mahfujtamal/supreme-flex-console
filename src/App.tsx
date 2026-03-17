@@ -15,6 +15,7 @@ import Governance from "./pages/governance/Governance";
 import AuditLogs from "./pages/governance/AuditLogs";
 import CustomersPage from "./pages/customers/CustomersPage";
 import InvoicingPage from "./pages/invoicing/InvoicingPage";
+import AssetLifecyclePage from "./pages/assets/AssetLifecyclePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
