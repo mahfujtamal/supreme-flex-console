@@ -98,8 +98,6 @@ export default function CouponManagementTab() {
     setEditCoupon(null);
     setCampaignId("");
     setCouponCode("");
-    setValidFrom("");
-    setValidTo("");
     setMaxUsesPerCustomer("-1");
     setGlobalUsageLimit("-1");
     setDialogOpen(true);
