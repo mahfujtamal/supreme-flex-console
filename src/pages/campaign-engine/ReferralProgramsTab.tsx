@@ -21,7 +21,7 @@ import { formatBDT } from "@/lib/currency";
 
 const PAGE_SIZE = 10;
 
-const PRODUCT_TYPE_OPTIONS = ["WIFI_PLAN", "ADDON", "BOTH"] as const;
+const PRODUCT_CATEGORY_OPTIONS = ["WIFI_PLAN", "CPE", "PHYSICAL_ADDON", "DIGITAL_ADDON", "ANY"] as const;
 
 export default function ReferralProgramsTab() {
   const [page, setPage] = useState(0);
@@ -37,8 +37,8 @@ export default function ReferralProgramsTab() {
   const [globalLimit, setGlobalLimit] = useState("-1");
   const [discountType, setDiscountType] = useState<string>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
-  const [durationMonths, setDurationMonths] = useState("1");
-  const [productType, setProductType] = useState<string>("WIFI_PLAN");
+  const [billingCycles, setBillingCycles] = useState("1");
+  const [productCategory, setProductCategory] = useState<string>("WIFI_PLAN");
 
   const { data: campaigns } = useQuery({
     queryKey: ["campaigns-referral-eligible"],
@@ -76,8 +76,8 @@ export default function ReferralProgramsTab() {
         global_referral_limit: parseInt(globalLimit),
         referrer_discount_type: discountType,
         referrer_discount_value: parseFloat(discountValue),
-        referrer_reward_duration_months: parseInt(durationMonths),
-        referrer_applicable_product_type: productType,
+        referrer_reward_billing_cycles: parseInt(billingCycles),
+        referrer_applicable_product_category: productCategory,
       };
       if (editItem) {
         const { error } = await supabase.from("referral_programs").update(payload).eq("referral_program_id", editItem.referral_program_id);
@@ -110,8 +110,8 @@ export default function ReferralProgramsTab() {
     setGlobalLimit("-1");
     setDiscountType("FLAT");
     setDiscountValue("");
-    setDurationMonths("1");
-    setProductType("WIFI_PLAN");
+    setBillingCycles("1");
+    setProductCategory("WIFI_PLAN");
     setDialogOpen(true);
   }
 
@@ -122,8 +122,8 @@ export default function ReferralProgramsTab() {
     setGlobalLimit(String(r.global_referral_limit));
     setDiscountType(r.referrer_discount_type);
     setDiscountValue(String(r.referrer_discount_value));
-    setDurationMonths(String(r.referrer_reward_duration_months));
-    setProductType(r.referrer_applicable_product_type);
+    setBillingCycles(String(r.referrer_reward_billing_cycles));
+    setProductCategory(r.referrer_applicable_product_category);
     setDialogOpen(true);
   }
 
@@ -150,8 +150,8 @@ export default function ReferralProgramsTab() {
             <TableRow>
               <TableHead>Campaign</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
-              <TableHead className="w-[90px] text-center">Duration</TableHead>
-              <TableHead className="w-[100px]">Product Type</TableHead>
+              <TableHead className="w-[90px] text-center">Billing Cycles</TableHead>
+              <TableHead className="w-[120px]">Applicable Category</TableHead>
               <TableHead className="w-[90px] text-center">Per User</TableHead>
               <TableHead className="w-[90px] text-center">Global</TableHead>
               <TableHead className="w-[80px] text-center">Used</TableHead>
@@ -172,8 +172,8 @@ export default function ReferralProgramsTab() {
                     ? formatBDT(r.referrer_discount_value)
                     : `${r.referrer_discount_value}%`}
                 </TableCell>
-                <TableCell className="text-center text-sm">{r.referrer_reward_duration_months} mo</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{r.referrer_applicable_product_type}</Badge></TableCell>
+                <TableCell className="text-center text-sm">{r.referrer_reward_billing_cycles}</TableCell>
+                <TableCell><Badge variant="outline" className="text-xs">{r.referrer_applicable_product_category?.replace(/_/g, " ")}</Badge></TableCell>
                 <TableCell className="text-center text-sm">{r.max_referrals_per_customer === -1 ? "∞" : r.max_referrals_per_customer}</TableCell>
                 <TableCell className="text-center text-sm">{r.global_referral_limit === -1 ? "∞" : r.global_referral_limit}</TableCell>
                 <TableCell className="text-center text-sm">{r.current_global_referrals}</TableCell>
@@ -235,15 +235,16 @@ export default function ReferralProgramsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Reward Duration (months) *</Label>
-                <Input type="number" value={durationMonths} onChange={(e) => setDurationMonths(e.target.value)} min="1" />
+                <Label>Billing Cycles *</Label>
+                <Input type="number" value={billingCycles} onChange={(e) => setBillingCycles(e.target.value)} min="1" />
+                <p className="text-xs text-muted-foreground mt-1">If rewarding a physical item (CPE/Addon), Billing Cycles should remain 1.</p>
               </div>
               <div>
-                <Label>Applicable Product Type *</Label>
-                <Select value={productType} onValueChange={setProductType}>
+                <Label>Applicable Category *</Label>
+                <Select value={productCategory} onValueChange={setProductCategory}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PRODUCT_TYPE_OPTIONS.map(t => (
+                    {PRODUCT_CATEGORY_OPTIONS.map(t => (
                       <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
                     ))}
                   </SelectContent>

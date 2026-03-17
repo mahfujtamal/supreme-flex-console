@@ -543,10 +543,10 @@ export type Database = {
           global_referral_limit: number
           max_referrals_per_customer: number
           referral_program_id: string
-          referrer_applicable_product_type: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_applicable_product_category: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type: Database["public"]["Enums"]["discount_type"]
           referrer_discount_value: number
-          referrer_reward_duration_months: number
+          referrer_reward_billing_cycles: number
           status: boolean
           updated_at: string
         }
@@ -557,10 +557,10 @@ export type Database = {
           global_referral_limit?: number
           max_referrals_per_customer?: number
           referral_program_id?: string
-          referrer_applicable_product_type: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_applicable_product_category: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type: Database["public"]["Enums"]["discount_type"]
           referrer_discount_value: number
-          referrer_reward_duration_months: number
+          referrer_reward_billing_cycles: number
           status?: boolean
           updated_at?: string
         }
@@ -571,10 +571,10 @@ export type Database = {
           global_referral_limit?: number
           max_referrals_per_customer?: number
           referral_program_id?: string
-          referrer_applicable_product_type?: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_applicable_product_category?: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type?: Database["public"]["Enums"]["discount_type"]
           referrer_discount_value?: number
-          referrer_reward_duration_months?: number
+          referrer_reward_billing_cycles?: number
           status?: boolean
           updated_at?: string
         }
@@ -795,6 +795,12 @@ export type Database = {
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
       ownership_transfer_behavior: "KEEP" | "REMOVE"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
+      referrer_product_category:
+        | "WIFI_PLAN"
+        | "CPE"
+        | "PHYSICAL_ADDON"
+        | "DIGITAL_ADDON"
+        | "ANY"
       referrer_product_type: "WIFI_PLAN" | "ADDON" | "BOTH"
       reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
@@ -941,6 +947,13 @@ export const Constants = {
       network_capability: ["4G", "5G", "BOTH", "ANY"],
       ownership_transfer_behavior: ["KEEP", "REMOVE"],
       product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
+      referrer_product_category: [
+        "WIFI_PLAN",
+        "CPE",
+        "PHYSICAL_ADDON",
+        "DIGITAL_ADDON",
+        "ANY",
+      ],
       referrer_product_type: ["WIFI_PLAN", "ADDON", "BOTH"],
       reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
