@@ -67,8 +67,6 @@ export default function CouponManagementTab() {
       const payload = {
         campaign_id: campaignId,
         coupon_code: couponCode.trim().toUpperCase(),
-        valid_from: validFrom,
-        valid_to: validTo || null,
         max_uses_per_customer: parseInt(maxUsesPerCustomer),
         global_usage_limit: parseInt(globalUsageLimit),
       };
