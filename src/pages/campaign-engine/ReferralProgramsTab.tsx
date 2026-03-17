@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search } from "lucide-react";
+import { CalendarDays, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +59,7 @@ export default function ReferralProgramsTab() {
     queryFn: async () => {
       let q = supabase
         .from("referral_programs")
-        .select("*, campaign_master(campaign_name)", { count: "exact" })
+        .select("*, campaign_master(campaign_name, start_date, end_date)", { count: "exact" })
         .order("created_at", { ascending: false });
       if (search) q = q.ilike("campaign_master.campaign_name", `%${search}%`);
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -149,6 +149,7 @@ export default function ReferralProgramsTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Campaign</TableHead>
+              <TableHead className="w-[160px]">Campaign Dates</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
               <TableHead className="w-[90px] text-center">Billing Cycles</TableHead>
               <TableHead className="w-[120px]">Applicable Category</TableHead>
@@ -161,12 +162,26 @@ export default function ReferralProgramsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No referral programs found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No referral programs found.</TableCell></TableRow>
             ) : data.items.map((r: any) => (
               <TableRow key={r.referral_program_id}>
                 <TableCell className="font-medium text-sm">{r.campaign_master?.campaign_name ?? "—"}</TableCell>
+                <TableCell>
+                  {r.campaign_master?.start_date ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {format(new Date(r.campaign_master.start_date), "dd MMM yy")}
+                        {" → "}
+                        {r.campaign_master.end_date ? format(new Date(r.campaign_master.end_date), "dd MMM yy") : "∞"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm">
                   {r.referrer_discount_type === "FLAT"
                     ? formatBDT(r.referrer_discount_value)
