@@ -35,8 +35,8 @@ const InventoryTab = () => {
     queryKey: ["inventory_master", filterStatus, filterType],
     queryFn: async () => {
       let query = supabase.from("inventory_master").select("*, products(product_name)").order("created_at", { ascending: false });
-      if (filterStatus !== "ALL") query = query.eq("status", filterStatus);
-      if (filterType !== "ALL") query = query.eq("item_type", filterType);
+      if (filterStatus !== "ALL") query = query.eq("status", filterStatus as any);
+      if (filterType !== "ALL") query = query.eq("item_type", filterType as any);
       const { data, error } = await query;
       if (error) throw error;
       return data;
