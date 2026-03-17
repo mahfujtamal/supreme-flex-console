@@ -270,6 +270,77 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          campaign_id: string
+          coupon_code: string
+          coupon_id: string
+          created_at: string
+          current_global_uses: number
+          global_usage_limit: number
+          max_uses_per_customer: number
+          status: boolean
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          campaign_id: string
+          coupon_code: string
+          coupon_id?: string
+          created_at?: string
+          current_global_uses?: number
+          global_usage_limit?: number
+          max_uses_per_customer?: number
+          status?: boolean
+          updated_at?: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          coupon_code?: string
+          coupon_id?: string
+          created_at?: string
+          current_global_uses?: number
+          global_usage_limit?: number
+          max_uses_per_customer?: number
+          status?: boolean
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
+      customer_referral_codes: {
+        Row: {
+          anchor_id: string
+          code_id: string
+          created_at: string
+          referral_code: string
+        }
+        Insert: {
+          anchor_id: string
+          code_id?: string
+          created_at?: string
+          referral_code: string
+        }
+        Update: {
+          anchor_id?: string
+          code_id?: string
+          created_at?: string
+          referral_code?: string
+        }
+        Relationships: []
+      }
       districts: {
         Row: {
           created_at: string
@@ -464,6 +535,94 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_programs: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          current_global_referrals: number
+          global_referral_limit: number
+          max_referrals_per_customer: number
+          referral_program_id: string
+          referrer_applicable_product_type: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_discount_type: Database["public"]["Enums"]["discount_type"]
+          referrer_discount_value: number
+          referrer_reward_duration_months: number
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          current_global_referrals?: number
+          global_referral_limit?: number
+          max_referrals_per_customer?: number
+          referral_program_id?: string
+          referrer_applicable_product_type: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_discount_type: Database["public"]["Enums"]["discount_type"]
+          referrer_discount_value: number
+          referrer_reward_duration_months: number
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          current_global_referrals?: number
+          global_referral_limit?: number
+          max_referrals_per_customer?: number
+          referral_program_id?: string
+          referrer_applicable_product_type?: Database["public"]["Enums"]["referrer_product_type"]
+          referrer_discount_type?: Database["public"]["Enums"]["discount_type"]
+          referrer_discount_value?: number
+          referrer_reward_duration_months?: number
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_programs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
+      referral_usage_history: {
+        Row: {
+          applied_at: string
+          referee_order_id: string
+          referral_program_id: string
+          referrer_anchor_id: string
+          reward_status: Database["public"]["Enums"]["reward_status"]
+          usage_id: string
+        }
+        Insert: {
+          applied_at?: string
+          referee_order_id: string
+          referral_program_id: string
+          referrer_anchor_id: string
+          reward_status?: Database["public"]["Enums"]["reward_status"]
+          usage_id?: string
+        }
+        Update: {
+          applied_at?: string
+          referee_order_id?: string
+          referral_program_id?: string
+          referrer_anchor_id?: string
+          reward_status?: Database["public"]["Enums"]["reward_status"]
+          usage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_usage_history_referral_program_id_fkey"
+            columns: ["referral_program_id"]
+            isOneToOne: false
+            referencedRelation: "referral_programs"
+            referencedColumns: ["referral_program_id"]
+          },
+        ]
+      }
       role_master: {
         Row: {
           created_at: string
@@ -636,6 +795,8 @@ export type Database = {
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
       ownership_transfer_behavior: "KEEP" | "REMOVE"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
+      referrer_product_type: "WIFI_PLAN" | "ADDON" | "BOTH"
+      reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
     CompositeTypes: {
@@ -780,6 +941,8 @@ export const Constants = {
       network_capability: ["4G", "5G", "BOTH", "ANY"],
       ownership_transfer_behavior: ["KEEP", "REMOVE"],
       product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
+      referrer_product_type: ["WIFI_PLAN", "ADDON", "BOTH"],
+      reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
   },
