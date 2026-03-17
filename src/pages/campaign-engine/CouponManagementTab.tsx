@@ -135,6 +135,7 @@ export default function CouponManagementTab() {
             <TableRow>
               <TableHead>Coupon Code</TableHead>
               <TableHead>Campaign</TableHead>
+              <TableHead className="w-[160px]">Campaign Dates</TableHead>
               <TableHead className="w-[90px] text-center">Per User</TableHead>
               <TableHead className="w-[90px] text-center">Global Limit</TableHead>
               <TableHead className="w-[90px] text-center">Used</TableHead>
