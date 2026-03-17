@@ -170,13 +170,13 @@ export default function AssetLifecyclePage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Loading assets…
                 </TableCell>
               </TableRow>
             ) : !assets?.length ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No assets found
                 </TableCell>
               </TableRow>
