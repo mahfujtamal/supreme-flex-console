@@ -544,6 +544,76 @@ export type Database = {
           },
         ]
       }
+      customer_assets: {
+        Row: {
+          anchor_id: string
+          asset_id: string
+          asset_status: Database["public"]["Enums"]["asset_status"]
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          created_at: string
+          customer_id: string
+          installation_date: string
+          mac_address: string | null
+          product_id: string
+          serial_number: string
+          updated_at: string
+          warranty_end_date: string | null
+          warranty_start_date: string
+        }
+        Insert: {
+          anchor_id: string
+          asset_id?: string
+          asset_status?: Database["public"]["Enums"]["asset_status"]
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          created_at?: string
+          customer_id: string
+          installation_date?: string
+          mac_address?: string | null
+          product_id: string
+          serial_number: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string
+        }
+        Update: {
+          anchor_id?: string
+          asset_id?: string
+          asset_status?: Database["public"]["Enums"]["asset_status"]
+          asset_type?: Database["public"]["Enums"]["asset_type"]
+          created_at?: string
+          customer_id?: string
+          installation_date?: string
+          mac_address?: string | null
+          product_id?: string
+          serial_number?: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_assets_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "anchors"
+            referencedColumns: ["anchor_id"]
+          },
+          {
+            foreignKeyName: "customer_assets_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "customer_assets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       customer_referral_codes: {
         Row: {
           anchor_id: string
@@ -1219,6 +1289,8 @@ export type Database = {
       account_status: "ACTIVE" | "EXPIRED" | "CHURNED"
       addon_type: "PHYSICAL" | "DIGITAL"
       app_role: "admin" | "moderator" | "user"
+      asset_status: "ACTIVE" | "REPLACED" | "RETURNED" | "DEFECTIVE"
+      asset_type: "CPE" | "SIM" | "PHYSICAL_ADDON"
       audit_action_type:
         | "CREATE"
         | "UPDATE"
@@ -1396,6 +1468,8 @@ export const Constants = {
       account_status: ["ACTIVE", "EXPIRED", "CHURNED"],
       addon_type: ["PHYSICAL", "DIGITAL"],
       app_role: ["admin", "moderator", "user"],
+      asset_status: ["ACTIVE", "REPLACED", "RETURNED", "DEFECTIVE"],
+      asset_type: ["CPE", "SIM", "PHYSICAL_ADDON"],
       audit_action_type: [
         "CREATE",
         "UPDATE",
