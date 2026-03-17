@@ -145,9 +145,9 @@ export default function CouponManagementTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No coupons found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
               <TableRow key={c.coupon_id}>
                 <TableCell className="font-mono font-medium text-sm">{c.coupon_code}</TableCell>
