@@ -37,10 +37,10 @@ export default function InvoicingPage() {
         .order("created_at", { ascending: false });
 
       if (filterTrigger !== "ALL") {
-        query = query.eq("trigger_type", filterTrigger);
+        query = query.eq("trigger_type", filterTrigger as any);
       }
       if (filterPayment !== "ALL") {
-        query = query.eq("payment_status", filterPayment);
+        query = query.eq("payment_status", filterPayment as any);
       }
 
       const { data, error } = await query;

@@ -45,7 +45,7 @@ export default function CustomersPage() {
         .order("created_at", { ascending: false });
 
       if (filterStatus !== "ALL") {
-        query = query.eq("account_status", filterStatus);
+        query = query.eq("account_status", filterStatus as any);
       }
       if (search.trim()) {
         query = query.or(
