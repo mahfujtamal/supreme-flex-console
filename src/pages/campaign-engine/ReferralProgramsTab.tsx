@@ -37,8 +37,8 @@ export default function ReferralProgramsTab() {
   const [globalLimit, setGlobalLimit] = useState("-1");
   const [discountType, setDiscountType] = useState<string>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
-  const [durationMonths, setDurationMonths] = useState("1");
-  const [productType, setProductType] = useState<string>("WIFI_PLAN");
+  const [billingCycles, setBillingCycles] = useState("1");
+  const [productCategory, setProductCategory] = useState<string>("WIFI_PLAN");
 
   const { data: campaigns } = useQuery({
     queryKey: ["campaigns-referral-eligible"],
