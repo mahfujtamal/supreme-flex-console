@@ -169,7 +169,7 @@ export default function ReferralProgramsTab() {
                 <TableCell className="font-medium text-sm">{r.campaign_master?.campaign_name ?? "—"}</TableCell>
                 <TableCell className="text-sm">
                   {r.referrer_discount_type === "FLAT"
-                    ? formatCurrency(r.referrer_discount_value)
+                    ? formatBDT(r.referrer_discount_value)
                     : `${r.referrer_discount_value}%`}
                 </TableCell>
                 <TableCell className="text-center text-sm">{r.referrer_reward_duration_months} mo</TableCell>
