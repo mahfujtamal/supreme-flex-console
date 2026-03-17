@@ -213,7 +213,7 @@ export default function CouponManagementTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!campaignId || !couponCode.trim() || !validFrom || saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate()} disabled={!campaignId || !couponCode.trim() || saveMutation.isPending}>
               {saveMutation.isPending ? "Saving..." : editCoupon ? "Update" : "Create"}
             </Button>
           </DialogFooter>
