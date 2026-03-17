@@ -146,7 +146,7 @@ export default function AdminUsersTab() {
                       onClick={() => toggleActive.mutate({ adminId: user.admin_id, isActive: user.is_active })}
                       title={user.is_active ? "Deactivate" : "Activate"}
                     >
-                      {user.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-green-600" />}
+                      {user.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-primary" />}
                     </Button>
                   </TableCell>
                 </TableRow>
