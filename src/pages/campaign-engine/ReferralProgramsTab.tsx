@@ -59,7 +59,7 @@ export default function ReferralProgramsTab() {
     queryFn: async () => {
       let q = supabase
         .from("referral_programs")
-        .select("*, campaign_master(campaign_name)", { count: "exact" })
+        .select("*, campaign_master(campaign_name, start_date, end_date)", { count: "exact" })
         .order("created_at", { ascending: false });
       if (search) q = q.ilike("campaign_master.campaign_name", `%${search}%`);
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
