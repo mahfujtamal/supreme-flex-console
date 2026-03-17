@@ -150,8 +150,8 @@ export default function ReferralProgramsTab() {
             <TableRow>
               <TableHead>Campaign</TableHead>
               <TableHead className="w-[100px]">Discount</TableHead>
-              <TableHead className="w-[90px] text-center">Duration</TableHead>
-              <TableHead className="w-[100px]">Product Type</TableHead>
+              <TableHead className="w-[90px] text-center">Billing Cycles</TableHead>
+              <TableHead className="w-[120px]">Applicable Category</TableHead>
               <TableHead className="w-[90px] text-center">Per User</TableHead>
               <TableHead className="w-[90px] text-center">Global</TableHead>
               <TableHead className="w-[80px] text-center">Used</TableHead>
