@@ -8,12 +8,10 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - Design tokens: success (green), warning (amber), destructive (red) in index.css
 - DB tables (Phase 1): user_account, role_master, permission_master, role_permission, user_role
 - DB tables (Phase 2): network_zones, districts, areas, channels, sub_channels
-- DB tables (Phase 3): products (with enums: product_category, addon_type, billing_type, network_capability, warranty_unit), physical_addon_compatibility, product_price_versions
-- DB enums: app_role, product_category, addon_type, billing_type, network_capability, warranty_unit
+- DB tables (Phase 3): products, physical_addon_compatibility, product_price_versions
+- DB tables (Phase 4): campaign_master, campaign_targeting_rules, campaign_product_rules
+- DB enums: campaign_scope, ownership_transfer_behavior, campaign_trigger_type, campaign_rule_type, discount_type, campaign_network_type
 - RLS: Authenticated read/write all (to be tightened with admin roles later)
 - Supabase client: auto-generated at src/integrations/supabase/client.ts — do NOT overwrite
 - Master Data: tabbed layout at /master-data with 5 CRUD tabs
-- Product Engine: tabbed layout at /product-engine with catalog + addon compatibility tabs + network matrix card
-- Pricing Engine: at /pricing-engine with price version history, product filter, create modal
 - updated_at trigger function: public.update_updated_at_column() — reuse for all new tables
-- Business rules: WIFI_PLAN→RECURRING, CPE/SIM/PHYSICAL_ADDON→ONE_TIME, CPE/PHYSICAL_ADDON→serial_required=true

@@ -65,6 +65,187 @@ export type Database = {
           },
         ]
       }
+      campaign_master: {
+        Row: {
+          allow_cod_payment: boolean
+          allow_online_payment: boolean
+          campaign_id: string
+          campaign_name: string
+          campaign_trigger_type: Database["public"]["Enums"]["campaign_trigger_type"]
+          created_at: string
+          description: string
+          end_date: string | null
+          on_ownership_transfer_behavior: Database["public"]["Enums"]["ownership_transfer_behavior"]
+          scope: Database["public"]["Enums"]["campaign_scope"]
+          start_date: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          allow_cod_payment?: boolean
+          allow_online_payment?: boolean
+          campaign_id?: string
+          campaign_name: string
+          campaign_trigger_type: Database["public"]["Enums"]["campaign_trigger_type"]
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          on_ownership_transfer_behavior?: Database["public"]["Enums"]["ownership_transfer_behavior"]
+          scope: Database["public"]["Enums"]["campaign_scope"]
+          start_date: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allow_cod_payment?: boolean
+          allow_online_payment?: boolean
+          campaign_id?: string
+          campaign_name?: string
+          campaign_trigger_type?: Database["public"]["Enums"]["campaign_trigger_type"]
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          on_ownership_transfer_behavior?: Database["public"]["Enums"]["ownership_transfer_behavior"]
+          scope?: Database["public"]["Enums"]["campaign_scope"]
+          start_date?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_product_rules: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          discount_type: Database["public"]["Enums"]["discount_type"] | null
+          discount_value: number | null
+          product_id: string
+          rule_id: string
+          rule_type: Database["public"]["Enums"]["campaign_rule_type"]
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          discount_type?: Database["public"]["Enums"]["discount_type"] | null
+          discount_value?: number | null
+          product_id: string
+          rule_id?: string
+          rule_type: Database["public"]["Enums"]["campaign_rule_type"]
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          discount_type?: Database["public"]["Enums"]["discount_type"] | null
+          discount_value?: number | null
+          product_id?: string
+          rule_id?: string
+          rule_type?: Database["public"]["Enums"]["campaign_rule_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_product_rules_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_product_rules_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      campaign_targeting_rules: {
+        Row: {
+          area_id: string | null
+          campaign_id: string
+          channel_id: string | null
+          district_id: string | null
+          max_network_age_days: number | null
+          min_network_age_days: number | null
+          network_type:
+            | Database["public"]["Enums"]["campaign_network_type"]
+            | null
+          network_zone_id: string | null
+          rule_id: string
+          sub_channel_id: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          campaign_id: string
+          channel_id?: string | null
+          district_id?: string | null
+          max_network_age_days?: number | null
+          min_network_age_days?: number | null
+          network_type?:
+            | Database["public"]["Enums"]["campaign_network_type"]
+            | null
+          network_zone_id?: string | null
+          rule_id?: string
+          sub_channel_id?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          campaign_id?: string
+          channel_id?: string | null
+          district_id?: string | null
+          max_network_age_days?: number | null
+          min_network_age_days?: number | null
+          network_type?:
+            | Database["public"]["Enums"]["campaign_network_type"]
+            | null
+          network_zone_id?: string | null
+          rule_id?: string
+          sub_channel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_targeting_rules_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["area_id"]
+          },
+          {
+            foreignKeyName: "campaign_targeting_rules_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_targeting_rules_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "campaign_targeting_rules_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "campaign_targeting_rules_network_zone_id_fkey"
+            columns: ["network_zone_id"]
+            isOneToOne: false
+            referencedRelation: "network_zones"
+            referencedColumns: ["network_zone_id"]
+          },
+          {
+            foreignKeyName: "campaign_targeting_rules_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["sub_channel_id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           channel_id: string
@@ -443,7 +624,17 @@ export type Database = {
       addon_type: "PHYSICAL" | "DIGITAL"
       app_role: "admin" | "moderator" | "user"
       billing_type: "ONE_TIME" | "RECURRING"
+      campaign_network_type: "4G" | "5G" | "ANY"
+      campaign_rule_type: "EXCLUSIVE" | "UNAVAILABLE" | "DISCOUNT"
+      campaign_scope: "ACQ" | "LC" | "BOTH"
+      campaign_trigger_type:
+        | "RULE_BASED"
+        | "COUPON_BASED"
+        | "REFERRAL_BASED"
+        | "HYBRID"
+      discount_type: "FLAT" | "PERCENT"
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
+      ownership_transfer_behavior: "KEEP" | "REMOVE"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
@@ -576,7 +767,18 @@ export const Constants = {
       addon_type: ["PHYSICAL", "DIGITAL"],
       app_role: ["admin", "moderator", "user"],
       billing_type: ["ONE_TIME", "RECURRING"],
+      campaign_network_type: ["4G", "5G", "ANY"],
+      campaign_rule_type: ["EXCLUSIVE", "UNAVAILABLE", "DISCOUNT"],
+      campaign_scope: ["ACQ", "LC", "BOTH"],
+      campaign_trigger_type: [
+        "RULE_BASED",
+        "COUPON_BASED",
+        "REFERRAL_BASED",
+        "HYBRID",
+      ],
+      discount_type: ["FLAT", "PERCENT"],
       network_capability: ["4G", "5G", "BOTH", "ANY"],
+      ownership_transfer_behavior: ["KEEP", "REMOVE"],
       product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
