@@ -172,8 +172,8 @@ export default function ReferralProgramsTab() {
                     ? formatBDT(r.referrer_discount_value)
                     : `${r.referrer_discount_value}%`}
                 </TableCell>
-                <TableCell className="text-center text-sm">{r.referrer_reward_duration_months} mo</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{r.referrer_applicable_product_type}</Badge></TableCell>
+                <TableCell className="text-center text-sm">{r.referrer_reward_billing_cycles}</TableCell>
+                <TableCell><Badge variant="outline" className="text-xs">{r.referrer_applicable_product_category?.replace(/_/g, " ")}</Badge></TableCell>
                 <TableCell className="text-center text-sm">{r.max_referrals_per_customer === -1 ? "∞" : r.max_referrals_per_customer}</TableCell>
                 <TableCell className="text-center text-sm">{r.global_referral_limit === -1 ? "∞" : r.global_referral_limit}</TableCell>
                 <TableCell className="text-center text-sm">{r.current_global_referrals}</TableCell>
