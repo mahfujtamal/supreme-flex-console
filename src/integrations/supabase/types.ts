@@ -281,8 +281,6 @@ export type Database = {
           max_uses_per_customer: number
           status: boolean
           updated_at: string
-          valid_from: string
-          valid_to: string | null
         }
         Insert: {
           campaign_id: string
@@ -294,8 +292,6 @@ export type Database = {
           max_uses_per_customer?: number
           status?: boolean
           updated_at?: string
-          valid_from: string
-          valid_to?: string | null
         }
         Update: {
           campaign_id?: string
@@ -307,8 +303,6 @@ export type Database = {
           max_uses_per_customer?: number
           status?: boolean
           updated_at?: string
-          valid_from?: string
-          valid_to?: string | null
         }
         Relationships: [
           {

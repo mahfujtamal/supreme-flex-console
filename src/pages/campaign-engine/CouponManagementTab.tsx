@@ -31,8 +31,6 @@ export default function CouponManagementTab() {
   // Form state
   const [campaignId, setCampaignId] = useState("");
   const [couponCode, setCouponCode] = useState("");
-  const [validFrom, setValidFrom] = useState("");
-  const [validTo, setValidTo] = useState("");
   const [maxUsesPerCustomer, setMaxUsesPerCustomer] = useState("-1");
   const [globalUsageLimit, setGlobalUsageLimit] = useState("-1");
 
