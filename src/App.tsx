@@ -10,6 +10,7 @@ import MasterData from "./pages/master-data/MasterData";
 import ProductEngine from "./pages/product-engine/ProductEngine";
 import PricingEngine from "./pages/pricing-engine/PricingEngine";
 import CampaignEngine from "./pages/campaign-engine/CampaignEngine";
+import Operations from "./pages/operations/Operations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/product-engine" element={<ProductEngine />} />
             <Route path="/pricing-engine" element={<PricingEngine />} />
             <Route path="/campaign-engine" element={<CampaignEngine />} />
+            <Route path="/operations" element={<Operations />} />
             <Route path="/governance/roles" element={<RoleManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

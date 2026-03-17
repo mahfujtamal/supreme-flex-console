@@ -359,6 +359,56 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_master: {
+        Row: {
+          allocated_agent_id: string | null
+          allocated_entity_id: string | null
+          created_at: string
+          inventory_id: string
+          item_type: Database["public"]["Enums"]["inventory_item_type"]
+          mac_address: string | null
+          msisdn: string | null
+          product_id: string
+          serial_number: string | null
+          status: Database["public"]["Enums"]["inventory_status"]
+          updated_at: string
+        }
+        Insert: {
+          allocated_agent_id?: string | null
+          allocated_entity_id?: string | null
+          created_at?: string
+          inventory_id?: string
+          item_type: Database["public"]["Enums"]["inventory_item_type"]
+          mac_address?: string | null
+          msisdn?: string | null
+          product_id: string
+          serial_number?: string | null
+          status?: Database["public"]["Enums"]["inventory_status"]
+          updated_at?: string
+        }
+        Update: {
+          allocated_agent_id?: string | null
+          allocated_entity_id?: string | null
+          created_at?: string
+          inventory_id?: string
+          item_type?: Database["public"]["Enums"]["inventory_item_type"]
+          mac_address?: string | null
+          msisdn?: string | null
+          product_id?: string
+          serial_number?: string | null
+          status?: Database["public"]["Enums"]["inventory_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_master_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       network_zones: {
         Row: {
           created_at: string
@@ -379,6 +429,97 @@ export type Database = {
           network_zone_id?: string
           network_zone_name?: string
           status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          inventory_id: string | null
+          item_id: string
+          order_id: string
+          product_id: string
+          quantity: number
+          unit_price_bdt: number
+        }
+        Insert: {
+          inventory_id?: string | null
+          item_id?: string
+          order_id: string
+          product_id: string
+          quantity?: number
+          unit_price_bdt?: number
+        }
+        Update: {
+          inventory_id?: string | null
+          item_id?: string
+          order_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price_bdt?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_master"
+            referencedColumns: ["inventory_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          assigned_agent_id: string | null
+          assigned_dh_kam_id: string | null
+          contact_msisdn: string
+          created_at: string
+          customer_name: string
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          final_total_bdt: number
+          order_id: string
+          order_status: Database["public"]["Enums"]["order_status"]
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_agent_id?: string | null
+          assigned_dh_kam_id?: string | null
+          contact_msisdn: string
+          created_at?: string
+          customer_name: string
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          final_total_bdt?: number
+          order_id?: string
+          order_status?: Database["public"]["Enums"]["order_status"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_agent_id?: string | null
+          assigned_dh_kam_id?: string | null
+          contact_msisdn?: string
+          created_at?: string
+          customer_name?: string
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          final_total_bdt?: number
+          order_id?: string
+          order_status?: Database["public"]["Enums"]["order_status"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
         }
         Relationships: []
@@ -785,9 +926,24 @@ export type Database = {
         | "COUPON_BASED"
         | "REFERRAL_BASED"
         | "HYBRID"
+      customer_type: "B2C" | "B2B"
       discount_type: "FLAT" | "PERCENT"
+      inventory_item_type: "CPE" | "SIM" | "ADDON"
+      inventory_status:
+        | "IN_WAREHOUSE"
+        | "ALLOCATED_TO_DH"
+        | "ALLOCATED_TO_KAM"
+        | "WITH_AGENT"
+        | "DELIVERED"
+        | "DEFECTIVE"
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
+      order_status:
+        | "PENDING_DISPATCH"
+        | "OUT_FOR_DELIVERY"
+        | "ACTIVE"
+        | "CANCELLED"
       ownership_transfer_behavior: "KEEP" | "REMOVE"
+      payment_status: "PENDING_COD" | "PAID_COD" | "ONLINE_PAID"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
       referrer_product_category:
         | "WIFI_PLAN"
@@ -937,9 +1093,26 @@ export const Constants = {
         "REFERRAL_BASED",
         "HYBRID",
       ],
+      customer_type: ["B2C", "B2B"],
       discount_type: ["FLAT", "PERCENT"],
+      inventory_item_type: ["CPE", "SIM", "ADDON"],
+      inventory_status: [
+        "IN_WAREHOUSE",
+        "ALLOCATED_TO_DH",
+        "ALLOCATED_TO_KAM",
+        "WITH_AGENT",
+        "DELIVERED",
+        "DEFECTIVE",
+      ],
       network_capability: ["4G", "5G", "BOTH", "ANY"],
+      order_status: [
+        "PENDING_DISPATCH",
+        "OUT_FOR_DELIVERY",
+        "ACTIVE",
+        "CANCELLED",
+      ],
       ownership_transfer_behavior: ["KEEP", "REMOVE"],
+      payment_status: ["PENDING_COD", "PAID_COD", "ONLINE_PAID"],
       product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
       referrer_product_category: [
         "WIFI_PLAN",
