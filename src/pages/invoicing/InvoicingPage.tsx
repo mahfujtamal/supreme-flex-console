@@ -33,7 +33,7 @@ export default function InvoicingPage() {
     queryFn: async () => {
       let query = supabase
         .from("onetime_invoices")
-        .select("*, customers(full_name, contact_msisdn)")
+        .select("*, customers(full_name, primary_contact_number)")
         .order("created_at", { ascending: false });
 
       if (filterTrigger !== "ALL") {
