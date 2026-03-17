@@ -55,11 +55,10 @@ export default function AssetLifecyclePage() {
 
       let query = supabase
         .from("customer_assets")
-        .select("*, products(product_name), customers(full_name, primary_contact_number)")
+        .select("*, products(product_name), customers(full_name, primary_contact_number), anchors!inner(anchor_id)")
         .order("installation_date", { ascending: false });
 
       if (search.trim()) {
-        // Search by serial number directly OR by matched customer_ids
         if (customerIds && customerIds.length > 0) {
           query = query.or(
             `serial_number.ilike.%${search.trim()}%,customer_id.in.(${customerIds.join(",")})`
@@ -78,7 +77,21 @@ export default function AssetLifecyclePage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // Fetch gpfi_msisdn for each anchor
+      const anchorIds = [...new Set((data || []).map((a: any) => a.anchor_id).filter(Boolean))];
+      let gpfiMap: Record<string, string> = {};
+      if (anchorIds.length > 0) {
+        const { data: svcData } = await supabase
+          .from("active_services")
+          .select("anchor_id, gpfi_msisdn")
+          .in("anchor_id", anchorIds);
+        (svcData || []).forEach((s) => {
+          if (s.anchor_id && s.gpfi_msisdn) gpfiMap[s.anchor_id] = s.gpfi_msisdn;
+        });
+      }
+
+      return (data || []).map((a: any) => ({ ...a, _gpfi_msisdn: gpfiMap[a.anchor_id] || null }));
     },
   });
 
@@ -144,7 +157,8 @@ export default function AssetLifecyclePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Serial Number</TableHead>
-              <TableHead>MAC Address</TableHead>
+              <TableHead>MAC/IMEI</TableHead>
+              <TableHead>GPFI MSISDN</TableHead>
               <TableHead>Asset Type</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Status</TableHead>
@@ -156,13 +170,13 @@ export default function AssetLifecyclePage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Loading assets…
                 </TableCell>
               </TableRow>
             ) : !assets?.length ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No assets found
                 </TableCell>
               </TableRow>
@@ -177,6 +191,9 @@ export default function AssetLifecyclePage() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {a.mac_address || "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {a._gpfi_msisdn || "—"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
