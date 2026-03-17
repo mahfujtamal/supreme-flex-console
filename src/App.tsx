@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import RoleManagement from "./pages/governance/RoleManagement";
+import MasterData from "./pages/master-data/MasterData";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
