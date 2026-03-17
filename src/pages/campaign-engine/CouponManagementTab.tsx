@@ -107,8 +107,6 @@ export default function CouponManagementTab() {
     setEditCoupon(c);
     setCampaignId(c.campaign_id);
     setCouponCode(c.coupon_code);
-    setValidFrom(c.valid_from ? c.valid_from.slice(0, 10) : "");
-    setValidTo(c.valid_to ? c.valid_to.slice(0, 10) : "");
     setMaxUsesPerCustomer(String(c.max_uses_per_customer));
     setGlobalUsageLimit(String(c.global_usage_limit));
     setDialogOpen(true);
