@@ -31,6 +31,17 @@ const statusColors: Record<string, string> = {
 
 const STATUSES = ["ALL", "ACTIVE", "EXPIRED", "CHURNED"] as const;
 
+interface CustomerRow {
+  customer_id: string;
+  full_name: string;
+  primary_contact_number: string;
+  customer_type: string;
+  account_status: string;
+  joined_date: string;
+  anchor_count: number;
+  service_count: number;
+}
+
 export default function CustomersPage() {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -41,7 +52,7 @@ export default function CustomersPage() {
     queryFn: async () => {
       const trimmed = search.trim();
 
-      // If searching, also look up customer IDs that match gpfi_msisdn
+      // Find customer IDs matching gpfi_msisdn search
       let gpfiCustomerIds: string[] = [];
       if (trimmed) {
         const { data: serviceMatches } = await supabase
@@ -61,7 +72,6 @@ export default function CustomersPage() {
       }
 
       if (trimmed) {
-        // Build OR filter: name, primary_contact_number, or customer_id in gpfi matches
         const orFilters = [
           `full_name.ilike.%${trimmed}%`,
           `primary_contact_number.ilike.%${trimmed}%`,
@@ -75,9 +85,39 @@ export default function CustomersPage() {
         }
       }
 
-      const { data, error } = await query;
+      const { data: rawCustomers, error } = await query;
       if (error) throw error;
-      return data;
+      if (!rawCustomers?.length) return [];
+
+      const customerIds = rawCustomers.map((c) => c.customer_id);
+
+      // Fetch anchor counts
+      const { data: anchors } = await supabase
+        .from("anchors")
+        .select("customer_id")
+        .in("customer_id", customerIds);
+
+      // Fetch active service counts
+      const { data: services } = await supabase
+        .from("active_services")
+        .select("customer_id")
+        .in("customer_id", customerIds);
+
+      const anchorCounts: Record<string, number> = {};
+      (anchors || []).forEach((a) => {
+        anchorCounts[a.customer_id] = (anchorCounts[a.customer_id] || 0) + 1;
+      });
+
+      const serviceCounts: Record<string, number> = {};
+      (services || []).forEach((s) => {
+        serviceCounts[s.customer_id] = (serviceCounts[s.customer_id] || 0) + 1;
+      });
+
+      return rawCustomers.map((c): CustomerRow => ({
+        ...c,
+        anchor_count: anchorCounts[c.customer_id] || 0,
+        service_count: serviceCounts[c.customer_id] || 0,
+      }));
     },
   });
 
@@ -89,7 +129,7 @@ export default function CustomersPage() {
             <Users className="h-6 w-6" /> Customer 360
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            View customer profiles, active services, and hardware history
+            View customer lifecycle: anchors, active services, and network info
           </p>
         </div>
       </div>
@@ -124,9 +164,9 @@ export default function CustomersPage() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Primary Contact</TableHead>
-              <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
+              <TableHead className="text-center">Total Anchors</TableHead>
+              <TableHead className="text-center">Active Services</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -149,16 +189,12 @@ export default function CustomersPage() {
                   <TableCell className="font-medium">{c.full_name}</TableCell>
                   <TableCell className="font-mono text-sm">{c.primary_contact_number}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{c.customer_type}</Badge>
-                  </TableCell>
-                  <TableCell>
                     <Badge className={statusColors[c.account_status] || ""} variant="secondary">
                       {c.account_status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(c.joined_date), "dd MMM yyyy")}
-                  </TableCell>
+                  <TableCell className="text-center font-medium">{c.anchor_count}</TableCell>
+                  <TableCell className="text-center font-medium">{c.service_count}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="sm"

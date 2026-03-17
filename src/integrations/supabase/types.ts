@@ -17,6 +17,8 @@ export type Database = {
       active_services: {
         Row: {
           activation_date: string
+          anchor_id: string | null
+          cpe_model: string | null
           created_at: string
           current_cpe_inventory_id: string | null
           customer_id: string
@@ -31,6 +33,8 @@ export type Database = {
         }
         Insert: {
           activation_date?: string
+          anchor_id?: string | null
+          cpe_model?: string | null
           created_at?: string
           current_cpe_inventory_id?: string | null
           customer_id: string
@@ -45,6 +49,8 @@ export type Database = {
         }
         Update: {
           activation_date?: string
+          anchor_id?: string | null
+          cpe_model?: string | null
           created_at?: string
           current_cpe_inventory_id?: string | null
           customer_id?: string
@@ -58,6 +64,13 @@ export type Database = {
           validity_days?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "active_services_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "anchors"
+            referencedColumns: ["anchor_id"]
+          },
           {
             foreignKeyName: "active_services_current_cpe_inventory_id_fkey"
             columns: ["current_cpe_inventory_id"]
@@ -130,6 +143,60 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "admin_roles"
             referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      anchors: {
+        Row: {
+          anchor_id: string
+          area: string | null
+          coordinates: string | null
+          created_at: string
+          customer_id: string
+          district: string | null
+          location_tac: string | null
+          network_zone: string | null
+          order_id: string | null
+          test_status: Database["public"]["Enums"]["test_status"]
+        }
+        Insert: {
+          anchor_id?: string
+          area?: string | null
+          coordinates?: string | null
+          created_at?: string
+          customer_id: string
+          district?: string | null
+          location_tac?: string | null
+          network_zone?: string | null
+          order_id?: string | null
+          test_status?: Database["public"]["Enums"]["test_status"]
+        }
+        Update: {
+          anchor_id?: string
+          area?: string | null
+          coordinates?: string | null
+          created_at?: string
+          customer_id?: string
+          district?: string | null
+          location_tac?: string | null
+          network_zone?: string | null
+          order_id?: string | null
+          test_status?: Database["public"]["Enums"]["test_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anchors_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "anchors_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -1197,6 +1264,7 @@ export type Database = {
       referrer_product_type: "WIFI_PLAN" | "ADDON" | "BOTH"
       reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
       service_status: "ACTIVE" | "SUSPENDED"
+      test_status: "PENDING" | "SUCCESS" | "FAIL"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
     CompositeTypes: {
@@ -1378,6 +1446,7 @@ export const Constants = {
       referrer_product_type: ["WIFI_PLAN", "ADDON", "BOTH"],
       reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
       service_status: ["ACTIVE", "SUSPENDED"],
+      test_status: ["PENDING", "SUCCESS", "FAIL"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
   },

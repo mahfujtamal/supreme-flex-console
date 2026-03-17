@@ -18,8 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { User, Wifi, Package } from "lucide-react";
-import { formatBDT } from "@/lib/currency";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Wifi, MapPin, Anchor, CheckCircle, XCircle, Clock } from "lucide-react";
 
 interface Customer360DialogProps {
   customerId: string | null;
@@ -33,6 +33,12 @@ function calculateExpiryDate(activationDate: string, validityDays: number, produ
   return addDays(activation, extraDays);
 }
 
+const testStatusConfig: Record<string, { icon: typeof CheckCircle; color: string; label: string }> = {
+  SUCCESS: { icon: CheckCircle, color: "text-green-600", label: "Success" },
+  FAIL: { icon: XCircle, color: "text-red-600", label: "Failed" },
+  PENDING: { icon: Clock, color: "text-amber-600", label: "Pending" },
+};
+
 export function Customer360Dialog({ customerId, open, onOpenChange }: Customer360DialogProps) {
   const { data: customer } = useQuery({
     queryKey: ["customer", customerId],
@@ -43,6 +49,21 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
         .select("*")
         .eq("customer_id", customerId)
         .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerId,
+  });
+
+  const { data: anchors } = useQuery({
+    queryKey: ["customer_anchors", customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
+      const { data, error } = await supabase
+        .from("anchors")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -64,21 +85,6 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
     enabled: !!customerId,
   });
 
-  const { data: invoices } = useQuery({
-    queryKey: ["customer_invoices", customerId],
-    queryFn: async () => {
-      if (!customerId) return [];
-      const { data, error } = await supabase
-        .from("onetime_invoices")
-        .select("*")
-        .eq("customer_id", customerId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!customerId,
-  });
-
   const statusColor: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-800",
     EXPIRED: "bg-amber-100 text-amber-800",
@@ -86,12 +92,21 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
     SUSPENDED: "bg-orange-100 text-orange-800",
   };
 
+  // Map anchor_id to services for quick lookup
+  const servicesByAnchor: Record<string, typeof services extends (infer T)[] | undefined ? T[] : never> = {};
+  (services || []).forEach((s) => {
+    if (s.anchor_id) {
+      if (!servicesByAnchor[s.anchor_id]) servicesByAnchor[s.anchor_id] = [];
+      servicesByAnchor[s.anchor_id].push(s);
+    }
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" /> Customer 360
+            <User className="h-5 w-5" /> Customer 360 — Lifecycle View
           </DialogTitle>
         </DialogHeader>
 
@@ -105,17 +120,17 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Full Name</p>
                     <p className="font-medium">{customer.full_name}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Primary Contact Number</p>
+                    <p className="text-muted-foreground">Primary Contact</p>
                     <p className="font-mono font-medium">{customer.primary_contact_number}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Customer Type</p>
+                    <p className="text-muted-foreground">Type</p>
                     <Badge variant="outline">{customer.customer_type}</Badge>
                   </div>
                   <div>
@@ -124,151 +139,209 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                       {customer.account_status}
                     </Badge>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Joined Date</p>
-                    <p className="font-medium">{format(new Date(customer.joined_date), "dd MMM yyyy")}</p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Separator />
+            <Tabs defaultValue="anchors" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="anchors" className="flex items-center gap-1">
+                  <Anchor className="h-3.5 w-3.5" /> Anchors/Orders
+                </TabsTrigger>
+                <TabsTrigger value="services" className="flex items-center gap-1">
+                  <Wifi className="h-3.5 w-3.5" /> Service Details
+                </TabsTrigger>
+                <TabsTrigger value="network" className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> Network Info
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Active Services */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wifi className="h-4 w-4" /> Active Services
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>GPFI MSISDN</TableHead>
-                      <TableHead>Plan ID</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Activation</TableHead>
-                      <TableHead>Expiry (Calc.)</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {!services?.length ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
-                          No active services
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      services.map((s) => {
-                        const calcExpiry = calculateExpiryDate(
-                          s.activation_date,
-                          s.validity_days,
-                          s.product_category
-                        );
-                        return (
-                          <TableRow key={s.service_id}>
-                            <TableCell className="font-mono text-sm font-medium">
-                              {s.gpfi_msisdn || "—"}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">{s.product_id}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {s.product_category}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {format(new Date(s.activation_date), "dd MMM yyyy")}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {format(calcExpiry, "dd MMM yyyy")}
-                              {s.product_category === "WIFI_PLAN" && (
-                                <span className="text-xs text-muted-foreground ml-1">(+1d)</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                className={statusColor[s.service_status] || ""}
-                                variant="secondary"
-                              >
-                                {s.service_status}
-                              </Badge>
+              {/* Tab A: All Anchors/Orders */}
+              <TabsContent value="anchors" className="mt-4">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Anchor ID</TableHead>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Test Status</TableHead>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Created</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {!anchors?.length ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                              No anchors found
                             </TableCell>
                           </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                        ) : (
+                          anchors.map((a) => {
+                            const cfg = testStatusConfig[a.test_status] || testStatusConfig.PENDING;
+                            const Icon = cfg.icon;
+                            const hasService = (servicesByAnchor[a.anchor_id]?.length || 0) > 0;
+                            return (
+                              <TableRow key={a.anchor_id}>
+                                <TableCell className="font-mono text-xs">
+                                  {a.anchor_id.slice(0, 8)}…
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">
+                                  {a.order_id ? `${a.order_id.slice(0, 8)}…` : "—"}
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`flex items-center gap-1 text-sm ${cfg.color}`}>
+                                    <Icon className="h-4 w-4" /> {cfg.label}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  {a.test_status === "SUCCESS" && hasService ? (
+                                    <Badge className="bg-green-100 text-green-800" variant="secondary">
+                                      View Service
+                                    </Badge>
+                                  ) : a.test_status === "SUCCESS" ? (
+                                    <span className="text-xs text-muted-foreground">Awaiting activation</span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {format(new Date(a.created_at), "dd MMM yyyy")}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <Separator />
-
-            {/* Hardware History */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Hardware History
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Trigger</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Payment Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {!invoices?.filter(
-                      (i) => i.trigger_type === "ACQUISITION" || i.trigger_type === "CPE_CHANGE"
-                    ).length ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
-                          No hardware history
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      invoices
-                        .filter(
-                          (i) => i.trigger_type === "ACQUISITION" || i.trigger_type === "CPE_CHANGE"
-                        )
-                        .map((inv) => (
-                          <TableRow key={inv.invoice_id}>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {inv.trigger_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {formatBDT(Number(inv.charged_amount_bdt))}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="secondary"
-                                className={
-                                  inv.payment_status === "PAID"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-amber-100 text-amber-800"
-                                }
-                              >
-                                {inv.payment_status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(inv.created_at), "dd MMM yyyy")}
+              {/* Tab B: Service Details */}
+              <TabsContent value="services" className="mt-4">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>GPFI MSISDN</TableHead>
+                          <TableHead>Plan ID</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Activation</TableHead>
+                          <TableHead>Expiry (Calc.)</TableHead>
+                          <TableHead>CPE Model</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {!services?.length ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                              No active services
                             </TableCell>
                           </TableRow>
-                        ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                        ) : (
+                          services.map((s) => {
+                            const calcExpiry = calculateExpiryDate(
+                              s.activation_date,
+                              s.validity_days,
+                              s.product_category
+                            );
+                            return (
+                              <TableRow key={s.service_id}>
+                                <TableCell className="font-mono text-sm font-medium">
+                                  {s.gpfi_msisdn || "—"}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">{s.product_id}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">
+                                    {s.product_category}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {format(new Date(s.activation_date), "dd MMM yyyy")}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {format(calcExpiry, "dd MMM yyyy")}
+                                  {s.product_category === "WIFI_PLAN" && (
+                                    <span className="text-xs text-muted-foreground ml-1">(+1d)</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {(s as any).cpe_model || "—"}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    className={statusColor[s.service_status] || ""}
+                                    variant="secondary"
+                                  >
+                                    {s.service_status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Tab C: Network Info */}
+              <TabsContent value="network" className="mt-4">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Anchor ID</TableHead>
+                          <TableHead>Network Zone</TableHead>
+                          <TableHead>District</TableHead>
+                          <TableHead>Area</TableHead>
+                          <TableHead>Location TAC</TableHead>
+                          <TableHead>Coordinates</TableHead>
+                          <TableHead>Test Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {!anchors?.length ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                              No network info available
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          anchors.map((a) => {
+                            const cfg = testStatusConfig[a.test_status] || testStatusConfig.PENDING;
+                            const Icon = cfg.icon;
+                            return (
+                              <TableRow key={a.anchor_id}>
+                                <TableCell className="font-mono text-xs">
+                                  {a.anchor_id.slice(0, 8)}…
+                                </TableCell>
+                                <TableCell>{a.network_zone || "—"}</TableCell>
+                                <TableCell>{a.district || "—"}</TableCell>
+                                <TableCell>{a.area || "—"}</TableCell>
+                                <TableCell className="font-mono text-sm">{a.location_tac || "—"}</TableCell>
+                                <TableCell className="font-mono text-xs">{a.coordinates || "—"}</TableCell>
+                                <TableCell>
+                                  <span className={`flex items-center gap-1 text-sm ${cfg.color}`}>
+                                    <Icon className="h-4 w-4" /> {cfg.label}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </DialogContent>
