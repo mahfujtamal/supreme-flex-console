@@ -21,7 +21,7 @@ import { formatBDT } from "@/lib/currency";
 
 const PAGE_SIZE = 10;
 
-const PRODUCT_TYPE_OPTIONS = ["WIFI_PLAN", "ADDON", "BOTH"] as const;
+const PRODUCT_CATEGORY_OPTIONS = ["WIFI_PLAN", "CPE", "PHYSICAL_ADDON", "DIGITAL_ADDON", "ANY"] as const;
 
 export default function ReferralProgramsTab() {
   const [page, setPage] = useState(0);
