@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, addDays } from "date-fns";
+import { format, addDays, isBefore } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,9 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Wifi, MapPin, Anchor, CheckCircle, XCircle, Clock } from "lucide-react";
+import { User, Wifi, MapPin, Anchor, CheckCircle, XCircle, Clock, HardDrive, ShieldCheck, ShieldX } from "lucide-react";
 
 interface Customer360DialogProps {
   customerId: string | null;
@@ -85,14 +84,31 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
     enabled: !!customerId,
   });
 
+  const { data: assets } = useQuery({
+    queryKey: ["customer_assets", customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
+      const { data, error } = await supabase
+        .from("customer_assets")
+        .select("*, products(product_name, warranty_value, warranty_unit)")
+        .eq("customer_id", customerId)
+        .order("installation_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerId,
+  });
+
   const statusColor: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-800",
     EXPIRED: "bg-amber-100 text-amber-800",
     CHURNED: "bg-red-100 text-red-800",
     SUSPENDED: "bg-orange-100 text-orange-800",
+    REPLACED: "bg-slate-100 text-slate-800",
+    RETURNED: "bg-blue-100 text-blue-800",
+    DEFECTIVE: "bg-red-100 text-red-800",
   };
 
-  // Map anchor_id to services for quick lookup
   const servicesByAnchor: Record<string, typeof services extends (infer T)[] | undefined ? T[] : never> = {};
   (services || []).forEach((s) => {
     if (s.anchor_id) {
@@ -101,9 +117,19 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
     }
   });
 
+  const assetsByAnchor: Record<string, any[]> = {};
+  (assets || []).forEach((a: any) => {
+    if (a.anchor_id) {
+      if (!assetsByAnchor[a.anchor_id]) assetsByAnchor[a.anchor_id] = [];
+      assetsByAnchor[a.anchor_id].push(a);
+    }
+  });
+
+  const now = new Date();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" /> Customer 360 — Lifecycle View
@@ -144,12 +170,15 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
             </Card>
 
             <Tabs defaultValue="anchors" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="anchors" className="flex items-center gap-1">
                   <Anchor className="h-3.5 w-3.5" /> Anchors/Orders
                 </TabsTrigger>
                 <TabsTrigger value="services" className="flex items-center gap-1">
                   <Wifi className="h-3.5 w-3.5" /> Service Details
+                </TabsTrigger>
+                <TabsTrigger value="assets" className="flex items-center gap-1">
+                  <HardDrive className="h-3.5 w-3.5" /> Physical Assets
                 </TabsTrigger>
                 <TabsTrigger value="network" className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" /> Network Info
@@ -167,13 +196,14 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                           <TableHead>Order ID</TableHead>
                           <TableHead>Test Status</TableHead>
                           <TableHead>Service</TableHead>
+                          <TableHead>Assets</TableHead>
                           <TableHead>Created</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {!anchors?.length ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
                               No anchors found
                             </TableCell>
                           </TableRow>
@@ -182,6 +212,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                             const cfg = testStatusConfig[a.test_status] || testStatusConfig.PENDING;
                             const Icon = cfg.icon;
                             const hasService = (servicesByAnchor[a.anchor_id]?.length || 0) > 0;
+                            const assetCount = assetsByAnchor[a.anchor_id]?.length || 0;
                             return (
                               <TableRow key={a.anchor_id}>
                                 <TableCell className="font-mono text-xs">
@@ -202,6 +233,13 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                                     </Badge>
                                   ) : a.test_status === "SUCCESS" ? (
                                     <span className="text-xs text-muted-foreground">Awaiting activation</span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {assetCount > 0 ? (
+                                    <Badge variant="outline">{assetCount} asset{assetCount > 1 ? "s" : ""}</Badge>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">—</span>
                                   )}
@@ -270,7 +308,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                                   )}
                                 </TableCell>
                                 <TableCell className="text-sm">
-                                  {(s as any).cpe_model || "—"}
+                                  {s.cpe_model || "—"}
                                 </TableCell>
                                 <TableCell>
                                   <Badge
@@ -290,7 +328,75 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                 </Card>
               </TabsContent>
 
-              {/* Tab C: Network Info */}
+              {/* Tab C: Physical Assets */}
+              <TabsContent value="assets" className="mt-4">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Serial Number</TableHead>
+                          <TableHead>MAC Address</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Installation</TableHead>
+                          <TableHead>Warranty Status</TableHead>
+                          <TableHead>Asset Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {!assets?.length ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                              No physical assets found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          assets.map((a: any) => {
+                            const warrantyEnd = a.warranty_end_date ? new Date(a.warranty_end_date) : null;
+                            const inWarranty = warrantyEnd ? isBefore(now, warrantyEnd) : false;
+                            return (
+                              <TableRow key={a.asset_id}>
+                                <TableCell className="font-mono text-sm font-medium">{a.serial_number}</TableCell>
+                                <TableCell className="font-mono text-xs">{a.mac_address || "—"}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">{a.asset_type}</Badge>
+                                </TableCell>
+                                <TableCell className="text-sm">{a.products?.product_name || "—"}</TableCell>
+                                <TableCell className="text-sm">
+                                  {format(new Date(a.installation_date), "dd MMM yyyy")}
+                                </TableCell>
+                                <TableCell>
+                                  {warrantyEnd ? (
+                                    inWarranty ? (
+                                      <Badge className="bg-green-100 text-green-800" variant="secondary">
+                                        <ShieldCheck className="h-3 w-3 mr-1" /> IN WARRANTY
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-red-100 text-red-800" variant="secondary">
+                                        <ShieldX className="h-3 w-3 mr-1" /> EXPIRED
+                                      </Badge>
+                                    )
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">N/A</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={statusColor[a.asset_status] || ""} variant="secondary">
+                                    {a.asset_status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Tab D: Network Info */}
               <TabsContent value="network" className="mt-4">
                 <Card>
                   <CardContent className="p-0">
