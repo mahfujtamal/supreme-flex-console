@@ -747,9 +747,116 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                   <CardTitle className="text-sm">Smart Dispatch Assignment</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* ─── Step 1: Source Channel (for attribution) ─── */}
+                  <div className="space-y-1.5">
+                    <Label>Source Channel</Label>
+                    <Select value={sourceChannelId} onValueChange={(v) => {
+                      setSourceChannelId(v);
+                      setSourceSubChannelId("");
+                      setStaffUserId("");
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Select originating channel..." /></SelectTrigger>
+                      <SelectContent>
+                        {channelDeliveryInfo?.channels?.map((c: any) => (
+                          <SelectItem key={c.channel_id} value={c.channel_id}>
+                            {c.channel_name}{c.is_assisted ? " (Assisted)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* ─── Assisted Channel: Sub-Channel + Staff Logic ─── */}
+                  {(() => {
+                    const selectedChannel = channelDeliveryInfo?.channels?.find((c: any) => c.channel_id === sourceChannelId);
+                    const isAssisted = selectedChannel?.is_assisted;
+                    const isB2B = order.customer_type === "B2B";
+                    const assistedSubChannels = channelDeliveryInfo?.subChannels?.filter(
+                      (sc: any) => sc.channel_id === sourceChannelId
+                    ) ?? [];
+
+                    if (isAssisted && sourceChannelId) {
+                      return (
+                        <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {isB2B ? "B2B Assisted — Select KAM (Sub-Channel)" : "Assisted Channel — Select Store & Staff Member"}
+                          </p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label>{isB2B ? "KAM (Sub-Channel)" : "Store (Sub-Channel)"}</Label>
+                              <Select value={sourceSubChannelId} onValueChange={(v) => {
+                                setSourceSubChannelId(v);
+                                setStaffUserId("");
+                                // B2B: auto-set dispatch to KAM
+                                if (isB2B) {
+                                  const sc = assistedSubChannels.find((s: any) => s.sub_channel_id === v);
+                                  if (sc) {
+                                    // For B2B, find matching KAM by sub-channel name
+                                    const matchedKam = kamList?.find((k: any) =>
+                                      sc.sub_channel_name.toLowerCase().includes(k.name.toLowerCase()) ||
+                                      k.name.toLowerCase().includes(sc.sub_channel_name.toLowerCase())
+                                    );
+                                    if (matchedKam) setDhKamId(matchedKam.kam_id);
+                                  }
+                                }
+                              }}>
+                                <SelectTrigger><SelectValue placeholder={isB2B ? "Select KAM..." : "Select store..."} /></SelectTrigger>
+                                <SelectContent>
+                                  {isB2B ? (
+                                    kamList?.map((k: any) => (
+                                      <SelectItem key={k.kam_id} value={k.kam_id}>{k.kam_id} — {k.name}</SelectItem>
+                                    ))
+                                  ) : (
+                                    assistedSubChannels.map((sc: any) => (
+                                      <SelectItem key={sc.sub_channel_id} value={sc.sub_channel_id}>
+                                        {sc.sub_channel_name}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* GPC: Staff Member required */}
+                            {!isB2B && sourceSubChannelId && (
+                              <div className="space-y-1.5">
+                                <Label>Staff Member <span className="text-destructive">*</span></Label>
+                                <Select value={staffUserId} onValueChange={setStaffUserId}>
+                                  <SelectTrigger><SelectValue placeholder="Select staff member..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {!staffUsers?.length ? (
+                                      <SelectItem value="__none" disabled>No staff in this store</SelectItem>
+                                    ) : staffUsers.map((s: any) => (
+                                      <SelectItem key={s.id} value={s.id}>{s.employee_id} — {s.user_name} ({s.role})</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">This person gets individual sale credit</p>
+                              </div>
+                            )}
+
+                            {/* B2B: auto-attribution info */}
+                            {isB2B && sourceSubChannelId && (
+                              <div className="space-y-1.5">
+                                <Label>Attribution</Label>
+                                <div className="bg-muted rounded-md px-3 py-2 text-sm text-muted-foreground">
+                                  Auto-attributed to KAM — no individual staff selection needed
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <Separator />
+
+                  {/* ─── Delivery Dispatch (DH / Self-Delivery / KAM) ─── */}
                   {order.customer_type === "B2B" ? (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2B Order — Select KAM for direct assignment</p>
+                      <p className="text-xs text-muted-foreground">B2B — Dispatch to KAM</p>
                       <div className="space-y-1.5">
                         <Label>KAM</Label>
                         <Select value={dhKamId} onValueChange={setDhKamId}>
@@ -764,7 +871,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2C Order — Dispatch follows Hierarchy of Truth: Sub-Channel → Channel → DH Round-Robin</p>
+                      <p className="text-xs text-muted-foreground">B2C — Hierarchy of Truth: Sub-Channel → Channel → DH Round-Robin</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Dispatch To</Label>
@@ -778,14 +885,12 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                                 </SelectItem>
                               ))}
                               {channelDeliveryInfo?.subChannels?.filter((sc: any) => {
-                                // Show sub-channels that are explicitly SELF_DELIVERY,
-                                // OR that FOLLOW_CHANNEL and parent channel is_self_delivered
                                 if (sc.delivery_ownership === "SELF_DELIVERY") return true;
                                 if (sc.delivery_ownership === "FOLLOW_CHANNEL") {
                                   const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
                                   return ch?.is_self_delivered;
                                 }
-                                return false; // DH_DELIVERY sub-channels go through DH round-robin
+                                return false;
                               }).length ? (
                                 <>
                                   <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
@@ -822,21 +927,6 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                           </Select>
                         </div>
                       </div>
-                      {/* Sales Agent (Staff) — shown for self-delivered sub-channels */}
-                      {dhKamId.startsWith("sc:") && staffUsers && staffUsers.length > 0 && (
-                        <div className="space-y-1.5">
-                          <Label>Sales Agent (Staff)</Label>
-                          <Select value={staffUserId} onValueChange={setStaffUserId}>
-                            <SelectTrigger><SelectValue placeholder="Select sales agent..." /></SelectTrigger>
-                            <SelectContent>
-                              {staffUsers.map((s: any) => (
-                                <SelectItem key={s.id} value={s.id}>{s.employee_id} — {s.user_name} ({s.role})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">Attribution: this staff member gets credit for the sale</p>
-                        </div>
-                      )}
                     </div>
                   )}
                 </CardContent>
