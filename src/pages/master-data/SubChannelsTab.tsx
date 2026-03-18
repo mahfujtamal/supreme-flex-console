@@ -270,6 +270,15 @@ export default function SubChannelsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {staffSubChannel && (
+        <ManageStaffDialog
+          subChannelId={staffSubChannel.id}
+          subChannelName={staffSubChannel.name}
+          open={!!staffSubChannel}
+          onOpenChange={(v) => { if (!v) setStaffSubChannel(null); }}
+        />
+      )}
     </div>
   );
 }
