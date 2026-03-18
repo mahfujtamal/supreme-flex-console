@@ -87,7 +87,7 @@ export default function SubChannelsTab() {
       const displayName = isB2B
         ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
         : name;
-      const payload = { sub_channel_name: displayName, channel_id: channelId, override_delivery_ownership: overrideDelivery } as any;
+      const payload = { sub_channel_name: displayName, channel_id: channelId, delivery_ownership: deliveryOwnership } as any;
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
