@@ -191,7 +191,7 @@ export default function ProductCatalogTab() {
               <TableHead>Frequency</TableHead>
               <TableHead>Network</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[140px]">Created</TableHead>
+              <TableHead className="w-[140px]">Last Updated</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
