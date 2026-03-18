@@ -203,7 +203,8 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
     summarize("Channel", channelIds, (channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name })));
     summarize("Sub-Ch", subChannelIds, (subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name })));
     if (networkType !== NONE) parts.push(`Network: ${networkType}`);
-    if (minAge || maxAge) parts.push(`Age: ${minAge || "0"}–${maxAge || "∞"} days`);
+    if (!isAcq && (minAge || maxAge)) parts.push(`Age: ${minAge || "0"}–${maxAge || "∞"} days`);
+    if (isAcq) parts.push("Age: 0 (ACQ)");
     return parts.join(" | ");
   };
 
