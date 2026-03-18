@@ -144,6 +144,7 @@ export default function ProductCatalogTab() {
     setCategory("WIFI_PLAN");
     setAddonType("");
     setBillingType("RECURRING");
+    setBillingFrequency("MONTHLY");
     setNetworkCap("ANY");
     setIsExclusive(false);
     setSerialRequired(false);
