@@ -269,17 +269,25 @@ export default function ProductCatalogTab() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Billing Type</Label>
-                <Select value={billingType} onValueChange={setBillingType} disabled={needsRecurring(category) || needsOneTime(category, addonType as AddonType || undefined)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {BILLING_TYPES.map((b) => <SelectItem key={b} value={b}>{b.replace("_", " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Commercial Frequency</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">How often the customer is billed</p>
+                {billingType === "ONE_TIME" ? (
+                  <Input value="One-Time" disabled className="bg-muted" />
+                ) : (
+                  <Select value={billingFrequency} onValueChange={setBillingFrequency}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((f) => (
+                        <SelectItem key={f} value={f}>{FREQ_LABELS[f]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label>Network Capability</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">Supported network generation</p>
                 <Select value={networkCap} onValueChange={setNetworkCap}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -288,6 +296,14 @@ export default function ProductCatalogTab() {
                 </Select>
               </div>
             </div>
+
+            {category === "WIFI_PLAN" && (
+              <div className="p-3 rounded-md bg-muted/50 border border-dashed">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Technical Validity:</strong> Set during service activation. WiFi expiry = Activation Date + Validity Days + 1 Day.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
