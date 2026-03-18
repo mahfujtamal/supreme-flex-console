@@ -296,7 +296,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>Any</SelectItem>
-                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {NETWORK_TYPES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
