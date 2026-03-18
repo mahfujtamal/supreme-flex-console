@@ -5,10 +5,11 @@ import ProductRulesTab from "./ProductRulesTab";
 
 interface Props {
   campaignId: string;
+  campaignScope: string;
   onClose: () => void;
 }
 
-export default function ManageCampaignDialog({ campaignId, onClose }: Props) {
+export default function ManageCampaignDialog({ campaignId, campaignScope, onClose }: Props) {
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -19,7 +20,7 @@ export default function ManageCampaignDialog({ campaignId, onClose }: Props) {
             <TabsTrigger value="products">Product Rules</TabsTrigger>
           </TabsList>
           <TabsContent value="targeting">
-            <TargetingRulesTab campaignId={campaignId} />
+            <TargetingRulesTab campaignId={campaignId} campaignScope={campaignScope} />
           </TabsContent>
           <TabsContent value="products">
             <ProductRulesTab campaignId={campaignId} />
