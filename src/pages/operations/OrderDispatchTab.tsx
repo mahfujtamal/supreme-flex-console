@@ -43,6 +43,15 @@ const OrderDispatchTab = () => {
     },
   });
 
+  // Lookup staff users for display
+  const { data: staffLookup } = useQuery({
+    queryKey: ["staff_lookup_for_orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("sub_channel_users").select("id, user_name, employee_id");
+      return data ?? [];
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
