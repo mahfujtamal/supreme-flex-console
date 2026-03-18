@@ -808,6 +808,21 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                           </Select>
                         </div>
                       </div>
+                      {/* Sales Agent (Staff) — shown for self-delivered sub-channels */}
+                      {dhKamId.startsWith("sc:") && staffUsers && staffUsers.length > 0 && (
+                        <div className="space-y-1.5">
+                          <Label>Sales Agent (Staff)</Label>
+                          <Select value={staffUserId} onValueChange={setStaffUserId}>
+                            <SelectTrigger><SelectValue placeholder="Select sales agent..." /></SelectTrigger>
+                            <SelectContent>
+                              {staffUsers.map((s: any) => (
+                                <SelectItem key={s.id} value={s.id}>{s.employee_id} — {s.user_name} ({s.role})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">Attribution: this staff member gets credit for the sale</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
