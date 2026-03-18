@@ -118,6 +118,7 @@ function CampaignDashboard() {
       {manageCampaignId && (
         <ManageCampaignDialog
           campaignId={manageCampaignId}
+          campaignScope={data?.items?.find((c: any) => c.campaign_id === manageCampaignId)?.scope ?? "BOTH"}
           onClose={() => setManageCampaignId(null)}
         />
       )}
