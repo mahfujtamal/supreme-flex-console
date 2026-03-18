@@ -99,6 +99,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   const [dhKamId, setDhKamId] = useState("");
   const [agentId, setAgentId] = useState("");
   const [staffUserId, setStaffUserId] = useState("");
+  const [sourceChannelId, setSourceChannelId] = useState("");
+  const [sourceSubChannelId, setSourceSubChannelId] = useState("");
 
   // Contact state
   const [contactedChecked, setContactedChecked] = useState(false);
