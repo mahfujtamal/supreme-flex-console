@@ -253,13 +253,13 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Network Zone</Label>
-                <MultiSelectDropdown
-                  options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
-                  selected={zoneIds}
-                  onChange={setZoneIds}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Zones"
-                />
+                 <MultiSelectDropdown
+                   options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
+                   selected={zoneIds}
+                   onChange={handleZoneChange}
+                   placeholder="None (ALL)"
+                   allLabel="ALL Zones"
+                 />
               </div>
               <div className="space-y-2">
                 <Label>District</Label>
