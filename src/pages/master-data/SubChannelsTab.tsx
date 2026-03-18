@@ -79,7 +79,14 @@ export default function SubChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload = { sub_channel_name: name, channel_id: channelId };
+      // For B2B, use KAM employee_id as sub_channel_name identifier
+      const subChannelName = isB2B
+        ? (kams?.find((k) => k.kam_id === selectedKamId)?.kam_id ?? name)
+        : name;
+      const displayName = isB2B
+        ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
+        : name;
+      const payload = { sub_channel_name: displayName, channel_id: channelId };
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
