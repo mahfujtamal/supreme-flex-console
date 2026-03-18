@@ -40,6 +40,7 @@ export default function SubChannelsTab() {
   const [deliveryOwnership, setDeliveryOwnership] = useState("FOLLOW_CHANNEL");
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
+  const [staffSubChannel, setStaffSubChannel] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
