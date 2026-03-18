@@ -191,7 +191,7 @@ export default function ProductCatalogTab() {
               <TableHead>Frequency</TableHead>
               <TableHead>Network</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[140px]">Created</TableHead>
+              <TableHead className="w-[140px]">Last Updated</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -215,7 +215,7 @@ export default function ProductCatalogTab() {
                     {p.status ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{format(new Date(p.created_at), "dd MMM yyyy")}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{format(new Date(p.updated_at), "dd MMM yyyy")}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                 </TableCell>
@@ -238,6 +238,13 @@ export default function ProductCatalogTab() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{editId ? "Edit Product" : "Create Product"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {editId && (
+              <div className="space-y-2">
+                <Label>Product ID</Label>
+                <Input value={editId} disabled className="bg-muted font-mono text-xs" />
+                <p className="text-[11px] text-muted-foreground">Read-only — cannot be changed after creation.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Product Name</Label>
               <Input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. FWA Home 50Mbps" />
