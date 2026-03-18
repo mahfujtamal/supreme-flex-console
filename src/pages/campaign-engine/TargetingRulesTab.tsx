@@ -35,10 +35,53 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
   const qc = useQueryClient();
 
   const { data: zones } = useQuery({ queryKey: ["zones_lookup"], queryFn: async () => { const { data } = await supabase.from("network_zones").select("network_zone_id, network_zone_name").eq("status", true).order("network_zone_name"); return data ?? []; } });
-  const { data: districts } = useQuery({ queryKey: ["districts_lookup"], queryFn: async () => { const { data } = await supabase.from("districts").select("district_id, district_name").eq("status", true).order("district_name"); return data ?? []; } });
-  const { data: areas } = useQuery({ queryKey: ["areas_lookup"], queryFn: async () => { const { data } = await supabase.from("areas").select("area_id, area_name").eq("status", true).order("area_name"); return data ?? []; } });
+  const { data: allDistricts } = useQuery({ queryKey: ["districts_lookup_full"], queryFn: async () => { const { data } = await supabase.from("districts").select("district_id, district_name").eq("status", true).order("district_name"); return data ?? []; } });
+  const { data: allAreas } = useQuery({ queryKey: ["areas_lookup_full"], queryFn: async () => { const { data } = await supabase.from("areas").select("area_id, area_name, district_id, network_zone_id").eq("status", true).order("area_name"); return data ?? []; } });
   const { data: channels } = useQuery({ queryKey: ["channels_lookup"], queryFn: async () => { const { data } = await supabase.from("channels").select("channel_id, channel_name").eq("status", true).order("channel_name"); return data ?? []; } });
-  const { data: subChannels } = useQuery({ queryKey: ["sub_channels_lookup"], queryFn: async () => { const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name").eq("status", true).order("sub_channel_name"); return data ?? []; } });
+  const { data: allSubChannels } = useQuery({ queryKey: ["sub_channels_lookup_full"], queryFn: async () => { const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id").eq("status", true).order("sub_channel_name"); return data ?? []; } });
+
+  // Cascading: filter districts by selected zones (via areas that link zone→district)
+  const selectedZoneIds = zoneIds.filter(v => v !== ALL_VALUE);
+  const districts = (() => {
+    if (!selectedZoneIds.length || zoneIds.includes(ALL_VALUE)) return allDistricts ?? [];
+    // Find district IDs that have areas in the selected zones
+    const districtIdsInZones = new Set((allAreas ?? []).filter(a => selectedZoneIds.includes(a.network_zone_id)).map(a => a.district_id));
+    return (allDistricts ?? []).filter(d => districtIdsInZones.has(d.district_id));
+  })();
+
+  // Cascading: filter areas by selected districts (and zones)
+  const selectedDistrictIds = districtIds.filter(v => v !== ALL_VALUE);
+  const areas = (() => {
+    let filtered = allAreas ?? [];
+    if (selectedZoneIds.length && !zoneIds.includes(ALL_VALUE)) {
+      filtered = filtered.filter(a => selectedZoneIds.includes(a.network_zone_id));
+    }
+    if (selectedDistrictIds.length && !districtIds.includes(ALL_VALUE)) {
+      filtered = filtered.filter(a => selectedDistrictIds.includes(a.district_id));
+    }
+    return filtered;
+  })();
+
+  // Cascading: filter sub-channels by selected channels
+  const selectedChannelIds = channelIds.filter(v => v !== ALL_VALUE);
+  const subChannels = (() => {
+    if (!selectedChannelIds.length || channelIds.includes(ALL_VALUE)) return allSubChannels ?? [];
+    return (allSubChannels ?? []).filter(sc => selectedChannelIds.includes(sc.channel_id));
+  })();
+
+  // Reset children when parent changes
+  const handleZoneChange = (vals: string[]) => {
+    setZoneIds(vals);
+    setDistrictIds([]); setAreaIds([]);
+  };
+  const handleDistrictChange = (vals: string[]) => {
+    setDistrictIds(vals);
+    setAreaIds([]);
+  };
+  const handleChannelChange = (vals: string[]) => {
+    setChannelIds(vals);
+    setSubChannelIds([]);
+  };
 
   const { data: rules, isLoading } = useQuery({
     queryKey: ["targeting_rules", campaignId],
@@ -210,23 +253,23 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Network Zone</Label>
-                <MultiSelectDropdown
-                  options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
-                  selected={zoneIds}
-                  onChange={setZoneIds}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Zones"
-                />
+                 <MultiSelectDropdown
+                   options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
+                   selected={zoneIds}
+                   onChange={handleZoneChange}
+                   placeholder="None (ALL)"
+                   allLabel="ALL Zones"
+                 />
               </div>
               <div className="space-y-2">
                 <Label>District</Label>
-                <MultiSelectDropdown
-                  options={(districts ?? []).map(d => ({ value: d.district_id, label: d.district_name }))}
-                  selected={districtIds}
-                  onChange={setDistrictIds}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Districts"
-                />
+                 <MultiSelectDropdown
+                   options={(districts ?? []).map(d => ({ value: d.district_id, label: d.district_name }))}
+                   selected={districtIds}
+                   onChange={handleDistrictChange}
+                   placeholder="None (ALL)"
+                   allLabel="ALL Districts"
+                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -242,13 +285,13 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
               </div>
               <div className="space-y-2">
                 <Label>Channel</Label>
-                <MultiSelectDropdown
-                  options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
-                  selected={channelIds}
-                  onChange={setChannelIds}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Channels"
-                />
+                 <MultiSelectDropdown
+                   options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
+                   selected={channelIds}
+                   onChange={handleChannelChange}
+                   placeholder="None (ALL)"
+                   allLabel="ALL Channels"
+                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
