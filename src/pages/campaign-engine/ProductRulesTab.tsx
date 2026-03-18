@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -31,9 +32,13 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   const qc = useQueryClient();
 
   const { data: products } = useQuery({
-    queryKey: ["products_lookup"],
+    queryKey: ["products_lookup_with_exclusive"],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("product_id, product_name, product_category").eq("status", true).order("product_name");
+      const { data } = await supabase
+        .from("products")
+        .select("product_id, product_name, product_category, is_exclusive")
+        .eq("status", true)
+        .order("product_name");
       return data ?? [];
     },
   });
@@ -50,8 +55,35 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     },
   });
 
+  // Filter products based on selected rule type
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (ruleType === "EXCLUSIVE") {
+      return products.filter(p => p.is_exclusive === true);
+    }
+    // UNAVAILABLE / DISCOUNT → standard products only
+    return products.filter(p => p.is_exclusive === false);
+  }, [products, ruleType]);
+
+  const noExclusiveProducts = ruleType === "EXCLUSIVE" && filteredProducts.length === 0 && products && products.length > 0;
+
   const addRule = useMutation({
     mutationFn: async () => {
+      // DB validation: verify product exclusivity matches rule type
+      const { data: product, error: pErr } = await supabase
+        .from("products")
+        .select("is_exclusive")
+        .eq("product_id", productId)
+        .single();
+      if (pErr) throw pErr;
+
+      if (ruleType === "EXCLUSIVE" && !product.is_exclusive) {
+        throw new Error("Selected product is not marked as Exclusive in Product Master.");
+      }
+      if (ruleType !== "EXCLUSIVE" && product.is_exclusive) {
+        throw new Error("Exclusive products cannot be used with standard rule types.");
+      }
+
       const payload: any = {
         campaign_id: campaignId,
         product_id: productId,
@@ -77,6 +109,12 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   });
 
   const closeDialog = () => { setOpen(false); setProductId(""); setRuleType("EXCLUSIVE"); setDiscountType("FLAT"); setDiscountValue(""); };
+
+  // Reset product selection when rule type changes (since the list changes)
+  const handleRuleTypeChange = (val: string) => {
+    setRuleType(val);
+    setProductId("");
+  };
 
   const canSave = productId && ruleType && (ruleType !== "DISCOUNT" || (discountValue && parseFloat(discountValue) > 0));
 
@@ -134,23 +172,34 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
           <DialogHeader><DialogTitle>Add Product Rule</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Product</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                <SelectContent>
-                  {products?.map(p => <SelectItem key={p.product_id} value={p.product_id}>{p.product_name} ({p.product_category})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Rule Type</Label>
-              <Select value={ruleType} onValueChange={setRuleType}>
+              <Select value={ruleType} onValueChange={handleRuleTypeChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {RULE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+
+            {noExclusiveProducts && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  No Exclusive products found. Please mark a product as Exclusive in the Product Master first.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label>Product {ruleType === "EXCLUSIVE" ? "(Exclusive only)" : "(Standard only)"}</Label>
+              <Select value={productId} onValueChange={setProductId} disabled={noExclusiveProducts}>
+                <SelectTrigger><SelectValue placeholder={noExclusiveProducts ? "No eligible products" : "Select product"} /></SelectTrigger>
+                <SelectContent>
+                  {filteredProducts.map(p => <SelectItem key={p.product_id} value={p.product_id}>{p.product_name} ({p.product_category})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
             {ruleType === "DISCOUNT" && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
