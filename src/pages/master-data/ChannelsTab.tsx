@@ -40,11 +40,12 @@ export default function ChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
+      const payload = { channel_name: name, is_assisted: isAssisted };
       if (editId) {
-        const { error } = await supabase.from("channels").update({ channel_name: name }).eq("channel_id", editId);
+        const { error } = await supabase.from("channels").update(payload).eq("channel_id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("channels").insert({ channel_name: name });
+        const { error } = await supabase.from("channels").insert(payload);
         if (error) throw error;
       }
     },
