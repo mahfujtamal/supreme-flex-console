@@ -138,8 +138,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryKey: ["channel_delivery_info"],
     queryFn: async () => {
       const { data: ch } = await supabase.from("channels").select("channel_id, channel_name, is_self_delivered");
-      const { data: sc } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, override_delivery_ownership");
-      return { channels: ch ?? [], subChannels: sc ?? [] };
+      const { data: sc } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, delivery_ownership") as any;
+      return { channels: ch ?? [], subChannels: (sc ?? []) as any[] };
     },
     enabled: open,
   });
@@ -194,13 +194,23 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryKey: ["agents_for_dispatch", dhKamId],
     queryFn: async () => {
       if (!dhKamId) return [];
-      // Get agents for that DH, but only if DH is ACTIVE (cascade logic)
+      // Self-delivered sub-channel: get agents tagged to that sub-channel
+      if (dhKamId.startsWith("sc:")) {
+        const scId = dhKamId.replace("sc:", "");
+        const { data } = await supabase
+          .from("field_agents")
+          .select("*")
+          .eq("dh_id", scId)
+          .eq("status", "ACTIVE");
+        return data ?? [];
+      }
+      // DH: check DH is active (cascade logic)
       const { data: dh } = await supabase
         .from("distribution_houses")
         .select("status")
         .eq("dh_id", dhKamId)
         .single();
-      if (dh?.status !== "ACTIVE") return []; // DH inactive = no agents available
+      if (dh?.status !== "ACTIVE") return [];
       const { data } = await supabase
         .from("field_agents")
         .select("*")
@@ -664,11 +674,31 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             </div>
 
             {/* ─── Customer Info ─── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
               <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{order.customer_name}</span></div>
               <div><span className="text-muted-foreground">Contact:</span> <span className="font-mono">{order.contact_msisdn}</span></div>
               <div><span className="text-muted-foreground">Type:</span> <Badge variant="outline">{order.customer_type}</Badge></div>
               <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">{formatBDT(Number(order.final_total_bdt))}</span></div>
+              {order.assigned_dh_kam_id && (
+                <div>
+                  <span className="text-muted-foreground">Assigned To:</span>{" "}
+                  <span className="font-medium">
+                    {order.assigned_dh_kam_id.startsWith?.("sc:") ? `[Sub-Channel]` : order.customer_type === "B2B" ? `[KAM]` : `[DH]`}{" "}
+                    {(() => {
+                      const id = order.assigned_dh_kam_id;
+                      if (id.startsWith?.("sc:")) {
+                        const scId = id.replace("sc:", "");
+                        return channelDeliveryInfo?.subChannels?.find((sc: any) => sc.sub_channel_id === scId)?.sub_channel_name ?? scId;
+                      }
+                      const dh = dhList?.find((d: any) => d.dh_id === id);
+                      if (dh) return `${dh.dh_code} — ${dh.name}`;
+                      const kam = kamList?.find((k: any) => k.kam_id === id);
+                      if (kam) return `${kam.kam_id} — ${kam.name}`;
+                      return id;
+                    })()}
+                  </span>
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -697,7 +727,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment or self-delivered sub-channel dispatch</p>
+                      <p className="text-xs text-muted-foreground">B2C Order — Dispatch follows Hierarchy of Truth: Sub-Channel → Channel → DH Round-Robin</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Dispatch To</Label>
@@ -707,23 +737,33 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                               <SelectItem value="__dh_header" disabled className="font-semibold text-xs text-muted-foreground">Distribution Houses (Round-Robin)</SelectItem>
                               {dhList?.map((d: any, i: number) => (
                                 <SelectItem key={d.dh_id} value={d.dh_id}>
-                                  {i === 0 ? "⭐ " : ""}{d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
+                                  {i === 0 ? "⭐ " : ""}[DH] {d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
                                 </SelectItem>
                               ))}
                               {channelDeliveryInfo?.subChannels?.filter((sc: any) => {
-                                const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
-                                return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                // Show sub-channels that are explicitly SELF_DELIVERY,
+                                // OR that FOLLOW_CHANNEL and parent channel is_self_delivered
+                                if (sc.delivery_ownership === "SELF_DELIVERY") return true;
+                                if (sc.delivery_ownership === "FOLLOW_CHANNEL") {
+                                  const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                  return ch?.is_self_delivered;
+                                }
+                                return false; // DH_DELIVERY sub-channels go through DH round-robin
                               }).length ? (
                                 <>
                                   <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
-                                  {channelDeliveryInfo.subChannels
+                                  {channelDeliveryInfo!.subChannels
                                     .filter((sc: any) => {
-                                      const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
-                                      return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                      if (sc.delivery_ownership === "SELF_DELIVERY") return true;
+                                      if (sc.delivery_ownership === "FOLLOW_CHANNEL") {
+                                        const ch = channelDeliveryInfo!.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                        return ch?.is_self_delivered;
+                                      }
+                                      return false;
                                     })
                                     .map((sc: any) => (
                                       <SelectItem key={sc.sub_channel_id} value={`sc:${sc.sub_channel_id}`}>
-                                        📌 {sc.sub_channel_name}
+                                        📌 [Sub-Channel] {sc.sub_channel_name}
                                       </SelectItem>
                                     ))}
                                 </>

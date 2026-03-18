@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -36,7 +36,7 @@ export default function SubChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
-  const [overrideDelivery, setOverrideDelivery] = useState(false);
+  const [deliveryOwnership, setDeliveryOwnership] = useState("FOLLOW_CHANNEL");
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
   const { toast } = useToast();
@@ -87,7 +87,7 @@ export default function SubChannelsTab() {
       const displayName = isB2B
         ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
         : name;
-      const payload = { sub_channel_name: displayName, channel_id: channelId, override_delivery_ownership: overrideDelivery } as any;
+      const payload = { sub_channel_name: displayName, channel_id: channelId, delivery_ownership: deliveryOwnership } as any;
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
@@ -108,8 +108,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setOverrideDelivery(false); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOverrideDelivery(item.override_delivery_ownership ?? false); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setDeliveryOwnership("FOLLOW_CHANNEL"); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setDeliveryOwnership(item.delivery_ownership ?? "FOLLOW_CHANNEL"); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -140,7 +140,7 @@ export default function SubChannelsTab() {
             <TableRow>
               <TableHead>Sub-Channel Name</TableHead>
               <TableHead>Parent Channel</TableHead>
-              <TableHead className="w-[130px]">Override Delivery</TableHead>
+              <TableHead className="w-[160px]">Delivery Ownership</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
@@ -156,8 +156,8 @@ export default function SubChannelsTab() {
                 <TableCell className="font-medium">{sc.sub_channel_name}</TableCell>
                 <TableCell className="text-sm">{sc.channels?.channel_name}</TableCell>
                 <TableCell>
-                  <Badge variant={sc.override_delivery_ownership ? "default" : "outline"} className="text-xs">
-                    {sc.override_delivery_ownership ? "Yes" : "No"}
+                  <Badge variant={sc.delivery_ownership === "FOLLOW_CHANNEL" ? "outline" : "default"} className="text-xs">
+                    {sc.delivery_ownership === "SELF_DELIVERY" ? "Self-Delivery" : sc.delivery_ownership === "DH_DELIVERY" ? "DH Delivery" : "Follow Channel"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -239,12 +239,19 @@ export default function SubChannelsTab() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Online Store" />
               )}
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="override_delivery">Override Delivery Ownership?</Label>
-                <p className="text-xs text-muted-foreground">Uses own agents regardless of parent channel setting</p>
-              </div>
-              <Switch id="override_delivery" checked={overrideDelivery} onCheckedChange={setOverrideDelivery} />
+            <div className="space-y-2">
+              <Label>Delivery Ownership</Label>
+              <Select value={deliveryOwnership} onValueChange={setDeliveryOwnership}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FOLLOW_CHANNEL">Follow Channel Rule</SelectItem>
+                  <SelectItem value="SELF_DELIVERY">Self-Delivery (GPC Agents)</SelectItem>
+                  <SelectItem value="DH_DELIVERY">DH Delivery (Distribution House)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {deliveryOwnership === "FOLLOW_CHANNEL" ? "Inherits delivery model from parent channel" : deliveryOwnership === "SELF_DELIVERY" ? "Orders dispatched to this sub-channel's own agents" : "Orders dispatched via DH round-robin"}
+              </p>
             </div>
           </div>
           <DialogFooter>

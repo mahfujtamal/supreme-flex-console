@@ -14,10 +14,11 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB enums (Phase 7): account_status, service_status, invoice_trigger_type, invoice_payment_status, test_status
 - DB enums (Phase 7.1): asset_status, asset_type, replacement_reason (WARRANTY/PAID/UPGRADE)
 - DB enums (Phase 8): dh_status, agent_status (ACTIVE/INACTIVE); order_status extended: ASSIGNED, CONTACTED, NETWORK_TEST, INSTALLED
+- DB enum: delivery_ownership_mode (FOLLOW_CHANNEL/SELF_DELIVERY/DH_DELIVERY) on sub_channels.delivery_ownership
 - Channels: is_assisted boolean added (assisted channels require sub_channel)
 - Channels: is_self_delivered boolean (default false) — self-delivered channels use own agents, not DH round-robin
-- Sub-channels: override_delivery_ownership boolean (default false) — overrides parent channel delivery setting
-- Delivery ownership rule: IF channel.is_self_delivered OR sub_channel.override_delivery_ownership THEN dispatch to sub-channel agents ELSE standard DH round-robin
+- Sub-channels: delivery_ownership enum replaces old boolean override_delivery_ownership
+- Delivery Hierarchy of Truth: STEP1 check sub_channel.delivery_ownership; STEP2 if FOLLOW_CHANNEL check channel.is_self_delivered; STEP3 default DH round-robin
 - Field Agents: can be tagged to DH OR self-delivered sub-channel (stored as `sc:<sub_channel_id>` in dh_id)
 - Anchors: Created at LEAD/ORDER stage, link customer→order with location test data
 - Active services: linked to anchor_id, gpfi_msisdn UNIQUE, cpe_model column
@@ -38,6 +39,7 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - KAM bulk CSV: kam_id, name, msisdn, segments (pipe-delimited)
 - Work Order Lifecycle: PENDING_DISPATCH→ASSIGNED→CONTACTED→OUT_FOR_DELIVERY→NETWORK_TEST→INSTALLED (or CANCELLED at any stage)
 - Smart Dispatch: B2C = round-robin DH by oldest last_assigned_at OR self-delivered sub-channel; B2B = direct KAM assignment
+- Assigned To label: shows [DH], [Sub-Channel], or [KAM] prefix for clarity
 - Cancel reasons: Customer Refused, Unreachable, Wrong Address, FI Test Failed, Inventory Issue, Other
 - Cancel safety: inventory returns to WITH_AGENT on cancel
 - Installation form: pre-populated from order, override from WITH_AGENT inventory, SIM selection defines gpfi_msisdn

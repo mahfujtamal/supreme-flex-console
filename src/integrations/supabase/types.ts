@@ -1364,7 +1364,7 @@ export type Database = {
         Row: {
           channel_id: string
           created_at: string
-          override_delivery_ownership: boolean
+          delivery_ownership: Database["public"]["Enums"]["delivery_ownership_mode"]
           status: boolean
           sub_channel_id: string
           sub_channel_name: string
@@ -1373,7 +1373,7 @@ export type Database = {
         Insert: {
           channel_id: string
           created_at?: string
-          override_delivery_ownership?: boolean
+          delivery_ownership?: Database["public"]["Enums"]["delivery_ownership_mode"]
           status?: boolean
           sub_channel_id?: string
           sub_channel_name: string
@@ -1382,7 +1382,7 @@ export type Database = {
         Update: {
           channel_id?: string
           created_at?: string
-          override_delivery_ownership?: boolean
+          delivery_ownership?: Database["public"]["Enums"]["delivery_ownership_mode"]
           status?: boolean
           sub_channel_id?: string
           sub_channel_name?: string
@@ -1491,6 +1491,10 @@ export type Database = {
         | "REFERRAL_BASED"
         | "HYBRID"
       customer_type: "B2C" | "B2B"
+      delivery_ownership_mode:
+        | "FOLLOW_CHANNEL"
+        | "SELF_DELIVERY"
+        | "DH_DELIVERY"
       dh_status: "ACTIVE" | "INACTIVE"
       discount_type: "FLAT" | "PERCENT"
       inventory_item_type: "CPE" | "SIM" | "ADDON"
@@ -1679,6 +1683,11 @@ export const Constants = {
         "HYBRID",
       ],
       customer_type: ["B2C", "B2B"],
+      delivery_ownership_mode: [
+        "FOLLOW_CHANNEL",
+        "SELF_DELIVERY",
+        "DH_DELIVERY",
+      ],
       dh_status: ["ACTIVE", "INACTIVE"],
       discount_type: ["FLAT", "PERCENT"],
       inventory_item_type: ["CPE", "SIM", "ADDON"],
