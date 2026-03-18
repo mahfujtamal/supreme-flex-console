@@ -32,4 +32,9 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DH bulk CSV: dh_code, name, district_name, area_name
 - Agent bulk CSV: agent_id, agent_name, msisdn, dh_code (FK mapped)
 - KAM bulk CSV: kam_id, name, msisdn, segments (pipe-delimited)
-- Phase 8B pending: Smart Dispatch, Work Order Lifecycle, Installation Form, Fulfillment
+- Work Order Lifecycle: PENDING_DISPATCH→ASSIGNED→CONTACTED→OUT_FOR_DELIVERY→NETWORK_TEST→INSTALLED (or CANCELLED at any stage)
+- Smart Dispatch: B2C = round-robin DH by oldest last_assigned_at; B2B = direct KAM assignment
+- Cancel reasons: Customer Refused, Unreachable, Wrong Address, FI Test Failed, Inventory Issue, Other
+- Cancel safety: inventory returns to WITH_AGENT on cancel
+- Installation form: pre-populated from order, override from WITH_AGENT inventory, SIM selection defines gpfi_msisdn
+- Fulfillment: creates customer_assets (ACTIVE, 365d warranty), active_services (WiFi +1 day expiry), onetime_invoices
