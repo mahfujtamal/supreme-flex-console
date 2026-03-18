@@ -208,7 +208,7 @@ export default function ProductCatalogTab() {
                     {p.product_category}{p.addon_type ? ` / ${p.addon_type}` : ""}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm">{p.billing_type}</TableCell>
+                <TableCell className="text-sm">{FREQ_LABELS[p.billing_frequency] || p.billing_type?.replace("_", " ")}</TableCell>
                 <TableCell className="text-sm">{p.network_capability}</TableCell>
                 <TableCell>
                   <Badge variant={p.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: p.product_id, status: p.status })}>
