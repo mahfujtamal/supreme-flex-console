@@ -308,8 +308,9 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       const { error } = await supabase.from("orders").update({
         assigned_dh_kam_id: assignedDh || null,
         assigned_agent_id: assignedAgent || null,
+        staff_user_id: staffUserId || null,
         order_status: "ASSIGNED" as any,
-      }).eq("order_id", orderId);
+      } as any).eq("order_id", orderId);
       if (error) throw error;
 
       // Update DH last_assigned_at for round-robin (only for non-self-delivered B2C)
