@@ -44,6 +44,14 @@ export default function FieldAgentsTab() {
     },
   });
 
+  const { data: subChannelList } = useQuery({
+    queryKey: ["sub_channel_lookup_agents"],
+    queryFn: async () => {
+      const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, channels(channel_name, is_self_delivered), override_delivery_ownership").eq("status", true);
+      return (data ?? []).filter((sc: any) => sc.channels?.is_self_delivered || sc.override_delivery_ownership);
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["field_agents", page, search],
     queryFn: async () => {
