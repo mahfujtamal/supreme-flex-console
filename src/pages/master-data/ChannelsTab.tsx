@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -23,6 +24,7 @@ export default function ChannelsTab() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [isAssisted, setIsAssisted] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -39,11 +41,12 @@ export default function ChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
+      const payload = { channel_name: name, is_assisted: isAssisted };
       if (editId) {
-        const { error } = await supabase.from("channels").update({ channel_name: name }).eq("channel_id", editId);
+        const { error } = await supabase.from("channels").update(payload).eq("channel_id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("channels").insert({ channel_name: name });
+        const { error } = await supabase.from("channels").insert(payload);
         if (error) throw error;
       }
     },
@@ -59,8 +62,8 @@ export default function ChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); };
-  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setIsAssisted(false); };
+  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setIsAssisted(item.is_assisted ?? false); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -81,6 +84,7 @@ export default function ChannelsTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Channel Name</TableHead>
+              <TableHead className="w-[100px]">Assisted</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
@@ -88,12 +92,17 @@ export default function ChannelsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
             ) : data.items.map((c) => (
               <TableRow key={c.channel_id}>
                 <TableCell className="font-medium">{c.channel_name}</TableCell>
+                <TableCell>
+                  <Badge variant={(c as any).is_assisted ? "default" : "outline"} className="text-xs">
+                    {(c as any).is_assisted ? "Yes" : "No"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <Badge variant={c.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: c.channel_id, status: c.status })}>
                     {c.status ? "Active" : "Inactive"}
@@ -125,6 +134,10 @@ export default function ChannelsTab() {
             <div className="space-y-2">
               <Label>Channel Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Retail" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="is_assisted" checked={isAssisted} onCheckedChange={(v) => setIsAssisted(!!v)} />
+              <Label htmlFor="is_assisted">Assisted Channel (requires sub-channel)</Label>
             </div>
           </div>
           <DialogFooter>

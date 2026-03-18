@@ -536,6 +536,7 @@ export type Database = {
           channel_id: string
           channel_name: string
           created_at: string
+          is_assisted: boolean
           status: boolean
           updated_at: string
         }
@@ -543,6 +544,7 @@ export type Database = {
           channel_id?: string
           channel_name: string
           created_at?: string
+          is_assisted?: boolean
           status?: boolean
           updated_at?: string
         }
@@ -550,6 +552,7 @@ export type Database = {
           channel_id?: string
           channel_name?: string
           created_at?: string
+          is_assisted?: boolean
           status?: boolean
           updated_at?: string
         }
@@ -723,6 +726,57 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_houses: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          dh_code: string
+          dh_id: string
+          district_id: string | null
+          last_assigned_at: string | null
+          name: string
+          status: Database["public"]["Enums"]["dh_status"]
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          dh_code: string
+          dh_id?: string
+          district_id?: string | null
+          last_assigned_at?: string | null
+          name: string
+          status?: Database["public"]["Enums"]["dh_status"]
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          dh_code?: string
+          dh_id?: string
+          district_id?: string | null
+          last_assigned_at?: string | null
+          name?: string
+          status?: Database["public"]["Enums"]["dh_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_houses_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["area_id"]
+          },
+          {
+            foreignKeyName: "distribution_houses_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["district_id"]
+          },
+        ]
+      }
       districts: {
         Row: {
           created_at: string
@@ -746,6 +800,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      field_agents: {
+        Row: {
+          agent_id: string
+          agent_name: string
+          created_at: string
+          dh_id: string
+          msisdn: string
+          status: Database["public"]["Enums"]["agent_status"]
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_name: string
+          created_at?: string
+          dh_id: string
+          msisdn: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string
+          created_at?: string
+          dh_id?: string
+          msisdn?: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_agents_dh_id_fkey"
+            columns: ["dh_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_houses"
+            referencedColumns: ["dh_id"]
+          },
+        ]
       }
       inventory_master: {
         Row: {
@@ -796,6 +888,36 @@ export type Database = {
             referencedColumns: ["product_id"]
           },
         ]
+      }
+      kams: {
+        Row: {
+          assigned_segments: string[]
+          created_at: string
+          kam_id: string
+          msisdn: string
+          name: string
+          status: Database["public"]["Enums"]["agent_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_segments?: string[]
+          created_at?: string
+          kam_id: string
+          msisdn: string
+          name: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_segments?: string[]
+          created_at?: string
+          kam_id?: string
+          msisdn?: string
+          name?: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       network_zones: {
         Row: {
@@ -1343,6 +1465,7 @@ export type Database = {
     Enums: {
       account_status: "ACTIVE" | "EXPIRED" | "CHURNED"
       addon_type: "PHYSICAL" | "DIGITAL"
+      agent_status: "ACTIVE" | "INACTIVE"
       app_role: "admin" | "moderator" | "user"
       asset_status: "ACTIVE" | "REPLACED" | "RETURNED" | "DEFECTIVE"
       asset_type: "CPE" | "SIM" | "PHYSICAL_ADDON"
@@ -1362,6 +1485,7 @@ export type Database = {
         | "REFERRAL_BASED"
         | "HYBRID"
       customer_type: "B2C" | "B2B"
+      dh_status: "ACTIVE" | "INACTIVE"
       discount_type: "FLAT" | "PERCENT"
       inventory_item_type: "CPE" | "SIM" | "ADDON"
       inventory_status:
@@ -1379,6 +1503,10 @@ export type Database = {
         | "OUT_FOR_DELIVERY"
         | "ACTIVE"
         | "CANCELLED"
+        | "ASSIGNED"
+        | "CONTACTED"
+        | "NETWORK_TEST"
+        | "INSTALLED"
       ownership_transfer_behavior: "KEEP" | "REMOVE"
       payment_status: "PENDING_COD" | "PAID_COD" | "ONLINE_PAID"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
@@ -1523,6 +1651,7 @@ export const Constants = {
     Enums: {
       account_status: ["ACTIVE", "EXPIRED", "CHURNED"],
       addon_type: ["PHYSICAL", "DIGITAL"],
+      agent_status: ["ACTIVE", "INACTIVE"],
       app_role: ["admin", "moderator", "user"],
       asset_status: ["ACTIVE", "REPLACED", "RETURNED", "DEFECTIVE"],
       asset_type: ["CPE", "SIM", "PHYSICAL_ADDON"],
@@ -1544,6 +1673,7 @@ export const Constants = {
         "HYBRID",
       ],
       customer_type: ["B2C", "B2B"],
+      dh_status: ["ACTIVE", "INACTIVE"],
       discount_type: ["FLAT", "PERCENT"],
       inventory_item_type: ["CPE", "SIM", "ADDON"],
       inventory_status: [
@@ -1562,6 +1692,10 @@ export const Constants = {
         "OUT_FOR_DELIVERY",
         "ACTIVE",
         "CANCELLED",
+        "ASSIGNED",
+        "CONTACTED",
+        "NETWORK_TEST",
+        "INSTALLED",
       ],
       ownership_transfer_behavior: ["KEEP", "REMOVE"],
       payment_status: ["PENDING_COD", "PAID_COD", "ONLINE_PAID"],
