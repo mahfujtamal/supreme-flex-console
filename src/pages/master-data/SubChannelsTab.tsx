@@ -247,16 +247,3 @@ export default function SubChannelsTab() {
     </div>
   );
 }
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => save.mutate()} disabled={!name.trim() || !channelId || save.isPending}>{save.isPending ? "Saving..." : editId ? "Update" : "Create"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
