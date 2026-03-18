@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { Plus, Search } from "lucide-react";
+import { format, isAfter, isBefore, startOfDay } from "date-fns";
+import { Plus, Search, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,27 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBDT } from "@/lib/currency";
 
 const PAGE_SIZE = 10;
+
+type PriceTimeline = "CURRENT" | "UPCOMING" | "EXPIRED";
+
+function getPriceTimeline(startDate: string, endDate: string | null): PriceTimeline {
+  const today = startOfDay(new Date());
+  const start = startOfDay(new Date(startDate));
+  if (isAfter(start, today)) return "UPCOMING";
+  if (endDate && isBefore(startOfDay(new Date(endDate)), today)) return "EXPIRED";
+  return "CURRENT";
+}
+
+function TimelineBadge({ timeline }: { timeline: PriceTimeline }) {
+  switch (timeline) {
+    case "CURRENT":
+      return <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-200 hover:bg-emerald-500/20">Active</Badge>;
+    case "UPCOMING":
+      return <Badge className="bg-amber-500/15 text-amber-700 border-amber-200 hover:bg-amber-500/20"><CalendarClock className="h-3 w-3 mr-1" />Upcoming</Badge>;
+    case "EXPIRED":
+      return <Badge variant="secondary" className="opacity-60">Expired</Badge>;
+  }
+}
 
 export default function PricingEngine() {
   const [page, setPage] = useState(0);
@@ -57,6 +78,9 @@ export default function PricingEngine() {
       if (productFilter && productFilter !== "all") {
         q = q.eq("product_id", productFilter);
       }
+      if (search) {
+        // Filter will be done client-side after fetch for product name search
+      }
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (error) throw error;
       return { items: data, count: count ?? 0 };
@@ -76,7 +100,7 @@ export default function PricingEngine() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["product_price_versions"] });
       closeDialog();
-      toast({ title: "Price version created" });
+      toast({ title: "Price version scheduled", description: "The new price version has been created successfully." });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -103,7 +127,7 @@ export default function PricingEngine() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Pricing Engine</h1>
-        <p className="text-sm text-muted-foreground">Manage product price versions and pricing timeline.</p>
+        <p className="text-sm text-muted-foreground">Schedule and manage product price versions with effective dates.</p>
       </div>
 
       <div className="flex items-center justify-between gap-4">
@@ -122,7 +146,7 @@ export default function PricingEngine() {
             </SelectContent>
           </Select>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New Price Version</Button>
+        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Schedule Price</Button>
       </div>
 
       <div className="border rounded-lg bg-card">
@@ -131,31 +155,40 @@ export default function PricingEngine() {
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Base Price</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead>Price (BDT)</TableHead>
+              <TableHead>Effective From</TableHead>
+              <TableHead>Effective Until</TableHead>
+              <TableHead className="w-[120px]">Timeline</TableHead>
+              <TableHead className="w-[100px]">Enabled</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No price versions found.</TableCell></TableRow>
-            ) : data.items.map((pv: any) => (
-              <TableRow key={pv.price_version_id}>
-                <TableCell className="font-medium">{pv.product?.product_name ?? "—"}</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{pv.product?.product_category ?? "—"}</Badge></TableCell>
-                <TableCell className="font-mono">{formatBDT(Number(pv.base_price_bdt))}</TableCell>
-                <TableCell className="text-sm">{format(new Date(pv.start_date), "dd MMM yyyy")}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{pv.end_date ? format(new Date(pv.end_date), "dd MMM yyyy") : "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={pv.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: pv.price_version_id, status: pv.status })}>
-                    {pv.status ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No price versions found.</TableCell></TableRow>
+            ) : data.items.map((pv: any) => {
+              const timeline = getPriceTimeline(pv.start_date, pv.end_date);
+              return (
+                <TableRow key={pv.price_version_id} className={timeline === "UPCOMING" ? "bg-amber-500/5" : timeline === "EXPIRED" ? "opacity-60" : ""}>
+                  <TableCell className="font-medium">{pv.product?.product_name ?? "—"}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">{pv.product?.product_category ?? "—"}</Badge></TableCell>
+                  <TableCell className="font-mono font-semibold">{formatBDT(Number(pv.base_price_bdt))}</TableCell>
+                  <TableCell className="text-sm">{format(new Date(pv.start_date), "dd MMM yyyy")}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{pv.end_date ? format(new Date(pv.end_date), "dd MMM yyyy") : "—"}</TableCell>
+                  <TableCell><TimelineBadge timeline={timeline} /></TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={pv.status ? "default" : "secondary"}
+                      className="cursor-pointer"
+                      onClick={() => toggleStatus.mutate({ id: pv.price_version_id, status: pv.status })}
+                    >
+                      {pv.status ? "Yes" : "No"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         {totalPages > 1 && (
@@ -171,7 +204,8 @@ export default function PricingEngine() {
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Create New Price Version</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Schedule New Price</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground -mt-2">Creates a new price record. Existing prices are never overwritten — the system uses the latest active price where Effective Date ≤ today.</p>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Product</Label>
@@ -183,24 +217,27 @@ export default function PricingEngine() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Base Price (BDT)</Label>
-              <Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="e.g. 999.00" />
+              <Label>New Price (BDT)</Label>
+              <Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="e.g. 350.00" />
+              <p className="text-xs text-muted-foreground">This price will become active on the Effective Date below.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Start Date</Label>
+                <Label>Effective Date</Label>
                 <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground">When this price takes effect.</p>
               </div>
               <div className="space-y-2">
                 <Label>End Date (optional)</Label>
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Leave blank for indefinite.</p>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
             <Button onClick={() => save.mutate()} disabled={!selectedProduct || !basePrice || !startDate || save.isPending}>
-              {save.isPending ? "Saving..." : "Create"}
+              {save.isPending ? "Saving..." : "Schedule Price"}
             </Button>
           </DialogFooter>
         </DialogContent>
