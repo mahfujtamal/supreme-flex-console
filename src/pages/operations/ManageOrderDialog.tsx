@@ -803,23 +803,14 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                       </Table>
                     </div>
 
-                    {/* SIM Selection for GPFI MSISDN */}
+                    {/* SIM Selection for GPFI MSISDN — searchable */}
                     <div className="space-y-1.5">
-                      <Label>SIM Selection (defines GPFI MSISDN)</Label>
-                      <Select value={simInventoryId} onValueChange={setSimInventoryId}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select SIM from agent bag..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!simInventory.length ? (
-                            <SelectItem value="__none" disabled>No SIMs available</SelectItem>
-                          ) : simInventory.map((s: any) => (
-                            <SelectItem key={s.inventory_id} value={s.inventory_id}>
-                              {s.msisdn ?? s.serial_number ?? "N/A"} — {s.products?.product_name ?? "SIM"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>SIM Selection (defines permanent GPFI MSISDN)</Label>
+                      <SimSearchDropdown
+                        simInventory={simInventory}
+                        value={simInventoryId}
+                        onSelect={setSimInventoryId}
+                      />
                     </div>
                   </CardContent>
                 </Card>

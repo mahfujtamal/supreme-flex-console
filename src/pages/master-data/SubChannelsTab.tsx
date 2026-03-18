@@ -159,9 +159,11 @@ export default function SubChannelsTab() {
             <div className="space-y-2">
               <Label>Parent Channel</Label>
               <Select value={channelId} onValueChange={setChannelId}>
-                <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select assisted channel" /></SelectTrigger>
                 <SelectContent>
-                  {channels?.map((c) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
+                  {!assistedChannels.length ? (
+                    <SelectItem value="__none" disabled>No assisted channels available</SelectItem>
+                  ) : assistedChannels.map((c) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
