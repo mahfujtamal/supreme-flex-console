@@ -285,6 +285,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       setDhKamId(order.assigned_dh_kam_id ?? "");
       setAgentId(order.assigned_agent_id ?? "");
       setStaffUserId((order as any).staff_user_id ?? "");
+      setSourceChannelId((order as any).channel_id ?? "");
+      setSourceSubChannelId((order as any).sub_channel_id ?? "");
     }
   }, [order]);
 
