@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search, Upload, Pencil } from "lucide-react";
+import { Plus, Search, Upload, Pencil, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
@@ -28,6 +35,8 @@ export default function SubChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
+  const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
+  const [selectedKamId, setSelectedKamId] = useState("");
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -40,8 +49,21 @@ export default function SubChannelsTab() {
     },
   });
 
+  const { data: kams } = useQuery({
+    queryKey: ["kams_lookup"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("kams").select("kam_id, name, msisdn").eq("status", "ACTIVE").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // For the create/edit dialog, only show assisted channels as parent options
   const assistedChannels = channels?.filter((c) => c.is_assisted) ?? [];
+
+  // Determine if selected parent channel is B2B
+  const selectedChannel = channels?.find((c) => c.channel_id === channelId);
+  const isB2B = selectedChannel?.channel_name?.toUpperCase() === "B2B";
 
   const { data, isLoading } = useQuery({
     queryKey: ["sub_channels", page, search, filterChannel],
