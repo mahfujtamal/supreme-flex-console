@@ -77,8 +77,11 @@ export default function ProductCatalogTab() {
   useEffect(() => {
     if (needsRecurring(category)) {
       setBillingType("RECURRING");
+      // Default frequency to MONTHLY for recurring
+      setBillingFrequency("MONTHLY");
     } else if (needsOneTime(category, addonType as AddonType || undefined)) {
       setBillingType("ONE_TIME");
+      setBillingFrequency("ONE_TIME");
     }
     if (needsSerial(category, addonType as AddonType || undefined)) {
       setSerialRequired(true);
