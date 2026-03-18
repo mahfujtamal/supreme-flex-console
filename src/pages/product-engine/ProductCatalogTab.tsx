@@ -188,7 +188,7 @@ export default function ProductCatalogTab() {
             <TableRow>
               <TableHead>Product Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Billing</TableHead>
+              <TableHead>Frequency</TableHead>
               <TableHead>Network</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px]">Created</TableHead>
