@@ -232,6 +232,26 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     enabled: open,
   });
 
+  // Staff users for sales agent attribution
+  const { data: staffUsers } = useQuery({
+    queryKey: ["staff_users_for_dispatch", dhKamId],
+    queryFn: async () => {
+      // If dispatching to a self-delivered sub-channel, get staff from that sub-channel
+      if (dhKamId.startsWith("sc:")) {
+        const scId = dhKamId.replace("sc:", "");
+        const { data } = await supabase
+          .from("sub_channel_users")
+          .select("*")
+          .eq("sub_channel_id", scId)
+          .eq("status", "ACTIVE");
+        return data ?? [];
+      }
+      // For B2B KAM dispatch, no staff users
+      return [];
+    },
+    enabled: open && !!dhKamId,
+  });
+
   // Active CPE assets for replacement
   const { data: activeAssets } = useQuery({
     queryKey: ["active_cpe_assets_for_order", orderId],
