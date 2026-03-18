@@ -1045,6 +1045,7 @@ export type Database = {
           order_id: string
           order_status: Database["public"]["Enums"]["order_status"]
           payment_status: Database["public"]["Enums"]["payment_status"]
+          staff_user_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1058,6 +1059,7 @@ export type Database = {
           order_id?: string
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          staff_user_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1071,9 +1073,18 @@ export type Database = {
           order_id?: string
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          staff_user_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_staff_user_id_fkey"
+            columns: ["staff_user_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channel_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       permission_master: {
         Row: {
@@ -1357,6 +1368,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "role_master"
             referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      sub_channel_users: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          msisdn: string
+          role: string
+          status: string
+          sub_channel_id: string
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          msisdn: string
+          role?: string
+          status?: string
+          sub_channel_id: string
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          msisdn?: string
+          role?: string
+          status?: string
+          sub_channel_id?: string
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_channel_users_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["sub_channel_id"]
           },
         ]
       }
