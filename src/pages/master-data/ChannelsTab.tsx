@@ -23,6 +23,7 @@ export default function ChannelsTab() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [isAssisted, setIsAssisted] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
