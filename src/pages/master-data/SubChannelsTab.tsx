@@ -36,7 +36,7 @@ export default function SubChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
-  const [overrideDelivery, setOverrideDelivery] = useState(false);
+  const [deliveryOwnership, setDeliveryOwnership] = useState("FOLLOW_CHANNEL");
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
   const { toast } = useToast();
