@@ -215,7 +215,7 @@ export default function ProductCatalogTab() {
                     {p.status ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{format(new Date(p.created_at), "dd MMM yyyy")}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{format(new Date(p.updated_at), "dd MMM yyyy")}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                 </TableCell>
