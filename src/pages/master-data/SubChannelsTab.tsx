@@ -107,8 +107,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
