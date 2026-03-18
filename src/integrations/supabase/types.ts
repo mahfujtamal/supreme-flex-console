@@ -1037,6 +1037,7 @@ export type Database = {
         Row: {
           assigned_agent_id: string | null
           assigned_dh_kam_id: string | null
+          channel_id: string | null
           contact_msisdn: string
           created_at: string
           customer_name: string
@@ -1046,11 +1047,13 @@ export type Database = {
           order_status: Database["public"]["Enums"]["order_status"]
           payment_status: Database["public"]["Enums"]["payment_status"]
           staff_user_id: string | null
+          sub_channel_id: string | null
           updated_at: string
         }
         Insert: {
           assigned_agent_id?: string | null
           assigned_dh_kam_id?: string | null
+          channel_id?: string | null
           contact_msisdn: string
           created_at?: string
           customer_name: string
@@ -1060,11 +1063,13 @@ export type Database = {
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           staff_user_id?: string | null
+          sub_channel_id?: string | null
           updated_at?: string
         }
         Update: {
           assigned_agent_id?: string | null
           assigned_dh_kam_id?: string | null
+          channel_id?: string | null
           contact_msisdn?: string
           created_at?: string
           customer_name?: string
@@ -1074,15 +1079,30 @@ export type Database = {
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           staff_user_id?: string | null
+          sub_channel_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["channel_id"]
+          },
           {
             foreignKeyName: "orders_staff_user_id_fkey"
             columns: ["staff_user_id"]
             isOneToOne: false
             referencedRelation: "sub_channel_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["sub_channel_id"]
           },
         ]
       }
