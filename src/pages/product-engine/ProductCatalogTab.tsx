@@ -106,6 +106,7 @@ export default function ProductCatalogTab() {
         product_category: category,
         addon_type: category === "ADDON" ? addonType || null : null,
         billing_type: billingType,
+        billing_frequency: billingFrequency,
         network_capability: networkCap,
         is_exclusive: isExclusive,
         serial_required: serialRequired,
