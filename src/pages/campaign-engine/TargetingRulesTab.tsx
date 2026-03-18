@@ -22,6 +22,7 @@ const NETWORK_TYPES = ["4G", "5G", "ANY"] as const;
 const NONE = "__none__";
 
 export default function TargetingRulesTab({ campaignId, campaignScope }: { campaignId: string; campaignScope: string }) {
+  const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
   const [zoneIds, setZoneIds] = useState<string[]>([]);
   const [districtIds, setDistrictIds] = useState<string[]>([]);
@@ -147,8 +148,13 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                 if (ch) payload.channel_id = ch;
                 if (sc) payload.sub_channel_id = sc;
                 if (networkType !== NONE) payload.network_type = networkType;
-                if (minAge) payload.min_network_age_days = parseInt(minAge);
-                if (maxAge) payload.max_network_age_days = parseInt(maxAge);
+                if (isAcq) {
+                  payload.min_network_age_days = 0;
+                  payload.max_network_age_days = 0;
+                } else {
+                  if (minAge) payload.min_network_age_days = parseInt(minAge);
+                  if (maxAge) payload.max_network_age_days = parseInt(maxAge);
+                }
                 rows.push(payload);
               }
             }
@@ -197,7 +203,8 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
     summarize("Channel", channelIds, (channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name })));
     summarize("Sub-Ch", subChannelIds, (subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name })));
     if (networkType !== NONE) parts.push(`Network: ${networkType}`);
-    if (minAge || maxAge) parts.push(`Age: ${minAge || "0"}–${maxAge || "∞"} days`);
+    if (!isAcq && (minAge || maxAge)) parts.push(`Age: ${minAge || "0"}–${maxAge || "∞"} days`);
+    if (isAcq) parts.push("Age: 0 (ACQ)");
     return parts.join(" | ");
   };
 
@@ -339,15 +346,15 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                 />
               </div>
             </div>
-            {campaignScope !== "ACQ" && (
+            {!isAcq && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Min Network Age (days)</Label>
-                  <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" />
+                  <Label>Min Network Age (days) <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" min="0" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Max Network Age (days)</Label>
-                  <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" />
+                  <Label>Max Network Age (days) <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" min="0" />
                 </div>
               </div>
             )}
@@ -362,7 +369,18 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => addRule.mutate()} disabled={addRule.isPending}>{addRule.isPending ? "Adding..." : "Add Rule"}</Button>
+            <Button
+              onClick={() => {
+                if (!isAcq && (!minAge || !maxAge)) {
+                  toast({ title: "Network Age required", description: "Min and Max Network Age are mandatory for Base Management campaigns.", variant: "destructive" });
+                  return;
+                }
+                addRule.mutate();
+              }}
+              disabled={addRule.isPending}
+            >
+              {addRule.isPending ? "Adding..." : "Add Rule"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
