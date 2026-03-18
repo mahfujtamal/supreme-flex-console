@@ -50,6 +50,48 @@ const CANCEL_REASONS = [
   "Other",
 ];
 
+// ─── Searchable SIM Dropdown ───
+const SimSearchDropdown = ({ simInventory, value, onSelect }: { simInventory: any[]; value: string; onSelect: (v: string) => void }) => {
+  const [simSearch, setSimSearch] = useState("");
+  const filtered = simInventory.filter((s: any) => {
+    const label = (s.msisdn ?? s.serial_number ?? "").toLowerCase();
+    return label.includes(simSearch.toLowerCase());
+  });
+  const selectedSim = simInventory.find((s: any) => s.inventory_id === value);
+  const selectedLabel = selectedSim ? (selectedSim.msisdn ?? selectedSim.serial_number ?? "Selected") : "";
+
+  return (
+    <div className="space-y-1">
+      <div className="relative">
+        <Input
+          placeholder="Search SIM MSISDN..."
+          value={value ? selectedLabel : simSearch}
+          onChange={(e) => { setSimSearch(e.target.value); if (value) onSelect(""); }}
+          className="pr-8"
+        />
+        {value && (
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { onSelect(""); setSimSearch(""); }}>✕</button>
+        )}
+      </div>
+      {!value && simSearch && (
+        <div className="border rounded-md max-h-32 overflow-y-auto bg-popover">
+          {!filtered.length ? (
+            <p className="text-xs text-muted-foreground p-2">No matching SIMs</p>
+          ) : filtered.map((s: any) => (
+            <button
+              key={s.inventory_id}
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
+              onClick={() => { onSelect(s.inventory_id); setSimSearch(""); }}
+            >
+              {s.msisdn ?? s.serial_number ?? "N/A"} — {s.products?.product_name ?? "SIM"}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   const queryClient = useQueryClient();
 
@@ -62,6 +104,9 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
 
   // Network test state
   const [networkTestResult, setNetworkTestResult] = useState<"PASSED" | "FAILED" | "">("");
+  const [signalStrength, setSignalStrength] = useState("");
+  const [downloadSpeed, setDownloadSpeed] = useState("");
+  const [latency, setLatency] = useState("");
 
   // Cancel state
   const [showCancel, setShowCancel] = useState(false);
@@ -102,12 +147,17 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   });
 
   const { data: availableInventory } = useQuery({
-    queryKey: ["available_inventory_for_order"],
+    queryKey: ["available_inventory_for_order", order?.assigned_agent_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("inventory_master")
         .select("*, products(product_name, product_category)")
         .in("status", ["WITH_AGENT", "ALLOCATED_TO_DH", "IN_WAREHOUSE"]);
+      // Filter to agent's bag if agent is assigned
+      if (order?.assigned_agent_id) {
+        q = q.eq("allocated_agent_id", order.assigned_agent_id);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -133,7 +183,13 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryKey: ["agents_for_dispatch", dhKamId],
     queryFn: async () => {
       if (!dhKamId) return [];
-      // Check if dhKamId is a DH id — get agents for that DH
+      // Get agents for that DH, but only if DH is ACTIVE (cascade logic)
+      const { data: dh } = await supabase
+        .from("distribution_houses")
+        .select("status")
+        .eq("dh_id", dhKamId)
+        .single();
+      if (dh?.status !== "ACTIVE") return []; // DH inactive = no agents available
       const { data } = await supabase
         .from("field_agents")
         .select("*")
@@ -680,27 +736,55 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             {currentStatus === "NETWORK_TEST" && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-sm">Network / FI Test Result</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground">Toggle test result (will be API-driven in production)</p>
-                  <div className="flex gap-3">
-                    <Button
-                      size="sm"
-                      variant={networkTestResult === "PASSED" ? "default" : "outline"}
-                      className={networkTestResult === "PASSED" ? "bg-green-600 hover:bg-green-700" : ""}
-                      onClick={() => setNetworkTestResult("PASSED")}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> PASSED
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={networkTestResult === "FAILED" ? "destructive" : "outline"}
-                      onClick={() => setNetworkTestResult("FAILED")}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" /> FAILED
-                    </Button>
+                <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground">Enter test metrics and toggle result (will be API-driven in production)</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Signal Strength (dBm)</Label>
+                      <Input type="number" placeholder="e.g. -65" value={signalStrength} onChange={(e) => setSignalStrength(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Download Speed (Mbps)</Label>
+                      <Input type="number" placeholder="e.g. 25.5" value={downloadSpeed} onChange={(e) => setDownloadSpeed(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Latency (ms)</Label>
+                      <Input type="number" placeholder="e.g. 15" value={latency} onChange={(e) => setLatency(e.target.value)} />
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label>Test Verdict</Label>
+                    <div className="flex gap-3">
+                      <Button
+                        size="sm"
+                        variant={networkTestResult === "PASSED" ? "default" : "outline"}
+                        className={networkTestResult === "PASSED" ? "bg-green-600 hover:bg-green-700" : ""}
+                        onClick={() => setNetworkTestResult("PASSED")}
+                        disabled={!signalStrength || !downloadSpeed || !latency}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> PASS
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={networkTestResult === "FAILED" ? "destructive" : "outline"}
+                        onClick={() => setNetworkTestResult("FAILED")}
+                        disabled={!signalStrength || !downloadSpeed || !latency}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" /> FAIL
+                      </Button>
+                    </div>
+                    {(!signalStrength || !downloadSpeed || !latency) && (
+                      <p className="text-xs text-muted-foreground">Fill all test metrics before selecting verdict</p>
+                    )}
                   </div>
                   {networkTestResult === "FAILED" && (
                     <p className="text-xs text-destructive">Test failed — you may cancel with reason "FI Test Failed"</p>
+                  )}
+                  {networkTestResult === "PASSED" && (
+                    <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded p-2 text-xs text-green-700 dark:text-green-400">
+                      ✅ Signal: {signalStrength} dBm | Speed: {downloadSpeed} Mbps | Latency: {latency} ms — Ready for installation
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -761,23 +845,14 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                       </Table>
                     </div>
 
-                    {/* SIM Selection for GPFI MSISDN */}
+                    {/* SIM Selection for GPFI MSISDN — searchable */}
                     <div className="space-y-1.5">
-                      <Label>SIM Selection (defines GPFI MSISDN)</Label>
-                      <Select value={simInventoryId} onValueChange={setSimInventoryId}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select SIM from agent bag..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!simInventory.length ? (
-                            <SelectItem value="__none" disabled>No SIMs available</SelectItem>
-                          ) : simInventory.map((s: any) => (
-                            <SelectItem key={s.inventory_id} value={s.inventory_id}>
-                              {s.msisdn ?? s.serial_number ?? "N/A"} — {s.products?.product_name ?? "SIM"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>SIM Selection (defines permanent GPFI MSISDN)</Label>
+                      <SimSearchDropdown
+                        simInventory={simInventory}
+                        value={simInventoryId}
+                        onSelect={setSimInventoryId}
+                      />
                     </div>
                   </CardContent>
                 </Card>
