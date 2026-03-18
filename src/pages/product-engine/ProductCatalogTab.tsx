@@ -71,6 +71,7 @@ export default function ProductCatalogTab() {
   const [serialRequired, setSerialRequired] = useState(false);
   const [warrantyValue, setWarrantyValue] = useState("");
   const [warrantyUnit, setWarrantyUnit] = useState<string>("");
+  const [billingFrequency, setBillingFrequency] = useState<string>("MONTHLY");
 
   // Auto-apply business rules when category/addonType change
   useEffect(() => {
