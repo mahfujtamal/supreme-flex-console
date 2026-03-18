@@ -86,7 +86,9 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
     return (allSubChannels ?? []).filter(sc => selectedChannelIds.includes(sc.channel_id));
   })();
 
-  // Reset children when parent changes
+  const areaSelected = areaIds.length > 0;
+  const channelSelected = channelIds.length > 0;
+
   const handleNetworkTypeChange = (val: string) => {
     setNetworkType(val);
     setZoneIds([]); setDistrictIds([]); setAreaIds([]);
