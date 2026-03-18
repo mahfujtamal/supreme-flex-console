@@ -141,7 +141,13 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryKey: ["agents_for_dispatch", dhKamId],
     queryFn: async () => {
       if (!dhKamId) return [];
-      // Check if dhKamId is a DH id — get agents for that DH
+      // Get agents for that DH, but only if DH is ACTIVE (cascade logic)
+      const { data: dh } = await supabase
+        .from("distribution_houses")
+        .select("status")
+        .eq("dh_id", dhKamId)
+        .single();
+      if (dh?.status !== "ACTIVE") return []; // DH inactive = no agents available
       const { data } = await supabase
         .from("field_agents")
         .select("*")
