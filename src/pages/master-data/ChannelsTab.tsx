@@ -83,6 +83,7 @@ export default function ChannelsTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Channel Name</TableHead>
+              <TableHead className="w-[100px]">Assisted</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
