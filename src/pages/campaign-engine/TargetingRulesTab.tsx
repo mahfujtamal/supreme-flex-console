@@ -86,18 +86,27 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
     return (allSubChannels ?? []).filter(sc => selectedChannelIds.includes(sc.channel_id));
   })();
 
-  // Reset children when parent changes
+  const areaSelected = areaIds.length > 0;
+  const channelSelected = channelIds.length > 0;
+
+  const handleNetworkTypeChange = (val: string) => {
+    setNetworkType(val);
+    setZoneIds([]); setDistrictIds([]); setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
+  };
   const handleZoneChange = (vals: string[]) => {
     setZoneIds(vals);
-    setDistrictIds([]); setAreaIds([]); setNetworkType(NONE);
+    setDistrictIds([]); setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
   };
   const handleDistrictChange = (vals: string[]) => {
     setDistrictIds(vals);
-    setAreaIds([]); setNetworkType(NONE);
+    setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
   };
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
-    // Reset network type if no longer valid
+    setChannelIds([]); setSubChannelIds([]);
     if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
       setNetworkType(NONE);
     }
@@ -283,7 +292,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Network Type</Label>
-                <Select value={networkType} onValueChange={setNetworkType}>
+                <Select value={networkType} onValueChange={handleNetworkTypeChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>Any</SelectItem>
@@ -326,23 +335,25 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Channel</Label>
+                <Label className={!areaSelected ? "text-muted-foreground" : ""}>Channel</Label>
                  <MultiSelectDropdown
                    options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
                    selected={channelIds}
                    onChange={handleChannelChange}
-                   placeholder="None (ALL)"
+                   placeholder={areaSelected ? "None (ALL)" : "Select Area first"}
                    allLabel="ALL Channels"
+                   disabled={!areaSelected}
                  />
               </div>
               <div className="space-y-2">
-                <Label>Sub-Channel</Label>
+                <Label className={!channelSelected ? "text-muted-foreground" : ""}>Sub-Channel</Label>
                 <MultiSelectDropdown
                   options={(subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name }))}
                   selected={subChannelIds}
                   onChange={setSubChannelIds}
-                  placeholder="None (ALL)"
+                  placeholder={channelSelected ? "None (ALL)" : "Select Channel first"}
                   allLabel="ALL Sub-Channels"
+                  disabled={!channelSelected}
                 />
               </div>
             </div>
