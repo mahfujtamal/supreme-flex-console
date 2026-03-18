@@ -697,18 +697,37 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment (sorted by oldest last_assigned_at)</p>
+                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment or self-delivered sub-channel dispatch</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label>Distribution House</Label>
+                          <Label>Dispatch To</Label>
                           <Select value={dhKamId} onValueChange={(v) => { setDhKamId(v); setAgentId(""); }}>
                             <SelectTrigger><SelectValue placeholder="Auto-select or choose..." /></SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="__dh_header" disabled className="font-semibold text-xs text-muted-foreground">Distribution Houses (Round-Robin)</SelectItem>
                               {dhList?.map((d: any, i: number) => (
                                 <SelectItem key={d.dh_id} value={d.dh_id}>
                                   {i === 0 ? "⭐ " : ""}{d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
                                 </SelectItem>
                               ))}
+                              {channelDeliveryInfo?.subChannels?.filter((sc: any) => {
+                                const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                              }).length ? (
+                                <>
+                                  <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
+                                  {channelDeliveryInfo.subChannels
+                                    .filter((sc: any) => {
+                                      const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                      return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                    })
+                                    .map((sc: any) => (
+                                      <SelectItem key={sc.sub_channel_id} value={`sc:${sc.sub_channel_id}`}>
+                                        📌 {sc.sub_channel_name}
+                                      </SelectItem>
+                                    ))}
+                                </>
+                              ) : null}
                             </SelectContent>
                           </Select>
                         </div>
@@ -718,7 +737,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                             <SelectTrigger><SelectValue placeholder="Select agent..." /></SelectTrigger>
                             <SelectContent>
                               {!agentList?.length ? (
-                                <SelectItem value="__none" disabled>No agents for this DH</SelectItem>
+                                <SelectItem value="__none" disabled>No agents available</SelectItem>
                               ) : agentList.map((a: any) => (
                                 <SelectItem key={a.agent_id} value={a.agent_id}>{a.agent_id} — {a.agent_name}</SelectItem>
                               ))}

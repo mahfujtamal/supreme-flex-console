@@ -15,6 +15,10 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB enums (Phase 7.1): asset_status, asset_type, replacement_reason (WARRANTY/PAID/UPGRADE)
 - DB enums (Phase 8): dh_status, agent_status (ACTIVE/INACTIVE); order_status extended: ASSIGNED, CONTACTED, NETWORK_TEST, INSTALLED
 - Channels: is_assisted boolean added (assisted channels require sub_channel)
+- Channels: is_self_delivered boolean (default false) — self-delivered channels use own agents, not DH round-robin
+- Sub-channels: override_delivery_ownership boolean (default false) — overrides parent channel delivery setting
+- Delivery ownership rule: IF channel.is_self_delivered OR sub_channel.override_delivery_ownership THEN dispatch to sub-channel agents ELSE standard DH round-robin
+- Field Agents: can be tagged to DH OR self-delivered sub-channel (stored as `sc:<sub_channel_id>` in dh_id)
 - Anchors: Created at LEAD/ORDER stage, link customer→order with location test data
 - Active services: linked to anchor_id, gpfi_msisdn UNIQUE, cpe_model column
 - Customer assets: linked to anchor_id, serial_number UNIQUE, warranty tracking
@@ -33,7 +37,7 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - Agent bulk CSV: agent_id, agent_name, msisdn, dh_code (FK mapped)
 - KAM bulk CSV: kam_id, name, msisdn, segments (pipe-delimited)
 - Work Order Lifecycle: PENDING_DISPATCH→ASSIGNED→CONTACTED→OUT_FOR_DELIVERY→NETWORK_TEST→INSTALLED (or CANCELLED at any stage)
-- Smart Dispatch: B2C = round-robin DH by oldest last_assigned_at; B2B = direct KAM assignment
+- Smart Dispatch: B2C = round-robin DH by oldest last_assigned_at OR self-delivered sub-channel; B2B = direct KAM assignment
 - Cancel reasons: Customer Refused, Unreachable, Wrong Address, FI Test Failed, Inventory Issue, Other
 - Cancel safety: inventory returns to WITH_AGENT on cancel
 - Installation form: pre-populated from order, override from WITH_AGENT inventory, SIM selection defines gpfi_msisdn
