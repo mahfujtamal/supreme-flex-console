@@ -158,6 +158,7 @@ export default function ProductCatalogTab() {
     setCategory(p.product_category);
     setAddonType(p.addon_type || "");
     setBillingType(p.billing_type);
+    setBillingFrequency(p.billing_frequency || (p.billing_type === "ONE_TIME" ? "ONE_TIME" : "MONTHLY"));
     setNetworkCap(p.network_capability);
     setIsExclusive(p.is_exclusive);
     setSerialRequired(p.serial_required);
