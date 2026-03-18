@@ -139,8 +139,13 @@ export default function ChannelsTab() {
           <DialogHeader><DialogTitle>{editId ? "Edit Channel" : "Create Channel"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
+            <div className="space-y-2">
               <Label>Channel Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Retail" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="is_assisted" checked={isAssisted} onCheckedChange={(v) => setIsAssisted(!!v)} />
+              <Label htmlFor="is_assisted">Assisted Channel (requires sub-channel)</Label>
             </div>
           </div>
           <DialogFooter>
