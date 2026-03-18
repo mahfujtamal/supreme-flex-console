@@ -94,6 +94,14 @@ const OrderDispatchTab = () => {
                 </TableCell>
                 <TableCell>{order.assigned_dh_kam_id ?? "—"}</TableCell>
                 <TableCell>{order.assigned_agent_id ?? "—"}</TableCell>
+                <TableCell className="text-xs">
+                  {(order as any).staff_user_id
+                    ? (() => {
+                        const staff = staffLookup?.find((s: any) => s.id === (order as any).staff_user_id);
+                        return staff ? `${staff.employee_id} — ${staff.user_name}` : (order as any).staff_user_id?.slice(0, 8);
+                      })()
+                    : "—"}
+                </TableCell>
                 <TableCell className="text-right font-medium">{formatBDT(Number(order.final_total_bdt))}</TableCell>
                 <TableCell className="text-center">
                   <Button size="sm" variant="outline" className="gap-1" onClick={() => setSelectedOrderId(order.order_id)}>
