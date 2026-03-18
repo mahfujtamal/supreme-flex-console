@@ -302,8 +302,8 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
               </div>
               <div className="space-y-2">
                 <Label>Network Zone</Label>
-                 <MultiSelectDropdown
-                   options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
+                <MultiSelectDropdown
+                   options={(filteredZones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
                    selected={zoneIds}
                    onChange={handleZoneChange}
                    placeholder="None (ALL)"
