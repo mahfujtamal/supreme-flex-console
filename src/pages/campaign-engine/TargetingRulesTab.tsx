@@ -290,7 +290,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Network Type</Label>
-                <Select value={networkType} onValueChange={setNetworkType}>
+                <Select value={networkType} onValueChange={handleNetworkTypeChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>Any</SelectItem>
