@@ -108,8 +108,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setOverrideDelivery(false); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOverrideDelivery(item.override_delivery_ownership ?? false); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setDeliveryOwnership("FOLLOW_CHANNEL"); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setDeliveryOwnership(item.delivery_ownership ?? "FOLLOW_CHANNEL"); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
