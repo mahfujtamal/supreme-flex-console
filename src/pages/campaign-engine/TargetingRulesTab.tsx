@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -14,6 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { MultiSelectDropdown, ALL_VALUE } from "@/components/ui/multi-select-dropdown";
 import { useToast } from "@/hooks/use-toast";
 
 const NETWORK_TYPES = ["4G", "5G", "ANY"] as const;
@@ -21,11 +23,11 @@ const NONE = "__none__";
 
 export default function TargetingRulesTab({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
-  const [zoneId, setZoneId] = useState(NONE);
-  const [districtId, setDistrictId] = useState(NONE);
-  const [areaId, setAreaId] = useState(NONE);
-  const [channelId, setChannelId] = useState(NONE);
-  const [subChannelId, setSubChannelId] = useState(NONE);
+  const [zoneIds, setZoneIds] = useState<string[]>([]);
+  const [districtIds, setDistrictIds] = useState<string[]>([]);
+  const [areaIds, setAreaIds] = useState<string[]>([]);
+  const [channelIds, setChannelIds] = useState<string[]>([]);
+  const [subChannelIds, setSubChannelIds] = useState<string[]>([]);
   const [networkType, setNetworkType] = useState(NONE);
   const [minAge, setMinAge] = useState("");
   const [maxAge, setMaxAge] = useState("");
@@ -50,21 +52,48 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
     },
   });
 
+  // Helper: resolve selected values to actual IDs or null (ALL = wildcard)
+  const resolveIds = (selected: string[], allOptions: { value: string }[]) => {
+    if (!selected.length) return [null]; // no selection = wildcard
+    if (selected.includes(ALL_VALUE)) return [null]; // ALL = wildcard
+    return selected;
+  };
+
   const addRule = useMutation({
     mutationFn: async () => {
-      const payload: any = { campaign_id: campaignId };
-      if (zoneId !== NONE) payload.network_zone_id = zoneId;
-      if (districtId !== NONE) payload.district_id = districtId;
-      if (areaId !== NONE) payload.area_id = areaId;
-      if (channelId !== NONE) payload.channel_id = channelId;
-      if (subChannelId !== NONE) payload.sub_channel_id = subChannelId;
-      if (networkType !== NONE) payload.network_type = networkType;
-      if (minAge) payload.min_network_age_days = parseInt(minAge);
-      if (maxAge) payload.max_network_age_days = parseInt(maxAge);
-      const { error } = await supabase.from("campaign_targeting_rules").insert(payload);
+      const zoneVals = resolveIds(zoneIds, []);
+      const districtVals = resolveIds(districtIds, []);
+      const areaVals = resolveIds(areaIds, []);
+      const channelVals = resolveIds(channelIds, []);
+      const subChannelVals = resolveIds(subChannelIds, []);
+
+      // Build rows: cartesian product of all non-null selections
+      const rows: any[] = [];
+      for (const z of zoneVals) {
+        for (const d of districtVals) {
+          for (const a of areaVals) {
+            for (const ch of channelVals) {
+              for (const sc of subChannelVals) {
+                const payload: any = { campaign_id: campaignId };
+                if (z) payload.network_zone_id = z;
+                if (d) payload.district_id = d;
+                if (a) payload.area_id = a;
+                if (ch) payload.channel_id = ch;
+                if (sc) payload.sub_channel_id = sc;
+                if (networkType !== NONE) payload.network_type = networkType;
+                if (minAge) payload.min_network_age_days = parseInt(minAge);
+                if (maxAge) payload.max_network_age_days = parseInt(maxAge);
+                rows.push(payload);
+              }
+            }
+          }
+        }
+      }
+
+      const { error } = await supabase.from("campaign_targeting_rules").insert(rows);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); toast({ title: "Targeting rule added" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); toast({ title: `Targeting rule${zoneIds.length > 1 || districtIds.length > 1 ? "s" : ""} added` }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -77,9 +106,37 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
   });
 
   const closeDialog = () => {
-    setOpen(false); setZoneId(NONE); setDistrictId(NONE); setAreaId(NONE);
-    setChannelId(NONE); setSubChannelId(NONE); setNetworkType(NONE); setMinAge(""); setMaxAge("");
+    setOpen(false); setZoneIds([]); setDistrictIds([]); setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]); setNetworkType(NONE); setMinAge(""); setMaxAge("");
   };
+
+  // Summary helper for display
+  const summaryLabel = (val: string | null, name: string | undefined) => name ?? "ALL";
+
+  // Build summary for the rule preview
+  const buildSummary = () => {
+    const parts: string[] = [];
+    const summarize = (label: string, selected: string[], options: { value: string; label: string }[]) => {
+      if (!selected.length) return;
+      if (selected.includes(ALL_VALUE)) {
+        parts.push(`${label}: ALL`);
+      } else {
+        const names = selected.map(v => options.find(o => o.value === v)?.label ?? v);
+        parts.push(`${label}: ${names.join(", ")}`);
+      }
+    };
+    summarize("Zone", zoneIds, (zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name })));
+    summarize("District", districtIds, (districts ?? []).map(d => ({ value: d.district_id, label: d.district_name })));
+    summarize("Area", areaIds, (areas ?? []).map(a => ({ value: a.area_id, label: a.area_name })));
+    summarize("Channel", channelIds, (channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name })));
+    summarize("Sub-Ch", subChannelIds, (subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name })));
+    if (networkType !== NONE) parts.push(`Network: ${networkType}`);
+    if (minAge || maxAge) parts.push(`Age: ${minAge || "0"}–${maxAge || "∞"} days`);
+    return parts.join(" | ");
+  };
+
+  const hasSelection = zoneIds.length > 0 || districtIds.length > 0 || areaIds.length > 0 ||
+    channelIds.length > 0 || subChannelIds.length > 0 || networkType !== NONE || minAge || maxAge;
 
   return (
     <div className="space-y-4 pt-2">
@@ -108,11 +165,31 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
               <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">No targeting rules yet.</TableCell></TableRow>
             ) : rules.map((r: any) => (
               <TableRow key={r.rule_id}>
-                <TableCell className="text-xs">{r.network_zones?.network_zone_name || "—"}</TableCell>
-                <TableCell className="text-xs">{r.districts?.district_name || "—"}</TableCell>
-                <TableCell className="text-xs">{r.areas?.area_name || "—"}</TableCell>
-                <TableCell className="text-xs">{r.channels?.channel_name || "—"}</TableCell>
-                <TableCell className="text-xs">{r.sub_channels?.sub_channel_name || "—"}</TableCell>
+                <TableCell className="text-xs">
+                  {r.network_zones?.network_zone_name
+                    ? r.network_zones.network_zone_name
+                    : <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ALL</Badge>}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.districts?.district_name
+                    ? r.districts.district_name
+                    : <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ALL</Badge>}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.areas?.area_name
+                    ? r.areas.area_name
+                    : <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ALL</Badge>}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.channels?.channel_name
+                    ? r.channels.channel_name
+                    : <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ALL</Badge>}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.sub_channels?.sub_channel_name
+                    ? r.sub_channels.sub_channel_name
+                    : <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ALL</Badge>}
+                </TableCell>
                 <TableCell className="text-xs">{r.network_type || "—"}</TableCell>
                 <TableCell className="text-xs">{r.min_network_age_days ?? "—"} – {r.max_network_age_days ?? "—"}</TableCell>
                 <TableCell>
@@ -133,57 +210,57 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Network Zone</Label>
-                <Select value={zoneId} onValueChange={setZoneId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {zones?.map(z => <SelectItem key={z.network_zone_id} value={z.network_zone_id}>{z.network_zone_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectDropdown
+                  options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
+                  selected={zoneIds}
+                  onChange={setZoneIds}
+                  placeholder="None (ALL)"
+                  allLabel="ALL Zones"
+                />
               </div>
               <div className="space-y-2">
                 <Label>District</Label>
-                <Select value={districtId} onValueChange={setDistrictId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {districts?.map(d => <SelectItem key={d.district_id} value={d.district_id}>{d.district_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectDropdown
+                  options={(districts ?? []).map(d => ({ value: d.district_id, label: d.district_name }))}
+                  selected={districtIds}
+                  onChange={setDistrictIds}
+                  placeholder="None (ALL)"
+                  allLabel="ALL Districts"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Area</Label>
-                <Select value={areaId} onValueChange={setAreaId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {areas?.map(a => <SelectItem key={a.area_id} value={a.area_id}>{a.area_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectDropdown
+                  options={(areas ?? []).map(a => ({ value: a.area_id, label: a.area_name }))}
+                  selected={areaIds}
+                  onChange={setAreaIds}
+                  placeholder="None (ALL)"
+                  allLabel="ALL Areas"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Channel</Label>
-                <Select value={channelId} onValueChange={setChannelId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {channels?.map(c => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectDropdown
+                  options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
+                  selected={channelIds}
+                  onChange={setChannelIds}
+                  placeholder="None (ALL)"
+                  allLabel="ALL Channels"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Sub-Channel</Label>
-                <Select value={subChannelId} onValueChange={setSubChannelId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {subChannels?.map(sc => <SelectItem key={sc.sub_channel_id} value={sc.sub_channel_id}>{sc.sub_channel_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelectDropdown
+                  options={(subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name }))}
+                  selected={subChannelIds}
+                  onChange={setSubChannelIds}
+                  placeholder="None (ALL)"
+                  allLabel="ALL Sub-Channels"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Network Type</Label>
@@ -206,6 +283,14 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                 <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" />
               </div>
             </div>
+
+            {/* Rule summary preview */}
+            {hasSelection && (
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Rule Summary</p>
+                <p className="text-sm">{buildSummary()}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
