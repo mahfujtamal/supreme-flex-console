@@ -1207,6 +1207,7 @@ export type Database = {
       products: {
         Row: {
           addon_type: Database["public"]["Enums"]["addon_type"] | null
+          billing_frequency: Database["public"]["Enums"]["billing_frequency"]
           billing_type: Database["public"]["Enums"]["billing_type"]
           created_at: string
           is_exclusive: boolean
@@ -1222,6 +1223,7 @@ export type Database = {
         }
         Insert: {
           addon_type?: Database["public"]["Enums"]["addon_type"] | null
+          billing_frequency?: Database["public"]["Enums"]["billing_frequency"]
           billing_type: Database["public"]["Enums"]["billing_type"]
           created_at?: string
           is_exclusive?: boolean
@@ -1237,6 +1239,7 @@ export type Database = {
         }
         Update: {
           addon_type?: Database["public"]["Enums"]["addon_type"] | null
+          billing_frequency?: Database["public"]["Enums"]["billing_frequency"]
           billing_type?: Database["public"]["Enums"]["billing_type"]
           created_at?: string
           is_exclusive?: boolean
@@ -1556,6 +1559,7 @@ export type Database = {
         | "DELETE"
         | "BULK_IMPORT"
         | "STATUS_CHANGE"
+      billing_frequency: "ONE_TIME" | "WEEKLY" | "MONTHLY" | "YEARLY"
       billing_type: "ONE_TIME" | "RECURRING"
       campaign_network_type: "4G" | "5G" | "ANY"
       campaign_rule_type: "EXCLUSIVE" | "UNAVAILABLE" | "DISCOUNT"
@@ -1747,6 +1751,7 @@ export const Constants = {
         "BULK_IMPORT",
         "STATUS_CHANGE",
       ],
+      billing_frequency: ["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"],
       billing_type: ["ONE_TIME", "RECURRING"],
       campaign_network_type: ["4G", "5G", "ANY"],
       campaign_rule_type: ["EXCLUSIVE", "UNAVAILABLE", "DISCOUNT"],

@@ -23,8 +23,16 @@ const PAGE_SIZE = 10;
 const CATEGORIES = ["WIFI_PLAN", "CPE", "SIM", "ADDON"] as const;
 const ADDON_TYPES = ["PHYSICAL", "DIGITAL"] as const;
 const BILLING_TYPES = ["ONE_TIME", "RECURRING"] as const;
+const BILLING_FREQUENCIES = ["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"] as const;
 const NETWORK_CAPS = ["4G", "5G", "BOTH", "ANY"] as const;
 const WARRANTY_UNITS = ["DAYS", "MONTHS", "YEARS"] as const;
+
+const FREQ_LABELS: Record<string, string> = {
+  ONE_TIME: "One-Time",
+  WEEKLY: "Weekly",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
+};
 
 type Category = typeof CATEGORIES[number];
 type AddonType = typeof ADDON_TYPES[number];
@@ -63,13 +71,17 @@ export default function ProductCatalogTab() {
   const [serialRequired, setSerialRequired] = useState(false);
   const [warrantyValue, setWarrantyValue] = useState("");
   const [warrantyUnit, setWarrantyUnit] = useState<string>("");
+  const [billingFrequency, setBillingFrequency] = useState<string>("MONTHLY");
 
   // Auto-apply business rules when category/addonType change
   useEffect(() => {
     if (needsRecurring(category)) {
       setBillingType("RECURRING");
+      // Default frequency to MONTHLY for recurring
+      setBillingFrequency("MONTHLY");
     } else if (needsOneTime(category, addonType as AddonType || undefined)) {
       setBillingType("ONE_TIME");
+      setBillingFrequency("ONE_TIME");
     }
     if (needsSerial(category, addonType as AddonType || undefined)) {
       setSerialRequired(true);
@@ -94,6 +106,7 @@ export default function ProductCatalogTab() {
         product_category: category,
         addon_type: category === "ADDON" ? addonType || null : null,
         billing_type: billingType,
+        billing_frequency: billingFrequency,
         network_capability: networkCap,
         is_exclusive: isExclusive,
         serial_required: serialRequired,
@@ -131,6 +144,7 @@ export default function ProductCatalogTab() {
     setCategory("WIFI_PLAN");
     setAddonType("");
     setBillingType("RECURRING");
+    setBillingFrequency("MONTHLY");
     setNetworkCap("ANY");
     setIsExclusive(false);
     setSerialRequired(false);
@@ -144,6 +158,7 @@ export default function ProductCatalogTab() {
     setCategory(p.product_category);
     setAddonType(p.addon_type || "");
     setBillingType(p.billing_type);
+    setBillingFrequency(p.billing_frequency || (p.billing_type === "ONE_TIME" ? "ONE_TIME" : "MONTHLY"));
     setNetworkCap(p.network_capability);
     setIsExclusive(p.is_exclusive);
     setSerialRequired(p.serial_required);
@@ -173,7 +188,7 @@ export default function ProductCatalogTab() {
             <TableRow>
               <TableHead>Product Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Billing</TableHead>
+              <TableHead>Frequency</TableHead>
               <TableHead>Network</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px]">Created</TableHead>
@@ -193,7 +208,7 @@ export default function ProductCatalogTab() {
                     {p.product_category}{p.addon_type ? ` / ${p.addon_type}` : ""}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm">{p.billing_type}</TableCell>
+                <TableCell className="text-sm">{FREQ_LABELS[p.billing_frequency] || p.billing_type?.replace("_", " ")}</TableCell>
                 <TableCell className="text-sm">{p.network_capability}</TableCell>
                 <TableCell>
                   <Badge variant={p.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: p.product_id, status: p.status })}>
@@ -254,17 +269,25 @@ export default function ProductCatalogTab() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Billing Type</Label>
-                <Select value={billingType} onValueChange={setBillingType} disabled={needsRecurring(category) || needsOneTime(category, addonType as AddonType || undefined)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {BILLING_TYPES.map((b) => <SelectItem key={b} value={b}>{b.replace("_", " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Commercial Frequency</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">How often the customer is billed</p>
+                {billingType === "ONE_TIME" ? (
+                  <Input value="One-Time" disabled className="bg-muted" />
+                ) : (
+                  <Select value={billingFrequency} onValueChange={setBillingFrequency}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((f) => (
+                        <SelectItem key={f} value={f}>{FREQ_LABELS[f]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label>Network Capability</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">Supported network generation</p>
                 <Select value={networkCap} onValueChange={setNetworkCap}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -273,6 +296,14 @@ export default function ProductCatalogTab() {
                 </Select>
               </div>
             </div>
+
+            {category === "WIFI_PLAN" && (
+              <div className="p-3 rounded-md bg-muted/50 border border-dashed">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Technical Validity:</strong> Set during service activation. WiFi expiry = Activation Date + Validity Days + 1 Day.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
