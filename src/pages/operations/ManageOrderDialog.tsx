@@ -274,6 +274,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     if (order) {
       setDhKamId(order.assigned_dh_kam_id ?? "");
       setAgentId(order.assigned_agent_id ?? "");
+      setStaffUserId((order as any).staff_user_id ?? "");
     }
   }, [order]);
 
