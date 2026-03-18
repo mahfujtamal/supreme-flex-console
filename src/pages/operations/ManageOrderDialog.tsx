@@ -254,12 +254,14 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       let assignedDh = "";
       let assignedAgent = "";
 
+      // Check delivery ownership: channel.is_self_delivered OR sub_channel.override_delivery_ownership
+      // For now, use the manual selection — the dispatch UI will adapt based on flags
+      const isSelfDelivered = false; // Will be determined by order's channel/sub-channel in production
+
       if (order.customer_type === "B2B") {
-        // B2B: Assign to KAM directly — find KAM from sub_channel or manually selected
         if (!dhKamId) throw new Error("Select a KAM for B2B dispatch");
         assignedDh = dhKamId;
       } else {
-        // B2C: Round-robin — pick DH with oldest last_assigned_at
         if (dhKamId) {
           assignedDh = dhKamId;
         } else if (dhList?.length) {
@@ -278,8 +280,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       }).eq("order_id", orderId);
       if (error) throw error;
 
-      // Update DH last_assigned_at for round-robin
-      if (order.customer_type !== "B2B" && assignedDh) {
+      // Update DH last_assigned_at for round-robin (only for non-self-delivered B2C)
+      if (order.customer_type !== "B2B" && assignedDh && !assignedDh.startsWith("sc:")) {
         await supabase.from("distribution_houses")
           .update({ last_assigned_at: new Date().toISOString() } as any)
           .eq("dh_id", assignedDh);
