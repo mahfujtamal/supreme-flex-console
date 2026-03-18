@@ -275,6 +275,16 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label>Network Type</Label>
+                <Select value={networkType} onValueChange={setNetworkType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Any</SelectItem>
+                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>Network Zone</Label>
                  <MultiSelectDropdown
                    options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
@@ -284,6 +294,8 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                    allLabel="ALL Zones"
                  />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>District</Label>
                  <MultiSelectDropdown
@@ -294,8 +306,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                    allLabel="ALL Districts"
                  />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Area</Label>
                 <MultiSelectDropdown
@@ -305,16 +315,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                   placeholder="None (ALL)"
                   allLabel="ALL Areas"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Network Type</Label>
-                <Select value={networkType} onValueChange={setNetworkType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Any</SelectItem>
-                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -339,16 +339,18 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Min Network Age (days)</Label>
-                <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" />
+            {campaignScope !== "ACQ" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Min Network Age (days)</Label>
+                  <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Network Age (days)</Label>
+                  <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Max Network Age (days)</Label>
-                <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" />
-              </div>
-            </div>
+            )}
 
             {/* Rule summary preview */}
             {hasSelection && (
