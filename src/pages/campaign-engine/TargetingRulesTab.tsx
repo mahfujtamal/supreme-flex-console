@@ -301,11 +301,23 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                 <MultiSelectDropdown
                   options={(areas ?? []).map(a => ({ value: a.area_id, label: a.area_name }))}
                   selected={areaIds}
-                  onChange={setAreaIds}
+                  onChange={handleAreaChange}
                   placeholder="None (ALL)"
                   allLabel="ALL Areas"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Network Type</Label>
+                <Select value={networkType} onValueChange={setNetworkType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Any</SelectItem>
+                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Channel</Label>
                  <MultiSelectDropdown
@@ -316,8 +328,6 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                    allLabel="ALL Channels"
                  />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Sub-Channel</Label>
                 <MultiSelectDropdown
@@ -327,16 +337,6 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                   placeholder="None (ALL)"
                   allLabel="ALL Sub-Channels"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Network Type</Label>
-                <Select value={networkType} onValueChange={setNetworkType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Any</SelectItem>
-                    {NETWORK_TYPES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
