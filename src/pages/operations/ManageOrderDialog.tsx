@@ -321,6 +321,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
         assigned_dh_kam_id: assignedDh || null,
         assigned_agent_id: assignedAgent || null,
         staff_user_id: staffUserId || null,
+        channel_id: sourceChannelId || null,
+        sub_channel_id: sourceSubChannelId || null,
         order_status: "ASSIGNED" as any,
       } as any).eq("order_id", orderId);
       if (error) throw error;
