@@ -50,6 +50,48 @@ const CANCEL_REASONS = [
   "Other",
 ];
 
+// ─── Searchable SIM Dropdown ───
+const SimSearchDropdown = ({ simInventory, value, onSelect }: { simInventory: any[]; value: string; onSelect: (v: string) => void }) => {
+  const [simSearch, setSimSearch] = useState("");
+  const filtered = simInventory.filter((s: any) => {
+    const label = (s.msisdn ?? s.serial_number ?? "").toLowerCase();
+    return label.includes(simSearch.toLowerCase());
+  });
+  const selectedSim = simInventory.find((s: any) => s.inventory_id === value);
+  const selectedLabel = selectedSim ? (selectedSim.msisdn ?? selectedSim.serial_number ?? "Selected") : "";
+
+  return (
+    <div className="space-y-1">
+      <div className="relative">
+        <Input
+          placeholder="Search SIM MSISDN..."
+          value={value ? selectedLabel : simSearch}
+          onChange={(e) => { setSimSearch(e.target.value); if (value) onSelect(""); }}
+          className="pr-8"
+        />
+        {value && (
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { onSelect(""); setSimSearch(""); }}>✕</button>
+        )}
+      </div>
+      {!value && simSearch && (
+        <div className="border rounded-md max-h-32 overflow-y-auto bg-popover">
+          {!filtered.length ? (
+            <p className="text-xs text-muted-foreground p-2">No matching SIMs</p>
+          ) : filtered.map((s: any) => (
+            <button
+              key={s.inventory_id}
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
+              onClick={() => { onSelect(s.inventory_id); setSimSearch(""); }}
+            >
+              {s.msisdn ?? s.serial_number ?? "N/A"} — {s.products?.product_name ?? "SIM"}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   const queryClient = useQueryClient();
 
