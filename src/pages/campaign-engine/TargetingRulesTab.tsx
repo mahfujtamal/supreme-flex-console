@@ -62,6 +62,22 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
     return filtered;
   })();
 
+  // Cascading: derive available network types from selected areas
+  const selectedAreaIds = areaIds.filter(v => v !== ALL_VALUE);
+  const availableNetworkTypes = (() => {
+    const relevantAreas = selectedAreaIds.length && !areaIds.includes(ALL_VALUE)
+      ? areas.filter(a => selectedAreaIds.includes(a.area_id))
+      : areas;
+    if (!relevantAreas.length) return NETWORK_TYPES as unknown as string[];
+    const has4G = relevantAreas.some(a => a.is_4g_area);
+    const has5G = relevantAreas.some(a => a.is_5g_area);
+    const types: string[] = [];
+    if (has4G) types.push("4G");
+    if (has5G) types.push("5G");
+    if (has4G || has5G) types.push("ANY");
+    return types.length ? types : (NETWORK_TYPES as unknown as string[]);
+  })();
+
   // Cascading: filter sub-channels by selected channels
   const selectedChannelIds = channelIds.filter(v => v !== ALL_VALUE);
   const subChannels = (() => {
@@ -72,11 +88,18 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
   // Reset children when parent changes
   const handleZoneChange = (vals: string[]) => {
     setZoneIds(vals);
-    setDistrictIds([]); setAreaIds([]);
+    setDistrictIds([]); setAreaIds([]); setNetworkType(NONE);
   };
   const handleDistrictChange = (vals: string[]) => {
     setDistrictIds(vals);
-    setAreaIds([]);
+    setAreaIds([]); setNetworkType(NONE);
+  };
+  const handleAreaChange = (vals: string[]) => {
+    setAreaIds(vals);
+    // Reset network type if no longer valid
+    if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
+      setNetworkType(NONE);
+    }
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
