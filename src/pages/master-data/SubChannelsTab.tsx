@@ -239,12 +239,19 @@ export default function SubChannelsTab() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Online Store" />
               )}
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="override_delivery">Override Delivery Ownership?</Label>
-                <p className="text-xs text-muted-foreground">Uses own agents regardless of parent channel setting</p>
-              </div>
-              <Switch id="override_delivery" checked={overrideDelivery} onCheckedChange={setOverrideDelivery} />
+            <div className="space-y-2">
+              <Label>Delivery Ownership</Label>
+              <Select value={deliveryOwnership} onValueChange={setDeliveryOwnership}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FOLLOW_CHANNEL">Follow Channel Rule</SelectItem>
+                  <SelectItem value="SELF_DELIVERY">Self-Delivery (GPC Agents)</SelectItem>
+                  <SelectItem value="DH_DELIVERY">DH Delivery (Distribution House)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {deliveryOwnership === "FOLLOW_CHANNEL" ? "Inherits delivery model from parent channel" : deliveryOwnership === "SELF_DELIVERY" ? "Orders dispatched to this sub-channel's own agents" : "Orders dispatched via DH round-robin"}
+              </p>
             </div>
           </div>
           <DialogFooter>
