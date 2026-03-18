@@ -62,6 +62,9 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
 
   // Network test state
   const [networkTestResult, setNetworkTestResult] = useState<"PASSED" | "FAILED" | "">("");
+  const [signalStrength, setSignalStrength] = useState("");
+  const [downloadSpeed, setDownloadSpeed] = useState("");
+  const [latency, setLatency] = useState("");
 
   // Cancel state
   const [showCancel, setShowCancel] = useState(false);
