@@ -674,11 +674,31 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             </div>
 
             {/* ─── Customer Info ─── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
               <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{order.customer_name}</span></div>
               <div><span className="text-muted-foreground">Contact:</span> <span className="font-mono">{order.contact_msisdn}</span></div>
               <div><span className="text-muted-foreground">Type:</span> <Badge variant="outline">{order.customer_type}</Badge></div>
               <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">{formatBDT(Number(order.final_total_bdt))}</span></div>
+              {order.assigned_dh_kam_id && (
+                <div>
+                  <span className="text-muted-foreground">Assigned To:</span>{" "}
+                  <span className="font-medium">
+                    {order.assigned_dh_kam_id.startsWith?.("sc:") ? `[Sub-Channel]` : order.customer_type === "B2B" ? `[KAM]` : `[DH]`}{" "}
+                    {(() => {
+                      const id = order.assigned_dh_kam_id;
+                      if (id.startsWith?.("sc:")) {
+                        const scId = id.replace("sc:", "");
+                        return channelDeliveryInfo?.subChannels?.find((sc: any) => sc.sub_channel_id === scId)?.sub_channel_name ?? scId;
+                      }
+                      const dh = dhList?.find((d: any) => d.dh_id === id);
+                      if (dh) return `${dh.dh_code} — ${dh.name}`;
+                      const kam = kamList?.find((k: any) => k.kam_id === id);
+                      if (kam) return `${kam.kam_id} — ${kam.name}`;
+                      return id;
+                    })()}
+                  </span>
+                </div>
+              )}
             </div>
 
             <Separator />
