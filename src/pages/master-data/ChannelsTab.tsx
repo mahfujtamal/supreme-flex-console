@@ -91,12 +91,17 @@ export default function ChannelsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
             ) : data.items.map((c) => (
               <TableRow key={c.channel_id}>
                 <TableCell className="font-medium">{c.channel_name}</TableCell>
+                <TableCell>
+                  <Badge variant={(c as any).is_assisted ? "default" : "outline"} className="text-xs">
+                    {(c as any).is_assisted ? "Yes" : "No"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <Badge variant={c.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: c.channel_id, status: c.status })}>
                     {c.status ? "Active" : "Inactive"}
