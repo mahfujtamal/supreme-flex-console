@@ -140,7 +140,7 @@ export default function SubChannelsTab() {
             <TableRow>
               <TableHead>Sub-Channel Name</TableHead>
               <TableHead>Parent Channel</TableHead>
-              <TableHead className="w-[130px]">Override Delivery</TableHead>
+              <TableHead className="w-[160px]">Delivery Ownership</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
