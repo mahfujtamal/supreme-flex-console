@@ -23,8 +23,16 @@ const PAGE_SIZE = 10;
 const CATEGORIES = ["WIFI_PLAN", "CPE", "SIM", "ADDON"] as const;
 const ADDON_TYPES = ["PHYSICAL", "DIGITAL"] as const;
 const BILLING_TYPES = ["ONE_TIME", "RECURRING"] as const;
+const BILLING_FREQUENCIES = ["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"] as const;
 const NETWORK_CAPS = ["4G", "5G", "BOTH", "ANY"] as const;
 const WARRANTY_UNITS = ["DAYS", "MONTHS", "YEARS"] as const;
+
+const FREQ_LABELS: Record<string, string> = {
+  ONE_TIME: "One-Time",
+  WEEKLY: "Weekly",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
+};
 
 type Category = typeof CATEGORIES[number];
 type AddonType = typeof ADDON_TYPES[number];
