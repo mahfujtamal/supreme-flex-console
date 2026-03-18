@@ -36,7 +36,7 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
 
   const { data: zones } = useQuery({ queryKey: ["zones_lookup"], queryFn: async () => { const { data } = await supabase.from("network_zones").select("network_zone_id, network_zone_name").eq("status", true).order("network_zone_name"); return data ?? []; } });
   const { data: allDistricts } = useQuery({ queryKey: ["districts_lookup_full"], queryFn: async () => { const { data } = await supabase.from("districts").select("district_id, district_name").eq("status", true).order("district_name"); return data ?? []; } });
-  const { data: allAreas } = useQuery({ queryKey: ["areas_lookup_full"], queryFn: async () => { const { data } = await supabase.from("areas").select("area_id, area_name, district_id, network_zone_id").eq("status", true).order("area_name"); return data ?? []; } });
+  const { data: allAreas } = useQuery({ queryKey: ["areas_lookup_full"], queryFn: async () => { const { data } = await supabase.from("areas").select("area_id, area_name, district_id, network_zone_id, is_4g_area, is_5g_area").eq("status", true).order("area_name"); return data ?? []; } });
   const { data: channels } = useQuery({ queryKey: ["channels_lookup"], queryFn: async () => { const { data } = await supabase.from("channels").select("channel_id, channel_name").eq("status", true).order("channel_name"); return data ?? []; } });
   const { data: allSubChannels } = useQuery({ queryKey: ["sub_channels_lookup_full"], queryFn: async () => { const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id").eq("status", true).order("sub_channel_name"); return data ?? []; } });
 
@@ -62,6 +62,22 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
     return filtered;
   })();
 
+  // Cascading: derive available network types from selected areas
+  const selectedAreaIds = areaIds.filter(v => v !== ALL_VALUE);
+  const availableNetworkTypes = (() => {
+    const relevantAreas = selectedAreaIds.length && !areaIds.includes(ALL_VALUE)
+      ? areas.filter(a => selectedAreaIds.includes(a.area_id))
+      : areas;
+    if (!relevantAreas.length) return NETWORK_TYPES as unknown as string[];
+    const has4G = relevantAreas.some(a => a.is_4g_area);
+    const has5G = relevantAreas.some(a => a.is_5g_area);
+    const types: string[] = [];
+    if (has4G) types.push("4G");
+    if (has5G) types.push("5G");
+    if (has4G || has5G) types.push("ANY");
+    return types.length ? types : (NETWORK_TYPES as unknown as string[]);
+  })();
+
   // Cascading: filter sub-channels by selected channels
   const selectedChannelIds = channelIds.filter(v => v !== ALL_VALUE);
   const subChannels = (() => {
@@ -72,11 +88,18 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
   // Reset children when parent changes
   const handleZoneChange = (vals: string[]) => {
     setZoneIds(vals);
-    setDistrictIds([]); setAreaIds([]);
+    setDistrictIds([]); setAreaIds([]); setNetworkType(NONE);
   };
   const handleDistrictChange = (vals: string[]) => {
     setDistrictIds(vals);
-    setAreaIds([]);
+    setAreaIds([]); setNetworkType(NONE);
+  };
+  const handleAreaChange = (vals: string[]) => {
+    setAreaIds(vals);
+    // Reset network type if no longer valid
+    if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
+      setNetworkType(NONE);
+    }
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
@@ -278,11 +301,23 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                 <MultiSelectDropdown
                   options={(areas ?? []).map(a => ({ value: a.area_id, label: a.area_name }))}
                   selected={areaIds}
-                  onChange={setAreaIds}
+                  onChange={handleAreaChange}
                   placeholder="None (ALL)"
                   allLabel="ALL Areas"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Network Type</Label>
+                <Select value={networkType} onValueChange={setNetworkType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Any</SelectItem>
+                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Channel</Label>
                  <MultiSelectDropdown
@@ -293,8 +328,6 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                    allLabel="ALL Channels"
                  />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Sub-Channel</Label>
                 <MultiSelectDropdown
@@ -304,16 +337,6 @@ export default function TargetingRulesTab({ campaignId }: { campaignId: string }
                   placeholder="None (ALL)"
                   allLabel="ALL Sub-Channels"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Network Type</Label>
-                <Select value={networkType} onValueChange={setNetworkType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Any</SelectItem>
-                    {NETWORK_TYPES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
