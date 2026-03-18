@@ -133,6 +133,17 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     enabled: open,
   });
 
+  // Channel/SubChannel delivery ownership lookup
+  const { data: channelDeliveryInfo } = useQuery({
+    queryKey: ["channel_delivery_info"],
+    queryFn: async () => {
+      const { data: ch } = await supabase.from("channels").select("channel_id, channel_name, is_self_delivered");
+      const { data: sc } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, override_delivery_ownership");
+      return { channels: ch ?? [], subChannels: sc ?? [] };
+    },
+    enabled: open,
+  });
+
   const { data: orderItems } = useQuery({
     queryKey: ["order_items", orderId],
     queryFn: async () => {
@@ -243,12 +254,14 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       let assignedDh = "";
       let assignedAgent = "";
 
+      // Check delivery ownership: channel.is_self_delivered OR sub_channel.override_delivery_ownership
+      // For now, use the manual selection — the dispatch UI will adapt based on flags
+      const isSelfDelivered = false; // Will be determined by order's channel/sub-channel in production
+
       if (order.customer_type === "B2B") {
-        // B2B: Assign to KAM directly — find KAM from sub_channel or manually selected
         if (!dhKamId) throw new Error("Select a KAM for B2B dispatch");
         assignedDh = dhKamId;
       } else {
-        // B2C: Round-robin — pick DH with oldest last_assigned_at
         if (dhKamId) {
           assignedDh = dhKamId;
         } else if (dhList?.length) {
@@ -267,8 +280,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       }).eq("order_id", orderId);
       if (error) throw error;
 
-      // Update DH last_assigned_at for round-robin
-      if (order.customer_type !== "B2B" && assignedDh) {
+      // Update DH last_assigned_at for round-robin (only for non-self-delivered B2C)
+      if (order.customer_type !== "B2B" && assignedDh && !assignedDh.startsWith("sc:")) {
         await supabase.from("distribution_houses")
           .update({ last_assigned_at: new Date().toISOString() } as any)
           .eq("dh_id", assignedDh);
@@ -684,18 +697,37 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment (sorted by oldest last_assigned_at)</p>
+                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment or self-delivered sub-channel dispatch</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label>Distribution House</Label>
+                          <Label>Dispatch To</Label>
                           <Select value={dhKamId} onValueChange={(v) => { setDhKamId(v); setAgentId(""); }}>
                             <SelectTrigger><SelectValue placeholder="Auto-select or choose..." /></SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="__dh_header" disabled className="font-semibold text-xs text-muted-foreground">Distribution Houses (Round-Robin)</SelectItem>
                               {dhList?.map((d: any, i: number) => (
                                 <SelectItem key={d.dh_id} value={d.dh_id}>
                                   {i === 0 ? "⭐ " : ""}{d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
                                 </SelectItem>
                               ))}
+                              {channelDeliveryInfo?.subChannels?.filter((sc: any) => {
+                                const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                              }).length ? (
+                                <>
+                                  <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
+                                  {channelDeliveryInfo.subChannels
+                                    .filter((sc: any) => {
+                                      const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                      return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                    })
+                                    .map((sc: any) => (
+                                      <SelectItem key={sc.sub_channel_id} value={`sc:${sc.sub_channel_id}`}>
+                                        📌 {sc.sub_channel_name}
+                                      </SelectItem>
+                                    ))}
+                                </>
+                              ) : null}
                             </SelectContent>
                           </Select>
                         </div>
@@ -705,7 +737,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                             <SelectTrigger><SelectValue placeholder="Select agent..." /></SelectTrigger>
                             <SelectContent>
                               {!agentList?.length ? (
-                                <SelectItem value="__none" disabled>No agents for this DH</SelectItem>
+                                <SelectItem value="__none" disabled>No agents available</SelectItem>
                               ) : agentList.map((a: any) => (
                                 <SelectItem key={a.agent_id} value={a.agent_id}>{a.agent_id} — {a.agent_name}</SelectItem>
                               ))}

@@ -44,6 +44,14 @@ export default function FieldAgentsTab() {
     },
   });
 
+  const { data: subChannelList } = useQuery({
+    queryKey: ["sub_channel_lookup_agents"],
+    queryFn: async () => {
+      const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, channels(channel_name, is_self_delivered), override_delivery_ownership").eq("status", true);
+      return (data ?? []).filter((sc: any) => sc.channels?.is_self_delivered || sc.override_delivery_ownership);
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["field_agents", page, search],
     queryFn: async () => {
@@ -211,13 +219,24 @@ export default function FieldAgentsTab() {
               <Input value={msisdn} onChange={(e) => setMsisdn(e.target.value)} placeholder="e.g. 01712345678" />
             </div>
             <div className="space-y-2">
-              <Label>Distribution House</Label>
+              <Label>Assignment</Label>
               <Select value={dhId} onValueChange={setDhId}>
-                <SelectTrigger><SelectValue placeholder="Select DH" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select DH or Self-Delivered Sub-Channel" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__dh_header" disabled className="font-semibold text-xs text-muted-foreground">Distribution Houses</SelectItem>
                   {dhList?.filter(d => d.status === "ACTIVE").map(d => (
                     <SelectItem key={d.dh_id} value={d.dh_id}>{d.dh_code} — {d.name}</SelectItem>
                   ))}
+                  {(subChannelList?.length ?? 0) > 0 && (
+                    <>
+                      <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
+                      {subChannelList?.map((sc: any) => (
+                        <SelectItem key={sc.sub_channel_id} value={`sc:${sc.sub_channel_id}`}>
+                          {sc.sub_channel_name} ({sc.channels?.channel_name})
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
