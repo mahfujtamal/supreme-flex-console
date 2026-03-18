@@ -346,15 +346,15 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                 />
               </div>
             </div>
-            {campaignScope !== "ACQ" && (
+            {!isAcq && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Min Network Age (days)</Label>
-                  <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" />
+                  <Label>Min Network Age (days) <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 0" min="0" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Max Network Age (days)</Label>
-                  <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" />
+                  <Label>Max Network Age (days) <span className="text-destructive">*</span></Label>
+                  <Input type="number" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 365" min="0" />
                 </div>
               </div>
             )}
@@ -369,7 +369,18 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => addRule.mutate()} disabled={addRule.isPending}>{addRule.isPending ? "Adding..." : "Add Rule"}</Button>
+            <Button
+              onClick={() => {
+                if (!isAcq && (!minAge || !maxAge)) {
+                  toast({ title: "Network Age required", description: "Min and Max Network Age are mandatory for Base Management campaigns.", variant: "destructive" });
+                  return;
+                }
+                addRule.mutate();
+              }}
+              disabled={addRule.isPending}
+            >
+              {addRule.isPending ? "Adding..." : "Add Rule"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
