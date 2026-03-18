@@ -140,7 +140,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   const { data: channelDeliveryInfo } = useQuery({
     queryKey: ["channel_delivery_info"],
     queryFn: async () => {
-      const { data: ch } = await supabase.from("channels").select("channel_id, channel_name, is_self_delivered");
+      const { data: ch } = await supabase.from("channels").select("channel_id, channel_name, is_self_delivered, is_assisted");
       const { data: sc } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id, delivery_ownership") as any;
       return { channels: ch ?? [], subChannels: (sc ?? []) as any[] };
     },
