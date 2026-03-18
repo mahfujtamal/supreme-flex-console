@@ -110,9 +110,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
     setChannelIds([]); setSubChannelIds([]);
-    if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
-      setNetworkType(NONE);
-    }
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
