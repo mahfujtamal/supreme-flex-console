@@ -10,8 +10,11 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB tables (Phase 2): network_zones, districts, areas, channels, sub_channels
 - DB tables (Phase 7): customers, anchors, active_services, onetime_invoices
 - DB tables (Phase 7.1): customer_assets, asset_replacement_history
+- DB tables (Phase 8): distribution_houses, field_agents, kams
 - DB enums (Phase 7): account_status, service_status, invoice_trigger_type, invoice_payment_status, test_status
 - DB enums (Phase 7.1): asset_status, asset_type, replacement_reason (WARRANTY/PAID/UPGRADE)
+- DB enums (Phase 8): dh_status, agent_status (ACTIVE/INACTIVE); order_status extended: ASSIGNED, CONTACTED, NETWORK_TEST, INSTALLED
+- Channels: is_assisted boolean added (assisted channels require sub_channel)
 - Anchors: Created at LEAD/ORDER stage, link customer→order with location test data
 - Active services: linked to anchor_id, gpfi_msisdn UNIQUE, cpe_model column
 - Customer assets: linked to anchor_id, serial_number UNIQUE, warranty tracking
@@ -19,10 +22,14 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - RLS: Dev mode open (dev_full_*), Secure mode to enforce RBAC later
 - DevMode toggle: src/contexts/DevModeContext.tsx, persisted in localStorage
 - Supabase client: auto-generated at src/integrations/supabase/client.ts — do NOT overwrite
-- Master Data: tabbed layout at /master-data with 5 CRUD tabs
+- Master Data: tabbed layout at /master-data with 8 CRUD tabs (zones, districts, areas, channels, sub-channels, DHs, agents, KAMs)
 - Expiry calc: WIFI_PLAN = activation_date + validity_days + 1; others = activation_date + validity_days
 - updated_at trigger function: public.update_updated_at_column() — reuse for all new tables
 - Customer 360: 4-tab lifecycle view (Anchors/Orders, Service Details, Physical Assets, Network Info)
 - Asset Lifecycle: /assets page with search by serial/GPFI/mobile, type/status filters
 - Asset replacement: History timeline dialog + Replace CPE dialog in Customer 360
 - Asset replacement logs: asset_replacement_history table with old/new asset refs + reason
+- DH bulk CSV: dh_code, name, district_name, area_name
+- Agent bulk CSV: agent_id, agent_name, msisdn, dh_code (FK mapped)
+- KAM bulk CSV: kam_id, name, msisdn, segments (pipe-delimited)
+- Phase 8B pending: Smart Dispatch, Work Order Lifecycle, Installation Form, Fulfillment
