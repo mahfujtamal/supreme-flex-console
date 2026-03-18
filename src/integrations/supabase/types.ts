@@ -537,6 +537,7 @@ export type Database = {
           channel_name: string
           created_at: string
           is_assisted: boolean
+          is_self_delivered: boolean
           status: boolean
           updated_at: string
         }
@@ -545,6 +546,7 @@ export type Database = {
           channel_name: string
           created_at?: string
           is_assisted?: boolean
+          is_self_delivered?: boolean
           status?: boolean
           updated_at?: string
         }
@@ -553,6 +555,7 @@ export type Database = {
           channel_name?: string
           created_at?: string
           is_assisted?: boolean
+          is_self_delivered?: boolean
           status?: boolean
           updated_at?: string
         }
@@ -1361,6 +1364,7 @@ export type Database = {
         Row: {
           channel_id: string
           created_at: string
+          override_delivery_ownership: boolean
           status: boolean
           sub_channel_id: string
           sub_channel_name: string
@@ -1369,6 +1373,7 @@ export type Database = {
         Insert: {
           channel_id: string
           created_at?: string
+          override_delivery_ownership?: boolean
           status?: boolean
           sub_channel_id?: string
           sub_channel_name: string
@@ -1377,6 +1382,7 @@ export type Database = {
         Update: {
           channel_id?: string
           created_at?: string
+          override_delivery_ownership?: boolean
           status?: boolean
           sub_channel_id?: string
           sub_channel_name?: string
