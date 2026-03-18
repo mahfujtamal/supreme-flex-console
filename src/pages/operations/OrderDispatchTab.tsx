@@ -43,6 +43,15 @@ const OrderDispatchTab = () => {
     },
   });
 
+  // Lookup staff users for display
+  const { data: staffLookup } = useQuery({
+    queryKey: ["staff_lookup_for_orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("sub_channel_users").select("id, user_name, employee_id");
+      return data ?? [];
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
@@ -56,15 +65,16 @@ const OrderDispatchTab = () => {
               <TableHead>Payment</TableHead>
               <TableHead>DH/KAM</TableHead>
               <TableHead>Agent</TableHead>
+              <TableHead>Sales Agent</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
             ) : !orders?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                 <Truck className="h-8 w-8 mx-auto mb-2 opacity-50" />No orders found
               </TableCell></TableRow>
             ) : orders.map((order: any) => (
@@ -84,6 +94,14 @@ const OrderDispatchTab = () => {
                 </TableCell>
                 <TableCell>{order.assigned_dh_kam_id ?? "—"}</TableCell>
                 <TableCell>{order.assigned_agent_id ?? "—"}</TableCell>
+                <TableCell className="text-xs">
+                  {(order as any).staff_user_id
+                    ? (() => {
+                        const staff = staffLookup?.find((s: any) => s.id === (order as any).staff_user_id);
+                        return staff ? `${staff.employee_id} — ${staff.user_name}` : (order as any).staff_user_id?.slice(0, 8);
+                      })()
+                    : "—"}
+                </TableCell>
                 <TableCell className="text-right font-medium">{formatBDT(Number(order.final_total_bdt))}</TableCell>
                 <TableCell className="text-center">
                   <Button size="sm" variant="outline" className="gap-1" onClick={() => setSelectedOrderId(order.order_id)}>

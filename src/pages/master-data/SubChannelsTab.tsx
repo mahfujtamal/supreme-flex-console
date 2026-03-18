@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search, Upload, Pencil, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, Search, Upload, Pencil, ChevronsUpDown, Check, Users } from "lucide-react";
+import ManageStaffDialog from "./ManageStaffDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,7 @@ export default function SubChannelsTab() {
   const [deliveryOwnership, setDeliveryOwnership] = useState("FOLLOW_CHANNEL");
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
+  const [staffSubChannel, setStaffSubChannel] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -143,7 +145,7 @@ export default function SubChannelsTab() {
               <TableHead className="w-[160px]">Delivery Ownership</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -167,7 +169,10 @@ export default function SubChannelsTab() {
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{format(new Date(sc.created_at), "dd MMM yyyy")}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(sc)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(sc)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setStaffSubChannel({ id: sc.sub_channel_id, name: sc.sub_channel_name })}><Users className="h-3.5 w-3.5" /></Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -265,6 +270,15 @@ export default function SubChannelsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {staffSubChannel && (
+        <ManageStaffDialog
+          subChannelId={staffSubChannel.id}
+          subChannelName={staffSubChannel.name}
+          open={!!staffSubChannel}
+          onOpenChange={(v) => { if (!v) setStaffSubChannel(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -10,7 +10,9 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB tables (Phase 2): network_zones, districts, areas, channels, sub_channels
 - DB tables (Phase 7): customers, anchors, active_services, onetime_invoices
 - DB tables (Phase 7.1): customer_assets, asset_replacement_history
-- DB tables (Phase 8): distribution_houses, field_agents, kams
+- DB tables (Phase 8): distribution_houses, field_agents, kams, sub_channel_users
+- DB table sub_channel_users: id, sub_channel_id (FK), user_name, employee_id (UNIQUE), msisdn, role, status; staff layer for assisted channels
+- Orders: staff_user_id (FK to sub_channel_users) for sales agent attribution
 - DB enums (Phase 7): account_status, service_status, invoice_trigger_type, invoice_payment_status, test_status
 - DB enums (Phase 7.1): asset_status, asset_type, replacement_reason (WARRANTY/PAID/UPGRADE)
 - DB enums (Phase 8): dh_status, agent_status (ACTIVE/INACTIVE); order_status extended: ASSIGNED, CONTACTED, NETWORK_TEST, INSTALLED

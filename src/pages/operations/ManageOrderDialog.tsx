@@ -98,6 +98,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   // Dispatch state
   const [dhKamId, setDhKamId] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [staffUserId, setStaffUserId] = useState("");
 
   // Contact state
   const [contactedChecked, setContactedChecked] = useState(false);
@@ -231,6 +232,26 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     enabled: open,
   });
 
+  // Staff users for sales agent attribution
+  const { data: staffUsers } = useQuery({
+    queryKey: ["staff_users_for_dispatch", dhKamId],
+    queryFn: async () => {
+      // If dispatching to a self-delivered sub-channel, get staff from that sub-channel
+      if (dhKamId.startsWith("sc:")) {
+        const scId = dhKamId.replace("sc:", "");
+        const { data } = await supabase
+          .from("sub_channel_users")
+          .select("*")
+          .eq("sub_channel_id", scId)
+          .eq("status", "ACTIVE");
+        return data ?? [];
+      }
+      // For B2B KAM dispatch, no staff users
+      return [];
+    },
+    enabled: open && !!dhKamId,
+  });
+
   // Active CPE assets for replacement
   const { data: activeAssets } = useQuery({
     queryKey: ["active_cpe_assets_for_order", orderId],
@@ -253,6 +274,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     if (order) {
       setDhKamId(order.assigned_dh_kam_id ?? "");
       setAgentId(order.assigned_agent_id ?? "");
+      setStaffUserId((order as any).staff_user_id ?? "");
     }
   }, [order]);
 
@@ -286,8 +308,9 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       const { error } = await supabase.from("orders").update({
         assigned_dh_kam_id: assignedDh || null,
         assigned_agent_id: assignedAgent || null,
+        staff_user_id: staffUserId || null,
         order_status: "ASSIGNED" as any,
-      }).eq("order_id", orderId);
+      } as any).eq("order_id", orderId);
       if (error) throw error;
 
       // Update DH last_assigned_at for round-robin (only for non-self-delivered B2C)
@@ -785,6 +808,21 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                           </Select>
                         </div>
                       </div>
+                      {/* Sales Agent (Staff) — shown for self-delivered sub-channels */}
+                      {dhKamId.startsWith("sc:") && staffUsers && staffUsers.length > 0 && (
+                        <div className="space-y-1.5">
+                          <Label>Sales Agent (Staff)</Label>
+                          <Select value={staffUserId} onValueChange={setStaffUserId}>
+                            <SelectTrigger><SelectValue placeholder="Select sales agent..." /></SelectTrigger>
+                            <SelectContent>
+                              {staffUsers.map((s: any) => (
+                                <SelectItem key={s.id} value={s.id}>{s.employee_id} — {s.user_name} ({s.role})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">Attribution: this staff member gets credit for the sale</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
