@@ -61,8 +61,8 @@ export default function ChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); };
-  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setIsAssisted(false); };
+  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setIsAssisted(item.is_assisted ?? false); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
