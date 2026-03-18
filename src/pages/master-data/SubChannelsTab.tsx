@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -35,6 +36,7 @@ export default function SubChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
+  const [overrideDelivery, setOverrideDelivery] = useState(false);
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
   const { toast } = useToast();
@@ -43,7 +45,7 @@ export default function SubChannelsTab() {
   const { data: channels } = useQuery({
     queryKey: ["channels_lookup"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("channels").select("channel_id, channel_name, is_assisted").eq("status", true).order("channel_name");
+      const { data, error } = await supabase.from("channels").select("channel_id, channel_name, is_assisted, is_self_delivered").eq("status", true).order("channel_name");
       if (error) throw error;
       return data;
     },
@@ -59,10 +61,10 @@ export default function SubChannelsTab() {
   });
 
   // For the create/edit dialog, only show assisted channels as parent options
-  const assistedChannels = channels?.filter((c) => c.is_assisted) ?? [];
+  const assistedChannels = channels?.filter((c: any) => c.is_assisted) ?? [];
 
   // Determine if selected parent channel is B2B
-  const selectedChannel = channels?.find((c) => c.channel_id === channelId);
+  const selectedChannel = channels?.find((c: any) => c.channel_id === channelId);
   const isB2B = selectedChannel?.channel_name?.toUpperCase() === "B2B";
 
   const { data, isLoading } = useQuery({
@@ -79,14 +81,13 @@ export default function SubChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
-      // For B2B, use KAM employee_id as sub_channel_name identifier
       const subChannelName = isB2B
         ? (kams?.find((k) => k.kam_id === selectedKamId)?.kam_id ?? name)
         : name;
       const displayName = isB2B
         ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
         : name;
-      const payload = { sub_channel_name: displayName, channel_id: channelId };
+      const payload = { sub_channel_name: displayName, channel_id: channelId, override_delivery_ownership: overrideDelivery } as any;
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
@@ -107,8 +108,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setOverrideDelivery(false); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOverrideDelivery(item.override_delivery_ownership ?? false); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -123,7 +124,7 @@ export default function SubChannelsTab() {
             <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Channel" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Channels</SelectItem>
-              {channels?.map((c) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
+              {channels?.map((c: any) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -139,6 +140,7 @@ export default function SubChannelsTab() {
             <TableRow>
               <TableHead>Sub-Channel Name</TableHead>
               <TableHead>Parent Channel</TableHead>
+              <TableHead className="w-[130px]">Override Delivery</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
@@ -146,13 +148,18 @@ export default function SubChannelsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No sub-channels found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No sub-channels found.</TableCell></TableRow>
             ) : data.items.map((sc: any) => (
               <TableRow key={sc.sub_channel_id}>
                 <TableCell className="font-medium">{sc.sub_channel_name}</TableCell>
                 <TableCell className="text-sm">{sc.channels?.channel_name}</TableCell>
+                <TableCell>
+                  <Badge variant={sc.override_delivery_ownership ? "default" : "outline"} className="text-xs">
+                    {sc.override_delivery_ownership ? "Yes" : "No"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <Badge variant={sc.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: sc.sub_channel_id, status: sc.status })}>
                     {sc.status ? "Active" : "Inactive"}
@@ -188,7 +195,7 @@ export default function SubChannelsTab() {
                 <SelectContent>
                   {!assistedChannels.length ? (
                     <SelectItem value="__none" disabled>No assisted channels available</SelectItem>
-                  ) : assistedChannels.map((c) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
+                  ) : assistedChannels.map((c: any) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -231,6 +238,13 @@ export default function SubChannelsTab() {
               ) : (
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Online Store" />
               )}
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="override_delivery">Override Delivery Ownership?</Label>
+                <p className="text-xs text-muted-foreground">Uses own agents regardless of parent channel setting</p>
+              </div>
+              <Switch id="override_delivery" checked={overrideDelivery} onCheckedChange={setOverrideDelivery} />
             </div>
           </div>
           <DialogFooter>

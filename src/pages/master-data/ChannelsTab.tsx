@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,6 +26,7 @@ export default function ChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [isAssisted, setIsAssisted] = useState(false);
+  const [isSelfDelivered, setIsSelfDelivered] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -41,7 +43,7 @@ export default function ChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload = { channel_name: name, is_assisted: isAssisted };
+      const payload = { channel_name: name, is_assisted: isAssisted, is_self_delivered: isSelfDelivered } as any;
       if (editId) {
         const { error } = await supabase.from("channels").update(payload).eq("channel_id", editId);
         if (error) throw error;
@@ -62,8 +64,8 @@ export default function ChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setIsAssisted(false); };
-  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setIsAssisted(item.is_assisted ?? false); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setIsAssisted(false); setIsSelfDelivered(false); };
+  const openEdit = (item: any) => { setEditId(item.channel_id); setName(item.channel_name); setIsAssisted(item.is_assisted ?? false); setIsSelfDelivered((item as any).is_self_delivered ?? false); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -85,6 +87,7 @@ export default function ChannelsTab() {
             <TableRow>
               <TableHead>Channel Name</TableHead>
               <TableHead className="w-[100px]">Assisted</TableHead>
+              <TableHead className="w-[120px]">Self-Delivered</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
@@ -92,15 +95,20 @@ export default function ChannelsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
-            ) : data.items.map((c) => (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No channels found.</TableCell></TableRow>
+            ) : data.items.map((c: any) => (
               <TableRow key={c.channel_id}>
                 <TableCell className="font-medium">{c.channel_name}</TableCell>
                 <TableCell>
-                  <Badge variant={(c as any).is_assisted ? "default" : "outline"} className="text-xs">
-                    {(c as any).is_assisted ? "Yes" : "No"}
+                  <Badge variant={c.is_assisted ? "default" : "outline"} className="text-xs">
+                    {c.is_assisted ? "Yes" : "No"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={c.is_self_delivered ? "default" : "outline"} className="text-xs">
+                    {c.is_self_delivered ? "Yes" : "No"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -138,6 +146,13 @@ export default function ChannelsTab() {
             <div className="flex items-center space-x-2">
               <Checkbox id="is_assisted" checked={isAssisted} onCheckedChange={(v) => setIsAssisted(!!v)} />
               <Label htmlFor="is_assisted">Assisted Channel (requires sub-channel)</Label>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="is_self_delivered">Self-Delivered?</Label>
+                <p className="text-xs text-muted-foreground">Uses own agents instead of DH round-robin</p>
+              </div>
+              <Switch id="is_self_delivered" checked={isSelfDelivered} onCheckedChange={setIsSelfDelivered} />
             </div>
           </div>
           <DialogFooter>
