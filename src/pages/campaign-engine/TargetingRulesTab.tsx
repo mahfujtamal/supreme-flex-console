@@ -206,7 +206,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
         parts.push(`${label}: ${names.join(", ")}`);
       }
     };
-    summarize("Zone", zoneIds, (zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name })));
+    summarize("Zone", zoneIds, (filteredZones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name })));
     summarize("District", districtIds, (districts ?? []).map(d => ({ value: d.district_id, label: d.district_name })));
     summarize("Area", areaIds, (areas ?? []).map(a => ({ value: a.area_id, label: a.area_name })));
     summarize("Channel", channelIds, (channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name })));
