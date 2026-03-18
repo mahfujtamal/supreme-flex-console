@@ -139,7 +139,6 @@ export default function ChannelsTab() {
           <DialogHeader><DialogTitle>{editId ? "Edit Channel" : "Create Channel"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-            <div className="space-y-2">
               <Label>Channel Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Retail" />
             </div>
