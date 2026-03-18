@@ -333,23 +333,25 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Channel</Label>
+                <Label className={!areaSelected ? "text-muted-foreground" : ""}>Channel</Label>
                  <MultiSelectDropdown
                    options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
                    selected={channelIds}
                    onChange={handleChannelChange}
-                   placeholder="None (ALL)"
+                   placeholder={areaSelected ? "None (ALL)" : "Select Area first"}
                    allLabel="ALL Channels"
+                   disabled={!areaSelected}
                  />
               </div>
               <div className="space-y-2">
-                <Label>Sub-Channel</Label>
+                <Label className={!channelSelected ? "text-muted-foreground" : ""}>Sub-Channel</Label>
                 <MultiSelectDropdown
                   options={(subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name }))}
                   selected={subChannelIds}
                   onChange={setSubChannelIds}
-                  placeholder="None (ALL)"
+                  placeholder={channelSelected ? "None (ALL)" : "Select Channel first"}
                   allLabel="ALL Sub-Channels"
+                  disabled={!channelSelected}
                 />
               </div>
             </div>
