@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search, Upload, Pencil } from "lucide-react";
+import { Plus, Search, Upload, Pencil, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
@@ -28,6 +35,8 @@ export default function SubChannelsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
+  const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
+  const [selectedKamId, setSelectedKamId] = useState("");
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -40,8 +49,21 @@ export default function SubChannelsTab() {
     },
   });
 
+  const { data: kams } = useQuery({
+    queryKey: ["kams_lookup"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("kams").select("kam_id, name, msisdn").eq("status", "ACTIVE").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // For the create/edit dialog, only show assisted channels as parent options
   const assistedChannels = channels?.filter((c) => c.is_assisted) ?? [];
+
+  // Determine if selected parent channel is B2B
+  const selectedChannel = channels?.find((c) => c.channel_id === channelId);
+  const isB2B = selectedChannel?.channel_name?.toUpperCase() === "B2B";
 
   const { data, isLoading } = useQuery({
     queryKey: ["sub_channels", page, search, filterChannel],
@@ -57,7 +79,14 @@ export default function SubChannelsTab() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload = { sub_channel_name: name, channel_id: channelId };
+      // For B2B, use KAM employee_id as sub_channel_name identifier
+      const subChannelName = isB2B
+        ? (kams?.find((k) => k.kam_id === selectedKamId)?.kam_id ?? name)
+        : name;
+      const displayName = isB2B
+        ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
+        : name;
+      const payload = { sub_channel_name: displayName, channel_id: channelId };
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
@@ -78,8 +107,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -153,12 +182,8 @@ export default function SubChannelsTab() {
           <DialogHeader><DialogTitle>{editId ? "Edit Sub-Channel" : "Create Sub-Channel"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Sub-Channel Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Online Store" />
-            </div>
-            <div className="space-y-2">
               <Label>Parent Channel</Label>
-              <Select value={channelId} onValueChange={setChannelId}>
+              <Select value={channelId} onValueChange={(v) => { setChannelId(v); setName(""); setSelectedKamId(""); }}>
                 <SelectTrigger><SelectValue placeholder="Select assisted channel" /></SelectTrigger>
                 <SelectContent>
                   {!assistedChannels.length ? (
@@ -167,10 +192,55 @@ export default function SubChannelsTab() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>{isB2B ? "Select KAM" : "Sub-Channel Name"}</Label>
+              {isB2B ? (
+                <Popover open={kamPopoverOpen} onOpenChange={setKamPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={kamPopoverOpen} className="w-full justify-between font-normal">
+                      {selectedKamId
+                        ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name} (${selectedKamId})`
+                        : "Search KAM by name or ID..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[380px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search KAM..." />
+                      <CommandList>
+                        <CommandEmpty>No KAMs found.</CommandEmpty>
+                        <CommandGroup>
+                          {kams?.map((k) => (
+                            <CommandItem
+                              key={k.kam_id}
+                              value={`${k.name} ${k.kam_id}`}
+                              onSelect={() => { setSelectedKamId(k.kam_id); setKamPopoverOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", selectedKamId === k.kam_id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{k.name}</span>
+                                <span className="text-xs text-muted-foreground">ID: {k.kam_id} · {k.msisdn}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Online Store" />
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => save.mutate()} disabled={!name.trim() || !channelId || save.isPending}>{save.isPending ? "Saving..." : editId ? "Update" : "Create"}</Button>
+            <Button
+              onClick={() => save.mutate()}
+              disabled={(!isB2B && !name.trim()) || (isB2B && !selectedKamId) || !channelId || save.isPending}
+            >
+              {save.isPending ? "Saving..." : editId ? "Update" : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
