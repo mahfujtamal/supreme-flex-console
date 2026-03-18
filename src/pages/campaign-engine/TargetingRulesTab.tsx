@@ -87,17 +87,24 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
   })();
 
   // Reset children when parent changes
+  const handleNetworkTypeChange = (val: string) => {
+    setNetworkType(val);
+    setZoneIds([]); setDistrictIds([]); setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
+  };
   const handleZoneChange = (vals: string[]) => {
     setZoneIds(vals);
-    setDistrictIds([]); setAreaIds([]); setNetworkType(NONE);
+    setDistrictIds([]); setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
   };
   const handleDistrictChange = (vals: string[]) => {
     setDistrictIds(vals);
-    setAreaIds([]); setNetworkType(NONE);
+    setAreaIds([]);
+    setChannelIds([]); setSubChannelIds([]);
   };
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
-    // Reset network type if no longer valid
+    setChannelIds([]); setSubChannelIds([]);
     if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
       setNetworkType(NONE);
     }
