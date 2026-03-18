@@ -145,7 +145,7 @@ export default function SubChannelsTab() {
               <TableHead className="w-[160px]">Delivery Ownership</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
