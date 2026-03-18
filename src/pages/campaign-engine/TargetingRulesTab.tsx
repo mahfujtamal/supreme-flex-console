@@ -41,19 +41,38 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
   const { data: channels } = useQuery({ queryKey: ["channels_lookup"], queryFn: async () => { const { data } = await supabase.from("channels").select("channel_id, channel_name").eq("status", true).order("channel_name"); return data ?? []; } });
   const { data: allSubChannels } = useQuery({ queryKey: ["sub_channels_lookup_full"], queryFn: async () => { const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id").eq("status", true).order("sub_channel_name"); return data ?? []; } });
 
-  // Cascading: filter districts by selected zones (via areas that link zone→district)
-  const selectedZoneIds = zoneIds.filter(v => v !== ALL_VALUE);
-  const districts = (() => {
-    if (!selectedZoneIds.length || zoneIds.includes(ALL_VALUE)) return allDistricts ?? [];
-    // Find district IDs that have areas in the selected zones
-    const districtIdsInZones = new Set((allAreas ?? []).filter(a => selectedZoneIds.includes(a.network_zone_id)).map(a => a.district_id));
-    return (allDistricts ?? []).filter(d => districtIdsInZones.has(d.district_id));
+  // Step 1: Filter areas by network type
+  const networkFilteredAreas = (() => {
+    const all = allAreas ?? [];
+    if (networkType === NONE || networkType === "ANY") return all;
+    if (networkType === "4G") return all.filter(a => a.is_4g_area);
+    if (networkType === "5G") return all.filter(a => a.is_5g_area);
+    return all;
   })();
 
-  // Cascading: filter areas by selected districts (and zones)
+  // Step 2: Filter zones to only those that have at least one area matching network type
+  const filteredZones = (() => {
+    const allZones = zones ?? [];
+    if (networkType === NONE || networkType === "ANY") return allZones;
+    const zoneIdsWithCoverage = new Set(networkFilteredAreas.map(a => a.network_zone_id));
+    return allZones.filter(z => zoneIdsWithCoverage.has(z.network_zone_id));
+  })();
+
+  // Step 3: Filter districts by selected zones AND network type coverage
+  const selectedZoneIds = zoneIds.filter(v => v !== ALL_VALUE);
+  const districts = (() => {
+    let relevantAreas = networkFilteredAreas;
+    if (selectedZoneIds.length && !zoneIds.includes(ALL_VALUE)) {
+      relevantAreas = relevantAreas.filter(a => selectedZoneIds.includes(a.network_zone_id));
+    }
+    const districtIdsWithCoverage = new Set(relevantAreas.map(a => a.district_id));
+    return (allDistricts ?? []).filter(d => districtIdsWithCoverage.has(d.district_id));
+  })();
+
+  // Step 4: Filter areas by selected zones + districts + network type
   const selectedDistrictIds = districtIds.filter(v => v !== ALL_VALUE);
   const areas = (() => {
-    let filtered = allAreas ?? [];
+    let filtered = networkFilteredAreas;
     if (selectedZoneIds.length && !zoneIds.includes(ALL_VALUE)) {
       filtered = filtered.filter(a => selectedZoneIds.includes(a.network_zone_id));
     }
@@ -61,22 +80,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
       filtered = filtered.filter(a => selectedDistrictIds.includes(a.district_id));
     }
     return filtered;
-  })();
-
-  // Cascading: derive available network types from selected areas
-  const selectedAreaIds = areaIds.filter(v => v !== ALL_VALUE);
-  const availableNetworkTypes = (() => {
-    const relevantAreas = selectedAreaIds.length && !areaIds.includes(ALL_VALUE)
-      ? areas.filter(a => selectedAreaIds.includes(a.area_id))
-      : areas;
-    if (!relevantAreas.length) return NETWORK_TYPES as unknown as string[];
-    const has4G = relevantAreas.some(a => a.is_4g_area);
-    const has5G = relevantAreas.some(a => a.is_5g_area);
-    const types: string[] = [];
-    if (has4G) types.push("4G");
-    if (has5G) types.push("5G");
-    if (has4G || has5G) types.push("ANY");
-    return types.length ? types : (NETWORK_TYPES as unknown as string[]);
   })();
 
   // Cascading: filter sub-channels by selected channels
@@ -107,9 +110,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
     setChannelIds([]); setSubChannelIds([]);
-    if (networkType !== NONE && !availableNetworkTypes.includes(networkType)) {
-      setNetworkType(NONE);
-    }
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
@@ -206,7 +206,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
         parts.push(`${label}: ${names.join(", ")}`);
       }
     };
-    summarize("Zone", zoneIds, (zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name })));
+    summarize("Zone", zoneIds, (filteredZones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name })));
     summarize("District", districtIds, (districts ?? []).map(d => ({ value: d.district_id, label: d.district_name })));
     summarize("Area", areaIds, (areas ?? []).map(a => ({ value: a.area_id, label: a.area_name })));
     summarize("Channel", channelIds, (channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name })));
@@ -296,14 +296,14 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>Any</SelectItem>
-                    {availableNetworkTypes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {NETWORK_TYPES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Network Zone</Label>
-                 <MultiSelectDropdown
-                   options={(zones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
+                <MultiSelectDropdown
+                   options={(filteredZones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
                    selected={zoneIds}
                    onChange={handleZoneChange}
                    placeholder="None (ALL)"
