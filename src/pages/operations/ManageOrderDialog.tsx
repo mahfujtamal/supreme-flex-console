@@ -707,7 +707,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">B2C Order — Round-robin DH assignment or self-delivered sub-channel dispatch</p>
+                      <p className="text-xs text-muted-foreground">B2C Order — Dispatch follows Hierarchy of Truth: Sub-Channel → Channel → DH Round-Robin</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Dispatch To</Label>
@@ -717,23 +717,33 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                               <SelectItem value="__dh_header" disabled className="font-semibold text-xs text-muted-foreground">Distribution Houses (Round-Robin)</SelectItem>
                               {dhList?.map((d: any, i: number) => (
                                 <SelectItem key={d.dh_id} value={d.dh_id}>
-                                  {i === 0 ? "⭐ " : ""}{d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
+                                  {i === 0 ? "⭐ " : ""}[DH] {d.dh_code} — {d.name} ({d.districts?.district_name ?? "?"})
                                 </SelectItem>
                               ))}
                               {channelDeliveryInfo?.subChannels?.filter((sc: any) => {
-                                const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
-                                return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                // Show sub-channels that are explicitly SELF_DELIVERY,
+                                // OR that FOLLOW_CHANNEL and parent channel is_self_delivered
+                                if (sc.delivery_ownership === "SELF_DELIVERY") return true;
+                                if (sc.delivery_ownership === "FOLLOW_CHANNEL") {
+                                  const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                  return ch?.is_self_delivered;
+                                }
+                                return false; // DH_DELIVERY sub-channels go through DH round-robin
                               }).length ? (
                                 <>
                                   <SelectItem value="__sc_header" disabled className="font-semibold text-xs text-muted-foreground">Self-Delivered Sub-Channels</SelectItem>
-                                  {channelDeliveryInfo.subChannels
+                                  {channelDeliveryInfo!.subChannels
                                     .filter((sc: any) => {
-                                      const ch = channelDeliveryInfo.channels.find((c: any) => c.channel_id === sc.channel_id);
-                                      return (ch as any)?.is_self_delivered || sc.override_delivery_ownership;
+                                      if (sc.delivery_ownership === "SELF_DELIVERY") return true;
+                                      if (sc.delivery_ownership === "FOLLOW_CHANNEL") {
+                                        const ch = channelDeliveryInfo!.channels.find((c: any) => c.channel_id === sc.channel_id);
+                                        return ch?.is_self_delivered;
+                                      }
+                                      return false;
                                     })
                                     .map((sc: any) => (
                                       <SelectItem key={sc.sub_channel_id} value={`sc:${sc.sub_channel_id}`}>
-                                        📌 {sc.sub_channel_name}
+                                        📌 [Sub-Channel] {sc.sub_channel_name}
                                       </SelectItem>
                                     ))}
                                 </>
