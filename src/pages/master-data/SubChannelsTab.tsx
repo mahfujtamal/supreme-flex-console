@@ -34,11 +34,14 @@ export default function SubChannelsTab() {
   const { data: channels } = useQuery({
     queryKey: ["channels_lookup"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("channels").select("channel_id, channel_name").eq("status", true).order("channel_name");
+      const { data, error } = await supabase.from("channels").select("channel_id, channel_name, is_assisted").eq("status", true).order("channel_name");
       if (error) throw error;
       return data;
     },
   });
+
+  // For the create/edit dialog, only show assisted channels as parent options
+  const assistedChannels = channels?.filter((c) => c.is_assisted) ?? [];
 
   const { data, isLoading } = useQuery({
     queryKey: ["sub_channels", page, search, filterChannel],
