@@ -12,7 +12,7 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB tables (Phase 7.1): customer_assets, asset_replacement_history
 - DB tables (Phase 8): distribution_houses, field_agents, kams, sub_channel_users
 - DB table sub_channel_users: id, sub_channel_id (FK), user_name, employee_id (UNIQUE), msisdn, role, status; staff layer for assisted channels
-- Orders: staff_user_id (FK to sub_channel_users) for sales agent attribution
+- Orders: staff_user_id (FK to sub_channel_users), channel_id (FK to channels), sub_channel_id (FK to sub_channels) for attribution
 - DB enums (Phase 7): account_status, service_status, invoice_trigger_type, invoice_payment_status, test_status
 - DB enums (Phase 7.1): asset_status, asset_type, replacement_reason (WARRANTY/PAID/UPGRADE)
 - DB enums (Phase 8): dh_status, agent_status (ACTIVE/INACTIVE); order_status extended: ASSIGNED, CONTACTED, NETWORK_TEST, INSTALLED
@@ -22,6 +22,7 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - Sub-channels: delivery_ownership enum replaces old boolean override_delivery_ownership
 - Delivery Hierarchy of Truth: STEP1 check sub_channel.delivery_ownership; STEP2 if FOLLOW_CHANNEL check channel.is_self_delivered; STEP3 default DH round-robin
 - Field Agents: can be tagged to DH OR self-delivered sub-channel (stored as `sc:<sub_channel_id>` in dh_id)
+- Assisted Channel Attribution: GPC=Sub-Channel+Staff required; B2B=KAM only, auto-attributed
 - Anchors: Created at LEAD/ORDER stage, link customer→order with location test data
 - Active services: linked to anchor_id, gpfi_msisdn UNIQUE, cpe_model column
 - Customer assets: linked to anchor_id, serial_number UNIQUE, warranty tracking
