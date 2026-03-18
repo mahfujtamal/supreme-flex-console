@@ -105,12 +105,17 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
   });
 
   const { data: availableInventory } = useQuery({
-    queryKey: ["available_inventory_for_order"],
+    queryKey: ["available_inventory_for_order", order?.assigned_agent_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("inventory_master")
         .select("*, products(product_name, product_category)")
         .in("status", ["WITH_AGENT", "ALLOCATED_TO_DH", "IN_WAREHOUSE"]);
+      // Filter to agent's bag if agent is assigned
+      if (order?.assigned_agent_id) {
+        q = q.eq("allocated_agent_id", order.assigned_agent_id);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
