@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const NETWORK_TYPES = ["4G", "5G", "ANY"] as const;
 const NONE = "__none__";
 
-export default function TargetingRulesTab({ campaignId, campaignScope }: { campaignId: string; campaignScope: string }) {
+const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
   const [zoneIds, setZoneIds] = useState<string[]>([]);
   const [districtIds, setDistrictIds] = useState<string[]>([]);
