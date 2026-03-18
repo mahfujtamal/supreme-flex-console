@@ -238,6 +238,13 @@ export default function ProductCatalogTab() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{editId ? "Edit Product" : "Create Product"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {editId && (
+              <div className="space-y-2">
+                <Label>Product ID</Label>
+                <Input value={editId} disabled className="bg-muted font-mono text-xs" />
+                <p className="text-[11px] text-muted-foreground">Read-only — cannot be changed after creation.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Product Name</Label>
               <Input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. FWA Home 50Mbps" />
