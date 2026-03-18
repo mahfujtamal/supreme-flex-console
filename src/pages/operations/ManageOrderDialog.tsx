@@ -694,27 +694,55 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             {currentStatus === "NETWORK_TEST" && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-sm">Network / FI Test Result</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground">Toggle test result (will be API-driven in production)</p>
-                  <div className="flex gap-3">
-                    <Button
-                      size="sm"
-                      variant={networkTestResult === "PASSED" ? "default" : "outline"}
-                      className={networkTestResult === "PASSED" ? "bg-green-600 hover:bg-green-700" : ""}
-                      onClick={() => setNetworkTestResult("PASSED")}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> PASSED
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={networkTestResult === "FAILED" ? "destructive" : "outline"}
-                      onClick={() => setNetworkTestResult("FAILED")}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" /> FAILED
-                    </Button>
+                <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground">Enter test metrics and toggle result (will be API-driven in production)</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Signal Strength (dBm)</Label>
+                      <Input type="number" placeholder="e.g. -65" value={signalStrength} onChange={(e) => setSignalStrength(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Download Speed (Mbps)</Label>
+                      <Input type="number" placeholder="e.g. 25.5" value={downloadSpeed} onChange={(e) => setDownloadSpeed(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Latency (ms)</Label>
+                      <Input type="number" placeholder="e.g. 15" value={latency} onChange={(e) => setLatency(e.target.value)} />
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label>Test Verdict</Label>
+                    <div className="flex gap-3">
+                      <Button
+                        size="sm"
+                        variant={networkTestResult === "PASSED" ? "default" : "outline"}
+                        className={networkTestResult === "PASSED" ? "bg-green-600 hover:bg-green-700" : ""}
+                        onClick={() => setNetworkTestResult("PASSED")}
+                        disabled={!signalStrength || !downloadSpeed || !latency}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> PASS
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={networkTestResult === "FAILED" ? "destructive" : "outline"}
+                        onClick={() => setNetworkTestResult("FAILED")}
+                        disabled={!signalStrength || !downloadSpeed || !latency}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" /> FAIL
+                      </Button>
+                    </div>
+                    {(!signalStrength || !downloadSpeed || !latency) && (
+                      <p className="text-xs text-muted-foreground">Fill all test metrics before selecting verdict</p>
+                    )}
                   </div>
                   {networkTestResult === "FAILED" && (
                     <p className="text-xs text-destructive">Test failed — you may cancel with reason "FI Test Failed"</p>
+                  )}
+                  {networkTestResult === "PASSED" && (
+                    <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded p-2 text-xs text-green-700 dark:text-green-400">
+                      ✅ Signal: {signalStrength} dBm | Speed: {downloadSpeed} Mbps | Latency: {latency} ms — Ready for installation
+                    </div>
                   )}
                 </CardContent>
               </Card>
