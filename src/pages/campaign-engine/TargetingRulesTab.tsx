@@ -147,8 +147,13 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
                 if (ch) payload.channel_id = ch;
                 if (sc) payload.sub_channel_id = sc;
                 if (networkType !== NONE) payload.network_type = networkType;
-                if (minAge) payload.min_network_age_days = parseInt(minAge);
-                if (maxAge) payload.max_network_age_days = parseInt(maxAge);
+                if (isAcq) {
+                  payload.min_network_age_days = 0;
+                  payload.max_network_age_days = 0;
+                } else {
+                  if (minAge) payload.min_network_age_days = parseInt(minAge);
+                  if (maxAge) payload.max_network_age_days = parseInt(maxAge);
+                }
                 rows.push(payload);
               }
             }
