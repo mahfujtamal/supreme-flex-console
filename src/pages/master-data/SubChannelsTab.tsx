@@ -156,8 +156,8 @@ export default function SubChannelsTab() {
                 <TableCell className="font-medium">{sc.sub_channel_name}</TableCell>
                 <TableCell className="text-sm">{sc.channels?.channel_name}</TableCell>
                 <TableCell>
-                  <Badge variant={sc.override_delivery_ownership ? "default" : "outline"} className="text-xs">
-                    {sc.override_delivery_ownership ? "Yes" : "No"}
+                  <Badge variant={sc.delivery_ownership === "FOLLOW_CHANNEL" ? "outline" : "default"} className="text-xs">
+                    {sc.delivery_ownership === "SELF_DELIVERY" ? "Self-Delivery" : sc.delivery_ownership === "DH_DELIVERY" ? "DH Delivery" : "Follow Channel"}
                   </Badge>
                 </TableCell>
                 <TableCell>
