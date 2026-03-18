@@ -65,6 +65,7 @@ const OrderDispatchTab = () => {
               <TableHead>Payment</TableHead>
               <TableHead>DH/KAM</TableHead>
               <TableHead>Agent</TableHead>
+              <TableHead>Sales Agent</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-center">Actions</TableHead>
             </TableRow>
