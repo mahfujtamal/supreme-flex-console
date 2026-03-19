@@ -453,7 +453,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
 
   /* ── Review: build unified summary rows ── */
   const reviewRows = useMemo(() => {
-    const rows: { product_id: string; product_name: string; category: string; discount_type: string; base_disc_bdt: number; vat_disc_bdt: number; sd_disc_bdt: number; other_disc_bdt: number; total_disc_bdt: number }[] = [];
+    const rows: { product_id: string; product_name: string; category: string; discount_type: string; discount_label: string; base_disc_bdt: number; vat_disc_bdt: number; sd_disc_bdt: number; other_disc_bdt: number; total_disc_bdt: number }[] = [];
     discountRules.forEach((rule, pid) => {
       if (!hasDiscount(rule)) return;
       const product = allProducts?.find(p => p.product_id === pid);
@@ -463,16 +463,27 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
       const vat = resolved["VAT"] ?? 0;
       const sd = resolved["SD"] ?? 0;
       const other = Object.entries(resolved).filter(([k]) => !["BASE", "VAT", "SD"].includes(k)).reduce((s, [, v]) => s + v, 0);
+      const total = base + vat + sd + other;
+
+      let discountLabel: string;
+      if (rule.discount_type === "PERCENT") {
+        const compNames = rule.selected_components.join(", ");
+        discountLabel = `${rule.percent_value}% (${compNames})`;
+      } else {
+        discountLabel = `${formatBDT(total)} (Absolute)`;
+      }
+
       rows.push({
         product_id: pid,
         product_name: product?.product_name ?? pid,
         category: product?.product_category ?? "",
-        discount_type: rule.discount_type === "PERCENT" ? `${rule.percent_value}%` : "Absolute",
+        discount_type: rule.discount_type,
+        discount_label: discountLabel,
         base_disc_bdt: base,
         vat_disc_bdt: vat,
         sd_disc_bdt: sd,
         other_disc_bdt: other,
-        total_disc_bdt: base + vat + sd + other,
+        total_disc_bdt: total,
       });
     });
     return rows;
