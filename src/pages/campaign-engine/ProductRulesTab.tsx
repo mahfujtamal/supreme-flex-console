@@ -864,7 +864,9 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                               <TableRow key={row.product_id}>
                                 <TableCell className="text-xs font-medium">{row.product_name}</TableCell>
                                 <TableCell className="text-center">
-                                  <Badge variant="outline" className="text-[10px]">{row.discount_type}</Badge>
+                                  <Badge variant={row.discount_type === "PERCENT" ? "secondary" : "outline"} className="text-[10px]">
+                                    {row.discount_label}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell className="text-right text-xs font-mono">{row.base_disc_bdt > 0 ? formatBDT(row.base_disc_bdt) : "—"}</TableCell>
                                 <TableCell className="text-right text-xs font-mono">{row.vat_disc_bdt > 0 ? formatBDT(row.vat_disc_bdt) : "—"}</TableCell>
