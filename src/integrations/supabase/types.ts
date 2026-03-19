@@ -350,12 +350,45 @@ export type Database = {
           },
         ]
       }
+      campaign_discount_mappings: {
+        Row: {
+          component_name: string
+          created_at: string
+          discount_amount_bdt: number
+          mapping_id: string
+          rule_id: string
+        }
+        Insert: {
+          component_name: string
+          created_at?: string
+          discount_amount_bdt?: number
+          mapping_id?: string
+          rule_id: string
+        }
+        Update: {
+          component_name?: string
+          created_at?: string
+          discount_amount_bdt?: number
+          mapping_id?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_discount_mappings_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_product_rules"
+            referencedColumns: ["rule_id"]
+          },
+        ]
+      }
       campaign_master: {
         Row: {
           allow_cod_payment: boolean
           allow_online_payment: boolean
           campaign_id: string
           campaign_name: string
+          campaign_rank: number
           campaign_trigger_type: Database["public"]["Enums"]["campaign_trigger_type"]
           created_at: string
           description: string
@@ -371,6 +404,7 @@ export type Database = {
           allow_online_payment?: boolean
           campaign_id?: string
           campaign_name: string
+          campaign_rank?: number
           campaign_trigger_type: Database["public"]["Enums"]["campaign_trigger_type"]
           created_at?: string
           description?: string
@@ -386,6 +420,7 @@ export type Database = {
           allow_online_payment?: boolean
           campaign_id?: string
           campaign_name?: string
+          campaign_rank?: number
           campaign_trigger_type?: Database["public"]["Enums"]["campaign_trigger_type"]
           created_at?: string
           description?: string
@@ -400,6 +435,7 @@ export type Database = {
       }
       campaign_product_rules: {
         Row: {
+          applicable_components: string[]
           campaign_id: string
           created_at: string
           discount_type: Database["public"]["Enums"]["discount_type"] | null
@@ -409,6 +445,7 @@ export type Database = {
           rule_type: Database["public"]["Enums"]["campaign_rule_type"]
         }
         Insert: {
+          applicable_components?: string[]
           campaign_id: string
           created_at?: string
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
@@ -418,6 +455,7 @@ export type Database = {
           rule_type: Database["public"]["Enums"]["campaign_rule_type"]
         }
         Update: {
+          applicable_components?: string[]
           campaign_id?: string
           created_at?: string
           discount_type?: Database["public"]["Enums"]["discount_type"] | null
@@ -1163,6 +1201,44 @@ export type Database = {
           },
         ]
       }
+      price_components: {
+        Row: {
+          amount_bdt: number
+          component_id: string
+          component_name: string
+          component_type: string
+          created_at: string
+          price_version_id: string
+          sort_order: number
+        }
+        Insert: {
+          amount_bdt?: number
+          component_id?: string
+          component_name: string
+          component_type?: string
+          created_at?: string
+          price_version_id: string
+          sort_order?: number
+        }
+        Update: {
+          amount_bdt?: number
+          component_id?: string
+          component_name?: string
+          component_type?: string
+          created_at?: string
+          price_version_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_components_price_version_id_fkey"
+            columns: ["price_version_id"]
+            isOneToOne: false
+            referencedRelation: "product_price_versions"
+            referencedColumns: ["price_version_id"]
+          },
+        ]
+      }
       product_price_versions: {
         Row: {
           base_price_bdt: number
@@ -1475,6 +1551,60 @@ export type Database = {
             referencedColumns: ["channel_id"]
           },
         ]
+      }
+      transaction_ledger: {
+        Row: {
+          anchor_id: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          created_at: string
+          customer_id: string
+          discount_breakdown: Json
+          ledger_id: string
+          order_id: string | null
+          price_breakdown: Json
+          product_id: string
+          product_name: string
+          total_discount_bdt: number
+          total_payable_bdt: number
+          total_pre_discount_bdt: number
+          trigger_type: string
+        }
+        Insert: {
+          anchor_id?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string
+          customer_id: string
+          discount_breakdown?: Json
+          ledger_id?: string
+          order_id?: string | null
+          price_breakdown?: Json
+          product_id: string
+          product_name: string
+          total_discount_bdt?: number
+          total_payable_bdt?: number
+          total_pre_discount_bdt?: number
+          trigger_type?: string
+        }
+        Update: {
+          anchor_id?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string
+          customer_id?: string
+          discount_breakdown?: Json
+          ledger_id?: string
+          order_id?: string | null
+          price_breakdown?: Json
+          product_id?: string
+          product_name?: string
+          total_discount_bdt?: number
+          total_payable_bdt?: number
+          total_pre_discount_bdt?: number
+          trigger_type?: string
+        }
+        Relationships: []
       }
       user_account: {
         Row: {
