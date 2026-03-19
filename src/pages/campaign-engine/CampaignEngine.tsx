@@ -65,6 +65,7 @@ function CampaignDashboard() {
               <TableHead>Campaign Name</TableHead>
               <TableHead className="w-[80px]">Scope</TableHead>
               <TableHead className="w-[120px]">Trigger Type</TableHead>
+              <TableHead className="w-[60px]">Rank</TableHead>
               <TableHead className="w-[100px]">Start Date</TableHead>
               <TableHead className="w-[100px]">End Date</TableHead>
               <TableHead className="w-[90px]">Status</TableHead>
@@ -73,14 +74,15 @@ function CampaignDashboard() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No campaigns found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No campaigns found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
               <TableRow key={c.campaign_id}>
                 <TableCell className="font-medium">{c.campaign_name}</TableCell>
                 <TableCell><Badge variant="outline" className="text-xs">{c.scope}</Badge></TableCell>
                 <TableCell className="text-xs">{c.campaign_trigger_type.replace(/_/g, " ")}</TableCell>
+                <TableCell className="text-sm font-mono">{c.campaign_rank ?? 100}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{format(new Date(c.start_date), "dd MMM yyyy")}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.end_date ? format(new Date(c.end_date), "dd MMM yyyy") : "—"}</TableCell>
                 <TableCell>
