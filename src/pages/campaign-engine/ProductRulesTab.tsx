@@ -330,14 +330,14 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
 
       const allRuleInserts: any[] = [];
 
-      // UNAVAILABLE rules
+      // UNAVAILABLE rules — applicable_components must be [] not null
       for (const pid of blockedIds) {
-        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "UNAVAILABLE" as const });
+        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "UNAVAILABLE" as const, applicable_components: [] });
       }
 
-      // EXCLUSIVE rules
+      // EXCLUSIVE rules — applicable_components must be [] not null
       for (const pid of exclusiveIds) {
-        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "EXCLUSIVE" as const });
+        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "EXCLUSIVE" as const, applicable_components: [] });
       }
 
       // DISCOUNT rules — each product independent
@@ -345,7 +345,11 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
         if (!hasDiscount(rule)) continue;
         const comps = componentCache[pid] ?? [];
         const resolved = resolveToAbsoluteBDT(rule, comps);
-        const applicableComponents = Object.keys(resolved);
+        // For FLAT: derive applicable_components from components with value > 0
+        // For PERCENT: use selected_components
+        const applicableComponents = rule.discount_type === "PERCENT"
+          ? [...rule.selected_components]
+          : Object.entries(rule.component_mapping).filter(([, v]) => v > 0).map(([k]) => k);
         const totalDiscount = Object.values(resolved).reduce((s, v) => s + v, 0);
 
         allRuleInserts.push({
@@ -354,7 +358,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
           rule_type: "DISCOUNT" as const,
           discount_type: rule.discount_type,
           discount_value: rule.discount_type === "PERCENT" ? rule.percent_value : totalDiscount,
-          applicable_components: applicableComponents,
+          applicable_components: applicableComponents.length > 0 ? applicableComponents : [],
         });
       }
 
