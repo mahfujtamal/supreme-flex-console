@@ -148,12 +148,17 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
             <div className="rounded-md bg-muted/50 border p-3 space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Summary (OR within group, AND across groups)</p>
               <div className="flex flex-wrap items-center gap-1.5">
-                {targetSummary.map((group, gi) => (
-                  <span key={group.label} className="flex items-center gap-1">
-                    {gi > 0 && <span className="text-xs font-bold text-muted-foreground mx-1">|</span>}
-                    <span className="text-[10px] text-muted-foreground font-medium mr-0.5">{group.label}:</span>
-                    {group.values.map(v => (
-                      <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0">{v}</Badge>
+                {targetSummary.map((hierarchy, hi) => (
+                  <span key={hi} className="flex items-center gap-1">
+                    {hi > 0 && <span className="text-xs font-bold text-muted-foreground mx-1">|</span>}
+                    {hierarchy.parts.map((part, pi) => (
+                      <span key={part.label} className="flex items-center gap-1">
+                        {pi > 0 && <span className="text-muted-foreground text-[10px]">›</span>}
+                        <span className="text-[10px] text-muted-foreground font-medium">{part.label}:</span>
+                        {part.values.map(v => (
+                          <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0">{v}</Badge>
+                        ))}
+                      </span>
                     ))}
                   </span>
                 ))}
