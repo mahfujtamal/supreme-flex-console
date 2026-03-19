@@ -324,17 +324,28 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                 </Alert>
               )}
 
-              {/* Product selection with type labels */}
+              {/* Product selection — live from DB with loading state */}
               <div className="space-y-2">
-                <Label>Product {ruleType === "EXCLUSIVE" ? "(Exclusive only)" : "(Standard)"}</Label>
-                <Select value={productId} onValueChange={setProductId} disabled={!!noExclusiveProducts}>
-                  <SelectTrigger><SelectValue placeholder={noExclusiveProducts ? "No eligible products" : "Select product"} /></SelectTrigger>
+                <Label>Select Product</Label>
+                <Select value={productId} onValueChange={setProductId} disabled={!!noExclusiveProducts || productsLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={productsLoading ? "Loading products..." : noExclusiveProducts ? "No eligible products" : "Select product"} />
+                  </SelectTrigger>
                   <SelectContent>
-                    {filteredProducts.map(p => (
-                      <SelectItem key={p.product_id} value={p.product_id}>
-                        {productLabel(p)}
-                      </SelectItem>
-                    ))}
+                    {productsLoading ? (
+                      <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
+                    ) : (
+                      products?.map(p => (
+                        <SelectItem key={p.product_id} value={p.product_id}>
+                          <span className="flex items-center gap-2">
+                            {p.product_name} [{p.product_category}]
+                            {p.is_exclusive && (
+                              <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary border border-primary/20">Exclusive</span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
