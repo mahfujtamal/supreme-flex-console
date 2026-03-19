@@ -496,170 +496,198 @@ export default function ReferralProgramsTab() {
                 </Select>
               </div>
 
-              {/* ── Referrer Reward ── */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-foreground">Referrer Reward</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Discount Type *</Label>
-                    <Select value={discountType} onValueChange={setDiscountType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="FLAT">Flat (BDT)</SelectItem>
-                        <SelectItem value="PERCENT">Percent (%)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Discount Value *</Label>
-                    <Input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder="e.g. 100" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Billing Cycles *</Label>
-                    <Input type="number" value={billingCycles} onChange={(e) => setBillingCycles(e.target.value)} min="1" />
-                  </div>
-                  <div>
-                    <Label>Applicable Category *</Label>
-                    <Select value={productCategory} onValueChange={setProductCategory}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PRODUCT_CATEGORY_OPTIONS.map((t) => (
-                          <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+              <Accordion type="multiple" defaultValue={["referrer", "referee"]} className="w-full">
+                {/* ── Referrer Reward Accordion ── */}
+                <AccordionItem value="referrer">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <span>Referrer Reward</span>
+                      {discountValue && (
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {discountType === "FLAT" ? formatBDT(parseFloat(discountValue)) : `${discountValue}%`} × {billingCycles} cycle{parseInt(billingCycles) !== 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Discount Type *</Label>
+                          <Select value={discountType} onValueChange={setDiscountType}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="FLAT">Flat (BDT)</SelectItem>
+                              <SelectItem value="PERCENT">Percent (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Discount Value *</Label>
+                          <Input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder="e.g. 100" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Billing Cycles *</Label>
+                          <Input type="number" value={billingCycles} onChange={(e) => setBillingCycles(e.target.value)} min="1" />
+                        </div>
+                        <div>
+                          <Label>Applicable Category *</Label>
+                          <Select value={productCategory} onValueChange={setProductCategory}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {PRODUCT_CATEGORY_OPTIONS.map((t) => (
+                                <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <Separator />
+                {/* ── Referee Reward Accordion ── */}
+                <AccordionItem value="referee">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <span>Referee Reward — Discount Configuration</span>
+                      {refereeRewards.length > 0 && (
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {(() => {
+                            const wc = refereeRewards.filter(r => r.product_category === "WIFI_PLAN").length;
+                            const pc = refereeRewards.filter(r => r.addon_type === "PHYSICAL" || r.product_category === "CPE").length;
+                            const dc = refereeRewards.filter(r => r.addon_type === "DIGITAL").length;
+                            const parts: string[] = [];
+                            if (wc) parts.push(`${wc} WiFi Plan${wc > 1 ? "s" : ""}`);
+                            if (pc) parts.push(`${pc} CPE`);
+                            if (dc) parts.push(`${dc} Digital Addon${dc > 1 ? "s" : ""}`);
+                            return parts.join(", ") || "None";
+                          })()}
+                        </Badge>
+                      )}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 pt-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Info className="h-3.5 w-3.5 shrink-0" />
+                          Referee can choose any, all, or none of these items during sign-up.
+                        </p>
+                        {refereeRewards.length > 0 && (
+                          <Button variant="outline" size="sm" onClick={openPreview}>
+                            <Eye className="h-3.5 w-3.5 mr-1.5" />Price Preview
+                          </Button>
+                        )}
+                      </div>
 
-              {/* ── Referee Reward Section ── */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-semibold text-foreground">Referee Reward — Product Picker</h4>
-                    <p className="text-xs text-muted-foreground">Select products, set discounts, and configure selection rules for referees.</p>
-                  </div>
-                  {refereeRewards.length > 0 && (
-                    <Button variant="outline" size="sm" onClick={openPreview}>
-                      <Eye className="h-3.5 w-3.5 mr-1.5" />Price Preview
-                    </Button>
-                  )}
-                </div>
+                      {/* Dependency warnings */}
+                      {dependencyWarnings.map((w, i) => (
+                        <Alert key={i} variant="destructive" className="py-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">{w}</AlertDescription>
+                        </Alert>
+                      ))}
 
-                {/* Dependency warnings */}
-                {dependencyWarnings.map((w, i) => (
-                  <Alert key={i} variant="destructive" className="py-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">{w}</AlertDescription>
-                  </Alert>
-                ))}
+                      {/* Category pickers */}
+                      <div className="space-y-3">
+                        <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Product Selection</h5>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label className="text-xs flex items-center gap-1.5">
+                              <Package className="h-3 w-3" />WiFi Plans
+                            </Label>
+                            <MultiSelectDropdown
+                              options={productsByCategory.wifi.map((p) => ({ value: p.product_id, label: p.product_name }))}
+                              selected={selectedWifiPlans} onChange={handleWifiChange}
+                              placeholder="Select WiFi plans..." allLabel="All WiFi Plans"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs flex items-center gap-1.5">
+                              <Package className="h-3 w-3" />Physical Addons / CPE
+                            </Label>
+                            <MultiSelectDropdown
+                              options={productsByCategory.physical.map((p) => ({ value: p.product_id, label: p.product_name }))}
+                              selected={selectedPhysicalAddons} onChange={handlePhysicalChange}
+                              placeholder="Select hardware..." allLabel="All Physical"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs flex items-center gap-1.5">
+                              <Package className="h-3 w-3" />Digital Addons
+                            </Label>
+                            <MultiSelectDropdown
+                              options={productsByCategory.digital.map((p) => ({ value: p.product_id, label: p.product_name }))}
+                              selected={selectedDigitalAddons} onChange={handleDigitalChange}
+                              placeholder="Select VAS..." allLabel="All Digital"
+                            />
+                          </div>
+                        </div>
+                      </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-xs">WiFi Plans</Label>
-                    <MultiSelectDropdown
-                      options={productsByCategory.wifi.map((p) => ({ value: p.product_id, label: p.product_name }))}
-                      selected={selectedWifiPlans} onChange={handleWifiChange}
-                      placeholder="Select WiFi plans..." allLabel="All WiFi Plans"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Physical Addons</Label>
-                    <MultiSelectDropdown
-                      options={productsByCategory.physical.map((p) => ({ value: p.product_id, label: p.product_name }))}
-                      selected={selectedPhysicalAddons} onChange={handlePhysicalChange}
-                      placeholder="Select physical addons..." allLabel="All Physical"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Digital Addons</Label>
-                    <MultiSelectDropdown
-                      options={productsByCategory.digital.map((p) => ({ value: p.product_id, label: p.product_name }))}
-                      selected={selectedDigitalAddons} onChange={handleDigitalChange}
-                      placeholder="Select digital addons..." allLabel="All Digital"
-                    />
-                  </div>
-                </div>
-
-                {/* Referee Discount Table */}
-                {refereeRewards.length > 0 && (
-                  <div className="border rounded-lg bg-muted/30">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Product</TableHead>
-                          <TableHead className="text-xs w-[90px]">Selection</TableHead>
-                          <TableHead className="text-xs w-[90px]">Type</TableHead>
-                          <TableHead className="text-xs w-[80px]">Value</TableHead>
-                          <TableHead className="text-xs w-[180px]">Breakdown</TableHead>
-                          <TableHead className="text-xs w-[50px]">Dep.</TableHead>
-                          <TableHead className="text-xs w-[36px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {refereeRewards.map((reward) => (
-                          <TableRow key={reward.product_id}>
-                            <TableCell>
-                              <div className="text-xs font-medium">{reward.product_name}</div>
-                              <div className="text-[10px] text-muted-foreground">{reward.product_category}{reward.addon_type ? ` / ${reward.addon_type}` : ""}</div>
-                            </TableCell>
-                            <TableCell>
-                              <Select value={reward.selection_mode} onValueChange={(v) => updateRewardField(reward.product_id, "selection_mode", v)}>
-                                <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="OPTIONAL">Optional</SelectItem>
-                                  <SelectItem value="MANDATORY">Mandatory</SelectItem>
-                                  <SelectItem value="AUTO_BUNDLE">Auto Bundle</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Select value={reward.discount_type} onValueChange={(v) => updateRewardField(reward.product_id, "discount_type", v)}>
-                                <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="FLAT">BDT</SelectItem>
-                                  <SelectItem value="PERCENT">%</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Input type="number" className="h-7 text-[11px]" value={reward.discount_value || ""} onChange={(e) => updateRewardField(reward.product_id, "discount_value", parseFloat(e.target.value) || 0)} placeholder="0" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {COMPONENT_OPTIONS.map((comp) => (
-                                  <label key={comp} className="flex items-center gap-0.5 text-[10px] cursor-pointer">
-                                    <Checkbox className="h-3 w-3" checked={reward.applicable_components.includes(comp)} onCheckedChange={() => toggleRewardComponent(reward.product_id, comp)} />
-                                    {comp.replace("Service Charge", "SC")}
-                                  </label>
+                      {/* Referee Discount Configuration Table */}
+                      {refereeRewards.length > 0 && (
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Referee Discount Configuration</h5>
+                          <div className="border rounded-lg bg-muted/30">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">Product Name</TableHead>
+                                  <TableHead className="text-xs w-[100px]">Discount Type</TableHead>
+                                  <TableHead className="text-xs w-[90px]">Discount Value</TableHead>
+                                  <TableHead className="text-xs min-w-[200px]">Detail Breakdown</TableHead>
+                                  <TableHead className="text-xs w-[36px]"></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {refereeRewards.map((reward) => (
+                                  <TableRow key={reward.product_id}>
+                                    <TableCell>
+                                      <div className="text-xs font-medium">{reward.product_name}</div>
+                                      <div className="text-[10px] text-muted-foreground">{reward.product_category}{reward.addon_type ? ` / ${reward.addon_type}` : ""}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Select value={reward.discount_type} onValueChange={(v) => updateRewardField(reward.product_id, "discount_type", v)}>
+                                        <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="FLAT">Fixed (BDT)</SelectItem>
+                                          <SelectItem value="PERCENT">Percentage (%)</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Input type="number" className="h-7 text-[11px]" value={reward.discount_value || ""} onChange={(e) => updateRewardField(reward.product_id, "discount_value", parseFloat(e.target.value) || 0)} placeholder="0" />
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        {COMPONENT_OPTIONS.map((comp) => (
+                                          <label key={comp} className="flex items-center gap-1 text-[11px] cursor-pointer whitespace-nowrap">
+                                            <Checkbox className="h-3.5 w-3.5" checked={reward.applicable_components.includes(comp)} onCheckedChange={() => toggleRewardComponent(reward.product_id, comp)} />
+                                            {comp === "Service Charge" ? "SC / Installation" : comp}
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRewardProduct(reward.product_id)}>
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
                                 ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {(reward.addon_type === "PHYSICAL" || reward.product_category === "CPE") && (
-                                <div className="flex items-center justify-center" title="Requires WiFi Plan">
-                                  <Switch className="scale-75" checked={reward.require_wifi_for_cpe} onCheckedChange={(v) => updateRewardField(reward.product_id, "require_wifi_for_cpe", v)} />
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRewardProduct(reward.product_id)}>
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
 
               {/* Limits */}
               <div className="grid grid-cols-2 gap-3">
