@@ -76,7 +76,7 @@ function CampaignDashboard() {
             {isLoading ? (
               <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No campaigns found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No campaigns found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
               <TableRow key={c.campaign_id}>
                 <TableCell className="font-medium">{c.campaign_name}</TableCell>
