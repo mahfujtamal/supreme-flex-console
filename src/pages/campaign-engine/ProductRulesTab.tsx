@@ -145,7 +145,7 @@ export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: s
       const { error } = await supabase.from("campaign_product_rules").delete().eq("rule_id", ruleId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_rules", campaignId] }); toast({ title: "Rule removed" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_rules", campaignId] }); onDirty?.(); toast({ title: "Rule removed" }); },
   });
 
   /* ── Products available after Phase 1 filtering (not blocked, exclusive unlocked) ── */
