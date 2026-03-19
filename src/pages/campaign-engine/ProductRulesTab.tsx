@@ -537,19 +537,21 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                   </TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{r.products?.product_category}</Badge></TableCell>
                   <TableCell>
-                    <Badge variant={r.rule_type === "DISCOUNT" ? "default" : r.rule_type === "UNAVAILABLE" ? "destructive" : "secondary"} className="text-xs">
+                   <Badge variant={r.rule_type === "DISCOUNT" ? "default" : r.rule_type === "UNAVAILABLE" ? "destructive" : "secondary"} className="text-xs">
                       {r.rule_type}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm">
                     {r.rule_type === "DISCOUNT"
-                      ? r.discount_type === "PERCENT" ? `${r.discount_value}%` : formatBDT(r.discount_value)
-                      : "—"}
+                      ? r.discount_type === "PERCENT"
+                        ? `${r.discount_value}% (${(r.applicable_components ?? []).join(", ") || "—"})`
+                        : `${formatBDT(r.discount_value)} (Absolute)`
+                      : r.rule_type === "UNAVAILABLE" ? <span className="text-destructive font-medium text-xs">UNAVAILABLE</span> : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {r.campaign_discount_mappings?.length > 0
                       ? r.campaign_discount_mappings.map((m: any) => `${m.component_name}: ${formatBDT(Number(m.discount_amount_bdt))}`).join(", ")
-                      : "—"}
+                      : r.rule_type === "UNAVAILABLE" ? <span className="italic">Blocked</span> : "—"}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteRule.mutate(r.rule_id)}>
