@@ -31,10 +31,6 @@ interface DiscountBreakdownRow {
   amount: string;
 }
 
-function productLabel(p: { product_name: string; product_category: string; is_exclusive: boolean }) {
-  const tag = p.is_exclusive ? "EXCLUSIVE" : p.product_category;
-  return `${p.product_name} [${tag}]`;
-}
 
 export default function ProductRulesTab({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
