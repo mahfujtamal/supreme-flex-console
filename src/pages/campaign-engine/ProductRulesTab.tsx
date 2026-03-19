@@ -31,10 +31,6 @@ interface DiscountBreakdownRow {
   amount: string;
 }
 
-function productLabel(p: { product_name: string; product_category: string; is_exclusive: boolean }) {
-  const tag = p.is_exclusive ? "EXCLUSIVE" : p.product_category;
-  return `${p.product_name} [${tag}]`;
-}
 
 export default function ProductRulesTab({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
@@ -47,28 +43,22 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  /* ── Fetch all active products ── */
-  const { data: products } = useQuery({
-    queryKey: ["products_lookup_all_active"],
+  /* ── Fetch ALL active products from DB (standard + exclusive, all categories incl. SIM) ── */
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ["products_campaign_lookup"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("products")
-        .select("product_id, product_name, product_category, is_exclusive")
+        .select("product_id, product_name, product_category, is_exclusive, status")
         .eq("status", true)
         .order("product_name");
+      if (error) throw error;
       return data ?? [];
     },
+    staleTime: 0,
   });
 
-  /* ── Filter products by rule type ── */
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (ruleType === "EXCLUSIVE") return products.filter(p => p.is_exclusive === true);
-    // Standard rules: show all non-exclusive active products (including SIM, etc.)
-    return products.filter(p => p.is_exclusive === false);
-  }, [products, ruleType]);
-
-  const noExclusiveProducts = ruleType === "EXCLUSIVE" && filteredProducts.length === 0 && products && products.length > 0;
+  const noExclusiveProducts = ruleType === "EXCLUSIVE" && products && products.filter(p => p.is_exclusive).length === 0;
 
   const selectedProduct = useMemo(
     () => products?.find(p => p.product_id === productId) ?? null,
@@ -330,17 +320,28 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                 </Alert>
               )}
 
-              {/* Product selection with type labels */}
+              {/* Product selection — live from DB with loading state */}
               <div className="space-y-2">
-                <Label>Product {ruleType === "EXCLUSIVE" ? "(Exclusive only)" : "(Standard)"}</Label>
-                <Select value={productId} onValueChange={setProductId} disabled={!!noExclusiveProducts}>
-                  <SelectTrigger><SelectValue placeholder={noExclusiveProducts ? "No eligible products" : "Select product"} /></SelectTrigger>
+                <Label>Select Product</Label>
+                <Select value={productId} onValueChange={setProductId} disabled={!!noExclusiveProducts || productsLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={productsLoading ? "Loading products..." : noExclusiveProducts ? "No eligible products" : "Select product"} />
+                  </SelectTrigger>
                   <SelectContent>
-                    {filteredProducts.map(p => (
-                      <SelectItem key={p.product_id} value={p.product_id}>
-                        {productLabel(p)}
-                      </SelectItem>
-                    ))}
+                    {productsLoading ? (
+                      <div className="py-4 text-center text-sm text-muted-foreground">Loading...</div>
+                    ) : (
+                      products?.map(p => (
+                        <SelectItem key={p.product_id} value={p.product_id}>
+                          <span className="flex items-center gap-2">
+                            {p.product_name} [{p.product_category}]
+                            {p.is_exclusive && (
+                              <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary border border-primary/20">Exclusive</span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
