@@ -390,6 +390,7 @@ export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: s
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["product_rules", campaignId] });
       closeDialog();
+      onDirty?.();
       toast({ title: "Product rules saved successfully" });
     },
     onError: (e: Error) => toast({ title: "Error saving rules", description: e.message, variant: "destructive" }),
