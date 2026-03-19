@@ -65,6 +65,7 @@ function CampaignDashboard() {
               <TableHead>Campaign Name</TableHead>
               <TableHead className="w-[80px]">Scope</TableHead>
               <TableHead className="w-[120px]">Trigger Type</TableHead>
+              <TableHead className="w-[60px]">Rank</TableHead>
               <TableHead className="w-[100px]">Start Date</TableHead>
               <TableHead className="w-[100px]">End Date</TableHead>
               <TableHead className="w-[90px]">Status</TableHead>
