@@ -286,10 +286,12 @@ export default function CampaignEngine() {
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="coupons">Coupon Management</TabsTrigger>
           <TabsTrigger value="referrals">Referral Programs</TabsTrigger>
+          <TabsTrigger value="referral-analytics">Referral Analytics</TabsTrigger>
         </TabsList>
         <TabsContent value="campaigns"><CampaignDashboard /></TabsContent>
         <TabsContent value="coupons"><CouponManagementTab /></TabsContent>
         <TabsContent value="referrals"><ReferralProgramsTab /></TabsContent>
+        <TabsContent value="referral-analytics"><ReferralAnalyticsTab /></TabsContent>
       </Tabs>
     </div>
   );
