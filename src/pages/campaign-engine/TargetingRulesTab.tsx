@@ -239,7 +239,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty, 
       const { error } = await supabase.from("campaign_targeting_rules").delete().eq("campaign_id", campaignId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); onDirty?.(); toast({ title: "All targeting rules removed" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); onSaved?.(); toast({ title: "All targeting rules removed" }); },
   });
 
   const closeDialog = () => {
