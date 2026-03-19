@@ -1,0 +1,1 @@
+ALTER TABLE public.campaign_targeting_rules ADD COLUMN block_id integer NOT NULL DEFAULT 0;

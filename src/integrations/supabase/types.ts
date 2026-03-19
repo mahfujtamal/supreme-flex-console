@@ -484,6 +484,7 @@ export type Database = {
       campaign_targeting_rules: {
         Row: {
           area_id: string | null
+          block_id: number
           campaign_id: string
           channel_id: string | null
           district_id: string | null
@@ -498,6 +499,7 @@ export type Database = {
         }
         Insert: {
           area_id?: string | null
+          block_id?: number
           campaign_id: string
           channel_id?: string | null
           district_id?: string | null
@@ -512,6 +514,7 @@ export type Database = {
         }
         Update: {
           area_id?: string | null
+          block_id?: number
           campaign_id?: string
           channel_id?: string | null
           district_id?: string | null
