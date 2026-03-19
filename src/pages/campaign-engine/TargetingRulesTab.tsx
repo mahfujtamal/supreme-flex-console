@@ -89,7 +89,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
     return (allSubChannels ?? []).filter(sc => selectedChannelIds.includes(sc.channel_id));
   })();
 
-  const areaSelected = areaIds.length > 0;
   const channelSelected = channelIds.length > 0;
 
   const handleNetworkTypeChange = (val: string) => {
@@ -109,7 +108,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
   };
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
-    setChannelIds([]); setSubChannelIds([]);
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
@@ -335,14 +333,13 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className={!areaSelected ? "text-muted-foreground" : ""}>Channel</Label>
+                <Label>Channel</Label>
                  <MultiSelectDropdown
                    options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
                    selected={channelIds}
                    onChange={handleChannelChange}
-                   placeholder={areaSelected ? "None (ALL)" : "Select Area first"}
+                   placeholder="None (ALL)"
                    allLabel="ALL Channels"
-                   disabled={!areaSelected}
                  />
               </div>
               <div className="space-y-2">

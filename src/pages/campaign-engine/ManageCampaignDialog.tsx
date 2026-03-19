@@ -63,7 +63,7 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
     },
   });
 
-  /* ── Build consolidated target summary tags ── */
+  /* ── Build consolidated target summary tags — hierarchical display ── */
   const targetSummary = useMemo(() => {
     if (!targetRules?.length) return null;
     const zones = new Set<string>();
@@ -82,15 +82,26 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
       if (r.network_type) networks.add(r.network_type);
     });
 
-    const groups: { label: string; values: string[] }[] = [];
-    if (zones.size) groups.push({ label: "Zone", values: Array.from(zones) });
-    if (districts.size) groups.push({ label: "District", values: Array.from(districts) });
-    if (areas.size) groups.push({ label: "Area", values: Array.from(areas) });
-    if (channels.size) groups.push({ label: "Channel", values: Array.from(channels) });
-    if (subChannels.size) groups.push({ label: "Sub-Ch", values: Array.from(subChannels) });
-    if (networks.size) groups.push({ label: "Network", values: Array.from(networks) });
+    // Build hierarchical groups: Geography (Zone > District > Area) | Distribution (Channel > Sub-Ch) | Network
+    const hierarchies: { parts: { label: string; values: string[] }[] }[] = [];
 
-    return groups;
+    // Geography hierarchy
+    const geoParts: { label: string; values: string[] }[] = [];
+    if (zones.size) geoParts.push({ label: "Zone", values: Array.from(zones) });
+    if (districts.size) geoParts.push({ label: "District", values: Array.from(districts) });
+    if (areas.size) geoParts.push({ label: "Area", values: Array.from(areas) });
+    if (geoParts.length) hierarchies.push({ parts: geoParts });
+
+    // Distribution hierarchy
+    const distParts: { label: string; values: string[] }[] = [];
+    if (channels.size) distParts.push({ label: "Channel", values: Array.from(channels) });
+    if (subChannels.size) distParts.push({ label: "Sub-Ch", values: Array.from(subChannels) });
+    if (distParts.length) hierarchies.push({ parts: distParts });
+
+    // Network
+    if (networks.size) hierarchies.push({ parts: [{ label: "Network", values: Array.from(networks) }] });
+
+    return hierarchies;
   }, [targetRules]);
 
   /* ── Cross-validation: product vs target network mismatch ── */
@@ -137,12 +148,17 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
             <div className="rounded-md bg-muted/50 border p-3 space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Summary (OR within group, AND across groups)</p>
               <div className="flex flex-wrap items-center gap-1.5">
-                {targetSummary.map((group, gi) => (
-                  <span key={group.label} className="flex items-center gap-1">
-                    {gi > 0 && <span className="text-xs font-bold text-muted-foreground mx-1">|</span>}
-                    <span className="text-[10px] text-muted-foreground font-medium mr-0.5">{group.label}:</span>
-                    {group.values.map(v => (
-                      <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0">{v}</Badge>
+                {targetSummary.map((hierarchy, hi) => (
+                  <span key={hi} className="flex items-center gap-1">
+                    {hi > 0 && <span className="text-xs font-bold text-muted-foreground mx-1">|</span>}
+                    {hierarchy.parts.map((part, pi) => (
+                      <span key={part.label} className="flex items-center gap-1">
+                        {pi > 0 && <span className="text-muted-foreground text-[10px]">›</span>}
+                        <span className="text-[10px] text-muted-foreground font-medium">{part.label}:</span>
+                        {part.values.map(v => (
+                          <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0">{v}</Badge>
+                        ))}
+                      </span>
                     ))}
                   </span>
                 ))}
