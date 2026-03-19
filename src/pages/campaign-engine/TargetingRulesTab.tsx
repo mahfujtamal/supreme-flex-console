@@ -216,7 +216,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty, 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
       closeDialog();
-      onDirty?.();
+      onSaved?.();
       toast({ title: editBlockId !== null ? "Target block updated" : "Target block added" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
