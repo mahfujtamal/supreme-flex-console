@@ -174,7 +174,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
       const { error } = await supabase.from("campaign_targeting_rules").insert(rows);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); toast({ title: `Targeting rule${zoneIds.length > 1 || districtIds.length > 1 ? "s" : ""} added` }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); onDirty?.(); toast({ title: `Targeting rule${zoneIds.length > 1 || districtIds.length > 1 ? "s" : ""} added` }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
