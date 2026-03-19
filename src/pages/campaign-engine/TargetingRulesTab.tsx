@@ -108,7 +108,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
   };
   const handleAreaChange = (vals: string[]) => {
     setAreaIds(vals);
-    setChannelIds([]); setSubChannelIds([]);
   };
   const handleChannelChange = (vals: string[]) => {
     setChannelIds(vals);
