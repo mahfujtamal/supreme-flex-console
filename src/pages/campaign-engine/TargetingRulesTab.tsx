@@ -30,7 +30,7 @@ interface ConsolidatedBlock {
   maxAge: number | null;
 }
 
-export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }: { campaignId: string; campaignScope: string; onDirty?: () => void }) {
+export default function TargetingRulesTab({ campaignId, campaignScope, onDirty, onSaved }: { campaignId: string; campaignScope: string; onDirty?: () => void; onSaved?: () => void }) {
   const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
   const [editBlockId, setEditBlockId] = useState<number | null>(null);
