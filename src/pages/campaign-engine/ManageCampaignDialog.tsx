@@ -26,6 +26,10 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
 
   const markDirty = useCallback(() => {
     setDirty(true);
+  }, []);
+
+  const markSaved = useCallback(() => {
+    setDirty(false);
     setRefreshKey(k => k + 1);
   }, []);
 
