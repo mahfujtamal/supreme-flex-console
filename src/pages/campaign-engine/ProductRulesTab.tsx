@@ -453,7 +453,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
 
   /* ── Review: build unified summary rows ── */
   const reviewRows = useMemo(() => {
-    const rows: { product_id: string; product_name: string; category: string; discount_type: string; base_disc_bdt: number; vat_disc_bdt: number; sd_disc_bdt: number; other_disc_bdt: number; total_disc_bdt: number }[] = [];
+    const rows: { product_id: string; product_name: string; category: string; discount_type: string; discount_label: string; base_disc_bdt: number; vat_disc_bdt: number; sd_disc_bdt: number; other_disc_bdt: number; total_disc_bdt: number }[] = [];
     discountRules.forEach((rule, pid) => {
       if (!hasDiscount(rule)) return;
       const product = allProducts?.find(p => p.product_id === pid);
@@ -463,16 +463,27 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
       const vat = resolved["VAT"] ?? 0;
       const sd = resolved["SD"] ?? 0;
       const other = Object.entries(resolved).filter(([k]) => !["BASE", "VAT", "SD"].includes(k)).reduce((s, [, v]) => s + v, 0);
+      const total = base + vat + sd + other;
+
+      let discountLabel: string;
+      if (rule.discount_type === "PERCENT") {
+        const compNames = rule.selected_components.join(", ");
+        discountLabel = `${rule.percent_value}% (${compNames})`;
+      } else {
+        discountLabel = `${formatBDT(total)} (Absolute)`;
+      }
+
       rows.push({
         product_id: pid,
         product_name: product?.product_name ?? pid,
         category: product?.product_category ?? "",
-        discount_type: rule.discount_type === "PERCENT" ? `${rule.percent_value}%` : "Absolute",
+        discount_type: rule.discount_type,
+        discount_label: discountLabel,
         base_disc_bdt: base,
         vat_disc_bdt: vat,
         sd_disc_bdt: sd,
         other_disc_bdt: other,
-        total_disc_bdt: base + vat + sd + other,
+        total_disc_bdt: total,
       });
     });
     return rows;
@@ -526,19 +537,21 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                   </TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{r.products?.product_category}</Badge></TableCell>
                   <TableCell>
-                    <Badge variant={r.rule_type === "DISCOUNT" ? "default" : r.rule_type === "UNAVAILABLE" ? "destructive" : "secondary"} className="text-xs">
+                   <Badge variant={r.rule_type === "DISCOUNT" ? "default" : r.rule_type === "UNAVAILABLE" ? "destructive" : "secondary"} className="text-xs">
                       {r.rule_type}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm">
                     {r.rule_type === "DISCOUNT"
-                      ? r.discount_type === "PERCENT" ? `${r.discount_value}%` : formatBDT(r.discount_value)
-                      : "—"}
+                      ? r.discount_type === "PERCENT"
+                        ? `${r.discount_value}% (${(r.applicable_components ?? []).join(", ") || "—"})`
+                        : `${formatBDT(r.discount_value)} (Absolute)`
+                      : r.rule_type === "UNAVAILABLE" ? <span className="text-destructive font-medium text-xs">UNAVAILABLE</span> : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {r.campaign_discount_mappings?.length > 0
                       ? r.campaign_discount_mappings.map((m: any) => `${m.component_name}: ${formatBDT(Number(m.discount_amount_bdt))}`).join(", ")
-                      : "—"}
+                      : r.rule_type === "UNAVAILABLE" ? <span className="italic">Blocked</span> : "—"}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteRule.mutate(r.rule_id)}>
@@ -851,7 +864,9 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                               <TableRow key={row.product_id}>
                                 <TableCell className="text-xs font-medium">{row.product_name}</TableCell>
                                 <TableCell className="text-center">
-                                  <Badge variant="outline" className="text-[10px]">{row.discount_type}</Badge>
+                                  <Badge variant={row.discount_type === "PERCENT" ? "secondary" : "outline"} className="text-[10px]">
+                                    {row.discount_label}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell className="text-right text-xs font-mono">{row.base_disc_bdt > 0 ? formatBDT(row.base_disc_bdt) : "—"}</TableCell>
                                 <TableCell className="text-right text-xs font-mono">{row.vat_disc_bdt > 0 ? formatBDT(row.vat_disc_bdt) : "—"}</TableCell>
