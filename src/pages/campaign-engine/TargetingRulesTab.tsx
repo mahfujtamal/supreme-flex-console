@@ -334,14 +334,13 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className={!areaSelected ? "text-muted-foreground" : ""}>Channel</Label>
+                <Label>Channel</Label>
                  <MultiSelectDropdown
                    options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
                    selected={channelIds}
                    onChange={handleChannelChange}
-                   placeholder={areaSelected ? "None (ALL)" : "Select Area first"}
+                   placeholder="None (ALL)"
                    allLabel="ALL Channels"
-                   disabled={!areaSelected}
                  />
               </div>
               <div className="space-y-2">
