@@ -89,7 +89,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
     return (allSubChannels ?? []).filter(sc => selectedChannelIds.includes(sc.channel_id));
   })();
 
-  const areaSelected = areaIds.length > 0;
   const channelSelected = channelIds.length > 0;
 
   const handleNetworkTypeChange = (val: string) => {
