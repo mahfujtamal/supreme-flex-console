@@ -82,6 +82,7 @@ function CampaignDashboard() {
                 <TableCell className="font-medium">{c.campaign_name}</TableCell>
                 <TableCell><Badge variant="outline" className="text-xs">{c.scope}</Badge></TableCell>
                 <TableCell className="text-xs">{c.campaign_trigger_type.replace(/_/g, " ")}</TableCell>
+                <TableCell className="text-sm font-mono">{c.campaign_rank ?? 100}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{format(new Date(c.start_date), "dd MMM yyyy")}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.end_date ? format(new Date(c.end_date), "dd MMM yyyy") : "—"}</TableCell>
                 <TableCell>
