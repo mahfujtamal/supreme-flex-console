@@ -63,7 +63,7 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
     },
   });
 
-  /* ── Build consolidated target summary tags ── */
+  /* ── Build consolidated target summary tags — hierarchical display ── */
   const targetSummary = useMemo(() => {
     if (!targetRules?.length) return null;
     const zones = new Set<string>();
@@ -82,15 +82,26 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
       if (r.network_type) networks.add(r.network_type);
     });
 
-    const groups: { label: string; values: string[] }[] = [];
-    if (zones.size) groups.push({ label: "Zone", values: Array.from(zones) });
-    if (districts.size) groups.push({ label: "District", values: Array.from(districts) });
-    if (areas.size) groups.push({ label: "Area", values: Array.from(areas) });
-    if (channels.size) groups.push({ label: "Channel", values: Array.from(channels) });
-    if (subChannels.size) groups.push({ label: "Sub-Ch", values: Array.from(subChannels) });
-    if (networks.size) groups.push({ label: "Network", values: Array.from(networks) });
+    // Build hierarchical groups: Geography (Zone > District > Area) | Distribution (Channel > Sub-Ch) | Network
+    const hierarchies: { parts: { label: string; values: string[] }[] }[] = [];
 
-    return groups;
+    // Geography hierarchy
+    const geoParts: { label: string; values: string[] }[] = [];
+    if (zones.size) geoParts.push({ label: "Zone", values: Array.from(zones) });
+    if (districts.size) geoParts.push({ label: "District", values: Array.from(districts) });
+    if (areas.size) geoParts.push({ label: "Area", values: Array.from(areas) });
+    if (geoParts.length) hierarchies.push({ parts: geoParts });
+
+    // Distribution hierarchy
+    const distParts: { label: string; values: string[] }[] = [];
+    if (channels.size) distParts.push({ label: "Channel", values: Array.from(channels) });
+    if (subChannels.size) distParts.push({ label: "Sub-Ch", values: Array.from(subChannels) });
+    if (distParts.length) hierarchies.push({ parts: distParts });
+
+    // Network
+    if (networks.size) hierarchies.push({ parts: [{ label: "Network", values: Array.from(networks) }] });
+
+    return hierarchies;
   }, [targetRules]);
 
   /* ── Cross-validation: product vs target network mismatch ── */
