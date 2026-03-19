@@ -74,7 +74,7 @@ function CampaignDashboard() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No campaigns found.</TableCell></TableRow>
             ) : data.items.map((c: any) => (
