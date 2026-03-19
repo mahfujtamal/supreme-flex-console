@@ -34,6 +34,7 @@ export default function CampaignFormDialog({ open, campaign, onClose }: Props) {
   const [otBehavior, setOtBehavior] = useState<string>("KEEP");
   const [allowCod, setAllowCod] = useState(true);
   const [allowOnline, setAllowOnline] = useState(true);
+  const [campaignRank, setCampaignRank] = useState("100");
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -48,10 +49,11 @@ export default function CampaignFormDialog({ open, campaign, onClose }: Props) {
       setOtBehavior(campaign.on_ownership_transfer_behavior);
       setAllowCod(campaign.allow_cod_payment);
       setAllowOnline(campaign.allow_online_payment);
+      setCampaignRank(String(campaign.campaign_rank ?? 100));
     } else {
       setName(""); setDescription(""); setStartDate(""); setEndDate("");
       setScope("ACQ"); setTriggerType("RULE_BASED"); setOtBehavior("KEEP");
-      setAllowCod(true); setAllowOnline(true);
+      setAllowCod(true); setAllowOnline(true); setCampaignRank("100");
     }
   }, [campaign, open]);
 
@@ -67,6 +69,7 @@ export default function CampaignFormDialog({ open, campaign, onClose }: Props) {
         on_ownership_transfer_behavior: otBehavior as any,
         allow_cod_payment: allowCod,
         allow_online_payment: allowOnline,
+        campaign_rank: parseInt(campaignRank) || 100,
       };
       if (campaign) {
         const { error } = await supabase.from("campaign_master").update(payload).eq("campaign_id", campaign.campaign_id);
@@ -109,34 +112,35 @@ export default function CampaignFormDialog({ open, campaign, onClose }: Props) {
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Scope</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SCOPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4 col-span-2">
+              <div className="space-y-2">
+                <Label>Scope</Label>
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{SCOPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Trigger Type</Label>
+                <Select value={triggerType} onValueChange={setTriggerType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TRIGGERS.map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>On Ownership Transfer</Label>
+                <Select value={otBehavior} onValueChange={setOtBehavior}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{OT_BEHAVIORS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Trigger Type</Label>
-              <Select value={triggerType} onValueChange={setTriggerType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TRIGGERS.map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>On Ownership Transfer</Label>
-              <Select value={otBehavior} onValueChange={setOtBehavior}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {OT_BEHAVIORS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Campaign Rank (Priority)</Label>
+            <Input type="number" min="1" value={campaignRank} onChange={(e) => setCampaignRank(e.target.value)} placeholder="Lower = higher priority" />
+            <p className="text-xs text-muted-foreground">When multiple campaigns apply, the one with the lowest rank wins. Default: 100.</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
