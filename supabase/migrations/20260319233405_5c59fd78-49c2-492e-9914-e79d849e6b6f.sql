@@ -1,0 +1,1 @@
+ALTER TABLE public.referral_programs ADD COLUMN referee_rewards jsonb NOT NULL DEFAULT '[]'::jsonb;

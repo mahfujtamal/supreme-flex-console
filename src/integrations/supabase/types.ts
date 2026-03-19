@@ -1341,6 +1341,7 @@ export type Database = {
           current_global_referrals: number
           global_referral_limit: number
           max_referrals_per_customer: number
+          referee_rewards: Json
           referral_program_id: string
           referrer_applicable_product_category: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type: Database["public"]["Enums"]["discount_type"]
@@ -1355,6 +1356,7 @@ export type Database = {
           current_global_referrals?: number
           global_referral_limit?: number
           max_referrals_per_customer?: number
+          referee_rewards?: Json
           referral_program_id?: string
           referrer_applicable_product_category: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type: Database["public"]["Enums"]["discount_type"]
@@ -1369,6 +1371,7 @@ export type Database = {
           current_global_referrals?: number
           global_referral_limit?: number
           max_referrals_per_customer?: number
+          referee_rewards?: Json
           referral_program_id?: string
           referrer_applicable_product_category?: Database["public"]["Enums"]["referrer_product_category"]
           referrer_discount_type?: Database["public"]["Enums"]["discount_type"]
