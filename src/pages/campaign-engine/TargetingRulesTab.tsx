@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,22 @@ import { useToast } from "@/hooks/use-toast";
 const NETWORK_TYPES = ["4G", "5G", "ANY"] as const;
 const NONE = "__none__";
 
+interface ConsolidatedBlock {
+  blockId: number;
+  zones: { id: string; name: string }[];
+  districts: { id: string; name: string }[];
+  areas: { id: string; name: string }[];
+  channels: { id: string; name: string }[];
+  subChannels: { id: string; name: string }[];
+  networks: string[];
+  minAge: number | null;
+  maxAge: number | null;
+}
+
 export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }: { campaignId: string; campaignScope: string; onDirty?: () => void }) {
   const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [editBlockId, setEditBlockId] = useState<number | null>(null);
   const [zoneIds, setZoneIds] = useState<string[]>([]);
   const [districtIds, setDistrictIds] = useState<string[]>([]);
   const [areaIds, setAreaIds] = useState<string[]>([]);
@@ -40,7 +52,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
   const { data: channels } = useQuery({ queryKey: ["channels_lookup"], queryFn: async () => { const { data } = await supabase.from("channels").select("channel_id, channel_name").eq("status", true).order("channel_name"); return data ?? []; } });
   const { data: allSubChannels } = useQuery({ queryKey: ["sub_channels_lookup_full"], queryFn: async () => { const { data } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name, channel_id").eq("status", true).order("sub_channel_name"); return data ?? []; } });
 
-  // Cascading filters based on network type
+  // Cascading filters
   const networkFilteredAreas = (() => {
     const all = allAreas ?? [];
     if (networkType === NONE || networkType === "ANY") return all;
@@ -100,58 +112,68 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
         .select("*, network_zones(network_zone_name), districts(district_name), areas(area_name), channels(channel_name), sub_channels(sub_channel_name)")
         .eq("campaign_id", campaignId);
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  // ── Consolidated block view: aggregate all rows into category sets ──
-  const consolidated = useMemo(() => {
-    if (!rules?.length) return null;
-    const zoneMap = new Map<string, string>();
-    const districtMap = new Map<string, string>();
-    const areaMap = new Map<string, string>();
-    const channelMap = new Map<string, string>();
-    const subChannelMap = new Map<string, string>();
-    const networkSet = new Set<string>();
-    let minAgeVal: number | null = null;
-    let maxAgeVal: number | null = null;
-
+  // Group rules by block_id into consolidated blocks
+  const blocks: ConsolidatedBlock[] = useMemo(() => {
+    if (!rules?.length) return [];
+    const blockMap = new Map<number, any[]>();
     rules.forEach((r: any) => {
-      if (r.network_zone_id && r.network_zones?.network_zone_name) zoneMap.set(r.network_zone_id, r.network_zones.network_zone_name);
-      if (r.district_id && r.districts?.district_name) districtMap.set(r.district_id, r.districts.district_name);
-      if (r.area_id && r.areas?.area_name) areaMap.set(r.area_id, r.areas.area_name);
-      if (r.channel_id && r.channels?.channel_name) channelMap.set(r.channel_id, r.channels.channel_name);
-      if (r.sub_channel_id && r.sub_channels?.sub_channel_name) subChannelMap.set(r.sub_channel_id, r.sub_channels.sub_channel_name);
-      if (r.network_type) networkSet.add(r.network_type);
-      if (r.min_network_age_days != null) minAgeVal = r.min_network_age_days;
-      if (r.max_network_age_days != null) maxAgeVal = r.max_network_age_days;
+      const bid = r.block_id ?? 0;
+      if (!blockMap.has(bid)) blockMap.set(bid, []);
+      blockMap.get(bid)!.push(r);
     });
 
-    return {
-      zones: Array.from(zoneMap.entries()).map(([id, name]) => ({ id, name })),
-      districts: Array.from(districtMap.entries()).map(([id, name]) => ({ id, name })),
-      areas: Array.from(areaMap.entries()).map(([id, name]) => ({ id, name })),
-      channels: Array.from(channelMap.entries()).map(([id, name]) => ({ id, name })),
-      subChannels: Array.from(subChannelMap.entries()).map(([id, name]) => ({ id, name })),
-      networks: Array.from(networkSet),
-      minAge: minAgeVal,
-      maxAge: maxAgeVal,
-    };
+    return Array.from(blockMap.entries()).map(([blockId, rows]) => {
+      const zoneMap = new Map<string, string>();
+      const districtMap = new Map<string, string>();
+      const areaMap = new Map<string, string>();
+      const channelMap = new Map<string, string>();
+      const subChannelMap = new Map<string, string>();
+      const networkSet = new Set<string>();
+      let minAgeVal: number | null = null;
+      let maxAgeVal: number | null = null;
+
+      rows.forEach((r: any) => {
+        if (r.network_zone_id && r.network_zones?.network_zone_name) zoneMap.set(r.network_zone_id, r.network_zones.network_zone_name);
+        if (r.district_id && r.districts?.district_name) districtMap.set(r.district_id, r.districts.district_name);
+        if (r.area_id && r.areas?.area_name) areaMap.set(r.area_id, r.areas.area_name);
+        if (r.channel_id && r.channels?.channel_name) channelMap.set(r.channel_id, r.channels.channel_name);
+        if (r.sub_channel_id && r.sub_channels?.sub_channel_name) subChannelMap.set(r.sub_channel_id, r.sub_channels.sub_channel_name);
+        if (r.network_type) networkSet.add(r.network_type);
+        if (r.min_network_age_days != null) minAgeVal = r.min_network_age_days;
+        if (r.max_network_age_days != null) maxAgeVal = r.max_network_age_days;
+      });
+
+      return {
+        blockId,
+        zones: Array.from(zoneMap.entries()).map(([id, name]) => ({ id, name })),
+        districts: Array.from(districtMap.entries()).map(([id, name]) => ({ id, name })),
+        areas: Array.from(areaMap.entries()).map(([id, name]) => ({ id, name })),
+        channels: Array.from(channelMap.entries()).map(([id, name]) => ({ id, name })),
+        subChannels: Array.from(subChannelMap.entries()).map(([id, name]) => ({ id, name })),
+        networks: Array.from(networkSet),
+        minAge: minAgeVal,
+        maxAge: maxAgeVal,
+      };
+    }).sort((a, b) => a.blockId - b.blockId);
   }, [rules]);
 
-  // Resolve IDs to rows for cartesian product
+  const nextBlockId = blocks.length ? Math.max(...blocks.map(b => b.blockId)) + 1 : 0;
+
   const resolveIds = (selected: string[]) => {
     if (!selected.length) return [null];
     if (selected.includes(ALL_VALUE)) return [null];
     return selected;
   };
 
-  // Save: delete all existing rules, re-insert with new cartesian product
-  const saveRules = useMutation({
-    mutationFn: async () => {
-      // Delete existing rules for this campaign
-      const { error: delErr } = await supabase.from("campaign_targeting_rules").delete().eq("campaign_id", campaignId);
-      if (delErr) throw delErr;
+  // Save a single block: delete rows for that block_id, re-insert
+  const saveBlock = useMutation({
+    mutationFn: async (blockId: number) => {
+      // Delete existing rows for this block
+      await supabase.from("campaign_targeting_rules").delete().eq("campaign_id", campaignId).eq("block_id", blockId);
 
       const zoneVals = resolveIds(zoneIds);
       const districtVals = resolveIds(districtIds);
@@ -165,7 +187,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
           for (const a of areaVals) {
             for (const ch of channelVals) {
               for (const sc of subChannelVals) {
-                const payload: any = { campaign_id: campaignId };
+                const payload: any = { campaign_id: campaignId, block_id: blockId };
                 if (z) payload.network_zone_id = z;
                 if (d) payload.district_id = d;
                 if (a) payload.area_id = a;
@@ -195,9 +217,21 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
       qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
       closeDialog();
       onDirty?.();
-      toast({ title: editMode ? "Targeting rules updated" : "Targeting rules added" });
+      toast({ title: editBlockId !== null ? "Target block updated" : "Target block added" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteBlock = useMutation({
+    mutationFn: async (blockId: number) => {
+      const { error } = await supabase.from("campaign_targeting_rules").delete().eq("campaign_id", campaignId).eq("block_id", blockId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
+      onDirty?.();
+      toast({ title: "Target block removed" });
+    },
   });
 
   const deleteAllRules = useMutation({
@@ -209,30 +243,31 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
   });
 
   const closeDialog = () => {
-    setOpen(false); setEditMode(false); setZoneIds([]); setDistrictIds([]); setAreaIds([]);
+    setOpen(false); setEditBlockId(null); setZoneIds([]); setDistrictIds([]); setAreaIds([]);
     setChannelIds([]); setSubChannelIds([]); setNetworkType(NONE); setMinAge(""); setMaxAge("");
   };
 
-  const openEdit = () => {
-    if (!consolidated) return;
-    setEditMode(true);
-    setZoneIds(consolidated.zones.length ? consolidated.zones.map(z => z.id) : []);
-    setDistrictIds(consolidated.districts.length ? consolidated.districts.map(d => d.id) : []);
-    setAreaIds(consolidated.areas.length ? consolidated.areas.map(a => a.id) : []);
-    setChannelIds(consolidated.channels.length ? consolidated.channels.map(c => c.id) : []);
-    setSubChannelIds(consolidated.subChannels.length ? consolidated.subChannels.map(sc => sc.id) : []);
-    setNetworkType(consolidated.networks.length ? consolidated.networks[0] : NONE);
-    setMinAge(consolidated.minAge != null ? String(consolidated.minAge) : "");
-    setMaxAge(consolidated.maxAge != null ? String(consolidated.maxAge) : "");
+  const openEditBlock = (block: ConsolidatedBlock) => {
+    setEditBlockId(block.blockId);
+    setZoneIds(block.zones.map(z => z.id));
+    setDistrictIds(block.districts.map(d => d.id));
+    setAreaIds(block.areas.map(a => a.id));
+    setChannelIds(block.channels.map(c => c.id));
+    setSubChannelIds(block.subChannels.map(sc => sc.id));
+    setNetworkType(block.networks.length ? block.networks[0] : NONE);
+    setMinAge(block.minAge != null ? String(block.minAge) : "");
+    setMaxAge(block.maxAge != null ? String(block.maxAge) : "");
     setOpen(true);
   };
 
-  const openAdd = () => {
-    setEditMode(false);
+  const openAddBlock = () => {
+    setEditBlockId(null);
     setOpen(true);
   };
 
-  // Build summary for the dialog preview
+  const hasSelection = zoneIds.length > 0 || districtIds.length > 0 || areaIds.length > 0 ||
+    channelIds.length > 0 || subChannelIds.length > 0 || networkType !== NONE || minAge || maxAge;
+
   const buildSummary = () => {
     const parts: string[] = [];
     const summarize = (label: string, selected: string[], options: { value: string; label: string }[]) => {
@@ -252,19 +287,13 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
     return parts.join(" | ");
   };
 
-  const hasSelection = zoneIds.length > 0 || districtIds.length > 0 || areaIds.length > 0 ||
-    channelIds.length > 0 || subChannelIds.length > 0 || networkType !== NONE || minAge || maxAge;
-
-  // Tag category helper for consolidated view
   const TagGroup = ({ label, items }: { label: string; items: { id: string; name: string }[] }) => {
     if (!items.length) return null;
     return (
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{label}:</span>
         {items.map(item => (
-          <Badge key={item.id} variant="secondary" className="text-xs px-2 py-0.5 gap-1">
-            {item.name}
-          </Badge>
+          <Badge key={item.id} variant="secondary" className="text-xs px-2 py-0.5">{item.name}</Badge>
         ))}
       </div>
     );
@@ -273,93 +302,101 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
   return (
     <div className="space-y-4 pt-2">
       <div className="flex justify-end gap-2">
-        {consolidated && (
-          <>
-            <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit Block</Button>
-            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => deleteAllRules.mutate()}>
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />Clear All
-            </Button>
-          </>
+        {blocks.length > 0 && (
+          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => deleteAllRules.mutate()}>
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />Clear All
+          </Button>
         )}
-        {!consolidated && (
-          <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1.5" />Add Target Block</Button>
-        )}
+        <Button size="sm" onClick={openAddBlock}><Plus className="h-4 w-4 mr-1.5" />Add Target Block</Button>
       </div>
 
-      {/* ── Consolidated Block View ── */}
       {isLoading ? (
         <div className="border rounded-lg p-6 text-center text-muted-foreground text-sm">Loading...</div>
-      ) : !consolidated ? (
+      ) : !blocks.length ? (
         <div className="border rounded-lg p-6 text-center text-muted-foreground text-sm">
           No targeting rules yet. Add a target block to define audience criteria.
         </div>
       ) : (
-        <div className="border rounded-lg p-4 space-y-3 bg-card">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Target Block <span className="normal-case font-normal">(OR within category, AND across categories)</span>
-            </p>
-            <Badge variant="outline" className="text-[10px]">{rules?.length} row{(rules?.length ?? 0) > 1 ? "s" : ""}</Badge>
-          </div>
-
-          <div className="space-y-2">
-            {/* Geography */}
-            <div className="space-y-1">
-              <TagGroup label="Zone" items={consolidated.zones} />
-              <TagGroup label="District" items={consolidated.districts} />
-              <TagGroup label="Area" items={consolidated.areas} />
-            </div>
-
-            {/* Separator if both geo and dist exist */}
-            {(consolidated.zones.length > 0 || consolidated.districts.length > 0 || consolidated.areas.length > 0) &&
-             (consolidated.channels.length > 0 || consolidated.subChannels.length > 0) && (
-              <div className="border-t my-1" />
-            )}
-
-            {/* Distribution */}
-            <div className="space-y-1">
-              <TagGroup label="Channel" items={consolidated.channels} />
-              <TagGroup label="Sub-Channel" items={consolidated.subChannels} />
-            </div>
-
-            {/* Network & Age */}
-            {(consolidated.networks.length > 0 || consolidated.minAge != null) && (
-              <>
-                <div className="border-t my-1" />
-                <div className="flex items-center gap-3 flex-wrap">
-                  {consolidated.networks.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Network:</span>
-                      {consolidated.networks.map(n => (
-                        <Badge key={n} variant="secondary" className="text-xs px-2 py-0.5">{n}</Badge>
-                      ))}
-                    </div>
-                  )}
-                  {consolidated.minAge != null && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Age:</span>
-                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                        {consolidated.minAge}–{consolidated.maxAge ?? "∞"} days
-                      </Badge>
-                    </div>
-                  )}
+        <div className="space-y-3">
+          {blocks.map((block, idx) => (
+            <div key={block.blockId} className="border rounded-lg p-4 space-y-3 bg-card">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Target Block {idx + 1} <span className="normal-case font-normal">(OR within category, AND across)</span>
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditBlock(block)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteBlock.mutate(block.blockId)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              </>
-            )}
+              </div>
 
-            {/* ALL wildcards */}
-            {!consolidated.zones.length && !consolidated.districts.length && !consolidated.areas.length &&
-             !consolidated.channels.length && !consolidated.subChannels.length && !consolidated.networks.length && (
-              <p className="text-xs text-muted-foreground italic">All geography, channels, and networks (no filters applied)</p>
-            )}
-          </div>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <TagGroup label="Zone" items={block.zones} />
+                  <TagGroup label="District" items={block.districts} />
+                  <TagGroup label="Area" items={block.areas} />
+                </div>
+
+                {(block.zones.length > 0 || block.districts.length > 0 || block.areas.length > 0) &&
+                 (block.channels.length > 0 || block.subChannels.length > 0) && (
+                  <div className="border-t my-1" />
+                )}
+
+                <div className="space-y-1">
+                  <TagGroup label="Channel" items={block.channels} />
+                  <TagGroup label="Sub-Channel" items={block.subChannels} />
+                </div>
+
+                {(block.networks.length > 0 || block.minAge != null) && (
+                  <>
+                    <div className="border-t my-1" />
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {block.networks.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Network:</span>
+                          {block.networks.map(n => <Badge key={n} variant="secondary" className="text-xs px-2 py-0.5">{n}</Badge>)}
+                        </div>
+                      )}
+                      {block.minAge != null && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Age:</span>
+                          <Badge variant="secondary" className="text-xs px-2 py-0.5">{block.minAge}–{block.maxAge ?? "∞"} days</Badge>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {!block.zones.length && !block.districts.length && !block.areas.length &&
+                 !block.channels.length && !block.subChannels.length && !block.networks.length && (
+                  <p className="text-xs text-muted-foreground italic">All geography, channels, and networks (no filters applied)</p>
+                )}
+              </div>
+
+              {idx < blocks.length - 1 && (
+                <div className="flex justify-center -mb-6 relative z-10">
+                  <Badge variant="outline" className="bg-background text-xs font-bold">OR</Badge>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <Button size="sm" variant="outline" className="w-full" onClick={openAddBlock}>
+            <Plus className="h-4 w-4 mr-1.5" />Add Another Target Block
+          </Button>
         </div>
       )}
 
-      {/* ── Add / Edit Dialog ── */}
+      {/* Dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); }}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editMode ? "Edit Target Block" : "Add Target Block"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editBlockId !== null ? `Edit Target Block` : `Add Target Block ${blocks.length + 1}`}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -376,10 +413,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
                 <Label>Network Zone</Label>
                 <MultiSelectDropdown
                   options={(filteredZones ?? []).map(z => ({ value: z.network_zone_id, label: z.network_zone_name }))}
-                  selected={zoneIds}
-                  onChange={handleZoneChange}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Zones"
+                  selected={zoneIds} onChange={handleZoneChange} placeholder="None (ALL)" allLabel="ALL Zones"
                 />
               </div>
             </div>
@@ -388,20 +422,14 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
                 <Label>District</Label>
                 <MultiSelectDropdown
                   options={(districts ?? []).map(d => ({ value: d.district_id, label: d.district_name }))}
-                  selected={districtIds}
-                  onChange={handleDistrictChange}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Districts"
+                  selected={districtIds} onChange={handleDistrictChange} placeholder="None (ALL)" allLabel="ALL Districts"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Area</Label>
                 <MultiSelectDropdown
                   options={(areas ?? []).map(a => ({ value: a.area_id, label: a.area_name }))}
-                  selected={areaIds}
-                  onChange={(vals) => setAreaIds(vals)}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Areas"
+                  selected={areaIds} onChange={(vals) => setAreaIds(vals)} placeholder="None (ALL)" allLabel="ALL Areas"
                 />
               </div>
             </div>
@@ -410,21 +438,16 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
                 <Label>Channel</Label>
                 <MultiSelectDropdown
                   options={(channels ?? []).map(c => ({ value: c.channel_id, label: c.channel_name }))}
-                  selected={channelIds}
-                  onChange={handleChannelChange}
-                  placeholder="None (ALL)"
-                  allLabel="ALL Channels"
+                  selected={channelIds} onChange={handleChannelChange} placeholder="None (ALL)" allLabel="ALL Channels"
                 />
               </div>
               <div className="space-y-2">
                 <Label className={!channelSelected ? "text-muted-foreground" : ""}>Sub-Channel</Label>
                 <MultiSelectDropdown
                   options={(subChannels ?? []).map(sc => ({ value: sc.sub_channel_id, label: sc.sub_channel_name }))}
-                  selected={subChannelIds}
-                  onChange={setSubChannelIds}
+                  selected={subChannelIds} onChange={setSubChannelIds}
                   placeholder={channelSelected ? "None (ALL)" : "Select Channel first"}
-                  allLabel="ALL Sub-Channels"
-                  disabled={!channelSelected}
+                  allLabel="ALL Sub-Channels" disabled={!channelSelected}
                 />
               </div>
             </div>
@@ -441,7 +464,6 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
               </div>
             )}
 
-            {/* Rule summary preview */}
             {hasSelection && (
               <div className="rounded-md bg-muted p-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Rule Summary (OR within category, AND across)</p>
@@ -457,11 +479,12 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
                   toast({ title: "Network Age required", description: "Min and Max Network Age are mandatory for Base Management campaigns.", variant: "destructive" });
                   return;
                 }
-                saveRules.mutate();
+                const bid = editBlockId !== null ? editBlockId : nextBlockId;
+                saveBlock.mutate(bid);
               }}
-              disabled={saveRules.isPending}
+              disabled={saveBlock.isPending}
             >
-              {saveRules.isPending ? "Saving..." : editMode ? "Update Block" : "Add Block"}
+              {saveBlock.isPending ? "Saving..." : editBlockId !== null ? "Update Block" : "Add Block"}
             </Button>
           </DialogFooter>
         </DialogContent>
