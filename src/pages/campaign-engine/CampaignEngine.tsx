@@ -73,14 +73,16 @@ function CampaignDashboard() {
       if (campErr) throw campErr;
       const newId = newCampaign.campaign_id;
 
-      // 2. Clone targeting rules
+      // 2. Clone targeting rules (strip IDs, copy block_id)
       const { data: targetRules, error: trErr } = await supabase
         .from("campaign_targeting_rules")
-        .select("network_zone_id, district_id, area_id, channel_id, sub_channel_id, network_type, min_network_age_days, max_network_age_days")
+        .select("network_zone_id, district_id, area_id, channel_id, sub_channel_id, network_type, min_network_age_days, max_network_age_days, block_id")
         .eq("campaign_id", original.campaign_id);
       if (trErr) throw trErr;
       if (targetRules?.length) {
-        const clonedTR = targetRules.map((r: any) => ({ ...r, campaign_id: newId }));
+        const clonedTR = targetRules.map(({ network_zone_id, district_id, area_id, channel_id, sub_channel_id, network_type, min_network_age_days, max_network_age_days, block_id }: any) => ({
+          campaign_id: newId, network_zone_id, district_id, area_id, channel_id, sub_channel_id, network_type, min_network_age_days, max_network_age_days, block_id: block_id ?? 0,
+        }));
         const { error: trInsErr } = await supabase.from("campaign_targeting_rules").insert(clonedTR);
         if (trInsErr) throw trInsErr;
       }
