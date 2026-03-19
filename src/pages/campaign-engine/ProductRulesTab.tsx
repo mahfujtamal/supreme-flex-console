@@ -49,7 +49,7 @@ interface PriceComponent {
 
 const PHASE_LABELS = ["Network Filter", "Availability & Exclusivity", "Discount Rules", "Review & Save"];
 
-export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: string; onDirty?: () => void }) {
+export default function ProductRulesTab({ campaignId, onDirty, onSaved }: { campaignId: string; onDirty?: () => void; onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState(0);
   const { toast } = useToast();
