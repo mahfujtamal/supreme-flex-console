@@ -1334,6 +1334,85 @@ export type Database = {
         }
         Relationships: []
       }
+      referee_reward_selections: {
+        Row: {
+          applicable_components: string[]
+          campaign_id: string
+          created_at: string
+          discount_type: string | null
+          discount_value: number | null
+          discounted_price_bdt: number | null
+          original_price_bdt: number | null
+          product_category: string
+          product_id: string
+          product_name: string
+          referee_anchor_id: string
+          referee_order_id: string | null
+          referral_program_id: string
+          savings_bdt: number | null
+          selection_id: string
+          was_selected: boolean
+        }
+        Insert: {
+          applicable_components?: string[]
+          campaign_id: string
+          created_at?: string
+          discount_type?: string | null
+          discount_value?: number | null
+          discounted_price_bdt?: number | null
+          original_price_bdt?: number | null
+          product_category: string
+          product_id: string
+          product_name: string
+          referee_anchor_id: string
+          referee_order_id?: string | null
+          referral_program_id: string
+          savings_bdt?: number | null
+          selection_id?: string
+          was_selected?: boolean
+        }
+        Update: {
+          applicable_components?: string[]
+          campaign_id?: string
+          created_at?: string
+          discount_type?: string | null
+          discount_value?: number | null
+          discounted_price_bdt?: number | null
+          original_price_bdt?: number | null
+          product_category?: string
+          product_id?: string
+          product_name?: string
+          referee_anchor_id?: string
+          referee_order_id?: string | null
+          referral_program_id?: string
+          savings_bdt?: number | null
+          selection_id?: string
+          was_selected?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referee_reward_selections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "referee_reward_selections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "referee_reward_selections_referral_program_id_fkey"
+            columns: ["referral_program_id"]
+            isOneToOne: false
+            referencedRelation: "referral_programs"
+            referencedColumns: ["referral_program_id"]
+          },
+        ]
+      }
       referral_programs: {
         Row: {
           campaign_id: string
