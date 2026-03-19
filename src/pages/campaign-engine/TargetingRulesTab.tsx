@@ -229,7 +229,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty, 
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
-      onDirty?.();
+      onSaved?.();
       toast({ title: "Target block removed" });
     },
   });
