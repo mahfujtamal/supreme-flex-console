@@ -26,6 +26,10 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
 
   const markDirty = useCallback(() => {
     setDirty(true);
+  }, []);
+
+  const markSaved = useCallback(() => {
+    setDirty(false);
     setRefreshKey(k => k + 1);
   }, []);
 
@@ -166,10 +170,10 @@ export default function ManageCampaignDialog({ campaignId, campaignScope, onClos
               <TabsTrigger value="products">Product Rules</TabsTrigger>
             </TabsList>
             <TabsContent value="targeting">
-              <TargetingRulesTab campaignId={campaignId} campaignScope={campaignScope} onDirty={markDirty} />
+              <TargetingRulesTab campaignId={campaignId} campaignScope={campaignScope} onDirty={markDirty} onSaved={markSaved} />
             </TabsContent>
             <TabsContent value="products">
-              <ProductRulesTab campaignId={campaignId} onDirty={markDirty} />
+              <ProductRulesTab campaignId={campaignId} onDirty={markDirty} onSaved={markSaved} />
             </TabsContent>
           </Tabs>
         </DialogContent>

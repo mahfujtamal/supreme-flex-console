@@ -49,7 +49,7 @@ interface PriceComponent {
 
 const PHASE_LABELS = ["Network Filter", "Availability & Exclusivity", "Discount Rules", "Review & Save"];
 
-export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: string; onDirty?: () => void }) {
+export default function ProductRulesTab({ campaignId, onDirty, onSaved }: { campaignId: string; onDirty?: () => void; onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState(0);
   const { toast } = useToast();
@@ -145,7 +145,7 @@ export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: s
       const { error } = await supabase.from("campaign_product_rules").delete().eq("rule_id", ruleId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_rules", campaignId] }); onDirty?.(); toast({ title: "Rule removed" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_rules", campaignId] }); onSaved?.(); toast({ title: "Rule removed" }); },
   });
 
   /* ── Products available after Phase 1 filtering (not blocked, exclusive unlocked) ── */
@@ -390,7 +390,7 @@ export default function ProductRulesTab({ campaignId, onDirty }: { campaignId: s
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["product_rules", campaignId] });
       closeDialog();
-      onDirty?.();
+      onSaved?.();
       toast({ title: "Product rules saved successfully" });
     },
     onError: (e: Error) => toast({ title: "Error saving rules", description: e.message, variant: "destructive" }),

@@ -30,7 +30,7 @@ interface ConsolidatedBlock {
   maxAge: number | null;
 }
 
-export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }: { campaignId: string; campaignScope: string; onDirty?: () => void }) {
+export default function TargetingRulesTab({ campaignId, campaignScope, onDirty, onSaved }: { campaignId: string; campaignScope: string; onDirty?: () => void; onSaved?: () => void }) {
   const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
   const [editBlockId, setEditBlockId] = useState<number | null>(null);
@@ -216,7 +216,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
       closeDialog();
-      onDirty?.();
+      onSaved?.();
       toast({ title: editBlockId !== null ? "Target block updated" : "Target block added" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -229,7 +229,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] });
-      onDirty?.();
+      onSaved?.();
       toast({ title: "Target block removed" });
     },
   });
@@ -239,7 +239,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }
       const { error } = await supabase.from("campaign_targeting_rules").delete().eq("campaign_id", campaignId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); onDirty?.(); toast({ title: "All targeting rules removed" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); onSaved?.(); toast({ title: "All targeting rules removed" }); },
   });
 
   const closeDialog = () => {
