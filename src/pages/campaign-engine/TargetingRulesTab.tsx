@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const NETWORK_TYPES = ["4G", "5G", "ANY"] as const;
 const NONE = "__none__";
 
-export default function TargetingRulesTab({ campaignId, campaignScope }: { campaignId: string; campaignScope: string }) {
+export default function TargetingRulesTab({ campaignId, campaignScope, onDirty }: { campaignId: string; campaignScope: string; onDirty?: () => void }) {
   const isAcq = campaignScope === "ACQ";
   const [open, setOpen] = useState(false);
   const [zoneIds, setZoneIds] = useState<string[]>([]);
@@ -174,7 +174,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
       const { error } = await supabase.from("campaign_targeting_rules").insert(rows);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); toast({ title: `Targeting rule${zoneIds.length > 1 || districtIds.length > 1 ? "s" : ""} added` }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); closeDialog(); onDirty?.(); toast({ title: `Targeting rule${zoneIds.length > 1 || districtIds.length > 1 ? "s" : ""} added` }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -183,7 +183,7 @@ export default function TargetingRulesTab({ campaignId, campaignScope }: { campa
       const { error } = await supabase.from("campaign_targeting_rules").delete().eq("rule_id", ruleId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); toast({ title: "Rule removed" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["targeting_rules", campaignId] }); onDirty?.(); toast({ title: "Rule removed" }); },
   });
 
   const closeDialog = () => {
