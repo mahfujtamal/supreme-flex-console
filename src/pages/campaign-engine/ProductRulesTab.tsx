@@ -47,28 +47,22 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  /* ── Fetch all active products ── */
-  const { data: products } = useQuery({
-    queryKey: ["products_lookup_all_active"],
+  /* ── Fetch ALL active products from DB (standard + exclusive, all categories incl. SIM) ── */
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ["products_campaign_lookup"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("products")
-        .select("product_id, product_name, product_category, is_exclusive")
+        .select("product_id, product_name, product_category, is_exclusive, status")
         .eq("status", true)
         .order("product_name");
+      if (error) throw error;
       return data ?? [];
     },
+    staleTime: 0,
   });
 
-  /* ── Filter products by rule type ── */
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (ruleType === "EXCLUSIVE") return products.filter(p => p.is_exclusive === true);
-    // Standard rules: show all non-exclusive active products (including SIM, etc.)
-    return products.filter(p => p.is_exclusive === false);
-  }, [products, ruleType]);
-
-  const noExclusiveProducts = ruleType === "EXCLUSIVE" && filteredProducts.length === 0 && products && products.length > 0;
+  const noExclusiveProducts = ruleType === "EXCLUSIVE" && products && products.filter(p => p.is_exclusive).length === 0;
 
   const selectedProduct = useMemo(
     () => products?.find(p => p.product_id === productId) ?? null,
