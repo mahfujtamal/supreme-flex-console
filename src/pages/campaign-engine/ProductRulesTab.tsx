@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, ShieldCheck, ChevronRight, ChevronLeft, Save, Ban, Unlock } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, ChevronRight, ChevronLeft, Save, Ban, Unlock, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,8 +27,8 @@ import { formatBDT } from "@/lib/currency";
 interface DiscountRule {
   product_id: string;
   discount_type: "FLAT" | "PERCENT";
-  discount_value: number;
-  component_mapping: Record<string, number>; // component_name → BDT discount
+  percent_value: number; // only used when PERCENT
+  component_mapping: Record<string, number>; // component_name → BDT discount (FLAT: manual input, PERCENT: resolved)
   selected_components: string[]; // for PERCENT: which components to apply
 }
 
@@ -37,6 +37,7 @@ interface ProductRow {
   product_name: string;
   product_category: string;
   is_exclusive: boolean;
+  network_capability: string;
   status: boolean;
 }
 
@@ -46,7 +47,7 @@ interface PriceComponent {
   component_type: string;
 }
 
-const PHASE_LABELS = ["Availability & Exclusivity", "Discount & Pricing Rules", "Review & Save"];
+const PHASE_LABELS = ["Network Filter", "Availability & Exclusivity", "Discount Rules", "Review & Save"];
 
 export default function ProductRulesTab({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
@@ -54,23 +55,54 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  // Phase 0 state — campaign network type
+  const [campaignNetworkType, setCampaignNetworkType] = useState<"4G" | "5G" | "ANY">("ANY");
+
   // Phase 1 state
   const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const [exclusiveIds, setExclusiveIds] = useState<Set<string>>(new Set());
 
-  // Phase 2 state
+  // Phase 2 state — each product stores its own independent discount rule
   const [discountRules, setDiscountRules] = useState<Map<string, DiscountRule>>(new Map());
 
   // Price components cache per product
   const [componentCache, setComponentCache] = useState<Record<string, PriceComponent[]>>({});
 
-  /* ── Fetch ALL active products ── */
-  const { data: products, isLoading: productsLoading } = useQuery({
+  /* ── Fetch campaign targeting rules to determine network type ── */
+  const { data: targetingRules } = useQuery({
+    queryKey: ["targeting_rules_network", campaignId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_targeting_rules")
+        .select("network_type")
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Derive campaign network type from targeting rules
+  const derivedNetworkType = useMemo(() => {
+    if (!targetingRules?.length) return "ANY";
+    const types = new Set(targetingRules.map((r: any) => r.network_type).filter(Boolean));
+    if (types.size === 0) return "ANY";
+    if (types.has("ANY") || (types.has("4G") && types.has("5G"))) return "ANY";
+    if (types.has("5G")) return "5G";
+    if (types.has("4G")) return "4G";
+    return "ANY";
+  }, [targetingRules]);
+
+  useEffect(() => {
+    setCampaignNetworkType(derivedNetworkType as "4G" | "5G" | "ANY");
+  }, [derivedNetworkType]);
+
+  /* ── Fetch ALL active products (including network_capability) ── */
+  const { data: allProducts, isLoading: productsLoading } = useQuery({
     queryKey: ["products_campaign_lookup"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("product_id, product_name, product_category, is_exclusive, status")
+        .select("product_id, product_name, product_category, is_exclusive, network_capability, status")
         .eq("status", true)
         .order("product_category")
         .order("product_name");
@@ -79,6 +111,21 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     },
     staleTime: 0,
   });
+
+  /* ── Step 0: Network-filtered products ── */
+  const networkFilteredProducts = useMemo(() => {
+    if (!allProducts) return [];
+    return allProducts.filter(p => {
+      if (campaignNetworkType === "ANY") return true;
+      // Product with ANY or BOTH capability passes all filters
+      if (p.network_capability === "ANY" || p.network_capability === "BOTH") return true;
+      // Campaign is 4G → hide 5G-only products
+      if (campaignNetworkType === "4G" && p.network_capability === "5G") return false;
+      // Campaign is 5G → hide 4G-only products
+      if (campaignNetworkType === "5G" && p.network_capability === "4G") return false;
+      return true;
+    });
+  }, [allProducts, campaignNetworkType]);
 
   /* ── Existing rules (for display table) ── */
   const { data: rules, isLoading } = useQuery({
@@ -101,19 +148,16 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_rules", campaignId] }); toast({ title: "Rule removed" }); },
   });
 
-  /* ── Products available after Phase 1 filtering ── */
+  /* ── Products available after Phase 1 filtering (not blocked, exclusive unlocked) ── */
   const availableProducts = useMemo(() => {
-    if (!products) return [];
-    return products.filter(p => {
+    return networkFilteredProducts.filter(p => {
       if (blockedIds.has(p.product_id)) return false;
-      // Non-exclusive products pass through, exclusive products only if unlocked
       if (p.is_exclusive && !exclusiveIds.has(p.product_id)) return false;
-      if (!p.is_exclusive) return true;
       return true;
     });
-  }, [products, blockedIds, exclusiveIds]);
+  }, [networkFilteredProducts, blockedIds, exclusiveIds]);
 
-  /* ── Fetch price components for all available products when entering Phase 2 ── */
+  /* ── Fetch price components for all available products ── */
   const fetchComponentsForProducts = useCallback(async (productIds: string[]) => {
     const missing = productIds.filter(id => !componentCache[id]);
     if (!missing.length) return;
@@ -146,7 +190,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
   const goToPhase2 = useCallback(async () => {
     const ids = availableProducts.map(p => p.product_id);
     await fetchComponentsForProducts(ids);
-    setPhase(1);
+    setPhase(2);
   }, [availableProducts, fetchComponentsForProducts]);
 
   /* ── Phase 1 toggles ── */
@@ -156,18 +200,8 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
       if (next.has(pid)) next.delete(pid); else next.add(pid);
       return next;
     });
-    // Remove from exclusive if blocked
-    setExclusiveIds(prev => {
-      const next = new Set(prev);
-      next.delete(pid);
-      return next;
-    });
-    // Remove discount rule if blocked
-    setDiscountRules(prev => {
-      const next = new Map(prev);
-      next.delete(pid);
-      return next;
-    });
+    setExclusiveIds(prev => { const next = new Set(prev); next.delete(pid); return next; });
+    setDiscountRules(prev => { const next = new Map(prev); next.delete(pid); return next; });
   };
 
   const toggleExclusive = (pid: string) => {
@@ -178,15 +212,14 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     });
   };
 
-  /* ── Phase 2 discount helpers ── */
+  /* ── Phase 2 discount helpers — fully independent per product ── */
   const setDiscountType = (pid: string, type: "FLAT" | "PERCENT") => {
     setDiscountRules(prev => {
       const next = new Map(prev);
-      const existing = next.get(pid);
       next.set(pid, {
         product_id: pid,
         discount_type: type,
-        discount_value: existing?.discount_value ?? 0,
+        percent_value: 0,
         component_mapping: {},
         selected_components: [],
       });
@@ -194,13 +227,11 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     });
   };
 
-  const setDiscountValue = (pid: string, val: number) => {
+  const setPercentValue = (pid: string, val: number) => {
     setDiscountRules(prev => {
       const next = new Map(prev);
       const existing = next.get(pid);
-      if (existing) {
-        next.set(pid, { ...existing, discount_value: val });
-      }
+      if (existing) next.set(pid, { ...existing, percent_value: val });
       return next;
     });
   };
@@ -210,10 +241,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
       const next = new Map(prev);
       const existing = next.get(pid);
       if (existing) {
-        next.set(pid, {
-          ...existing,
-          component_mapping: { ...existing.component_mapping, [compName]: val },
-        });
+        next.set(pid, { ...existing, component_mapping: { ...existing.component_mapping, [compName]: val } });
       }
       return next;
     });
@@ -233,117 +261,121 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     });
   };
 
-  /* ── Phase 3: Validation ── */
+  /* ── Compute totals ── */
+  const getFlatTotal = (rule: DiscountRule) =>
+    Object.values(rule.component_mapping).reduce((s, v) => s + (v || 0), 0);
+
+  const getPercentBDT = (rule: DiscountRule, comps: PriceComponent[]) => {
+    const pct = rule.percent_value / 100;
+    return comps
+      .filter(c => rule.selected_components.includes(c.component_name))
+      .reduce((s, c) => s + c.amount_bdt * pct, 0);
+  };
+
+  /* ── Resolve a rule to absolute BDT breakdown (for review & save) ── */
+  const resolveToAbsoluteBDT = (rule: DiscountRule, comps: PriceComponent[]) => {
+    const breakdown: Record<string, number> = {};
+    if (rule.discount_type === "FLAT") {
+      Object.entries(rule.component_mapping).forEach(([name, amt]) => {
+        if (amt > 0) breakdown[name] = amt;
+      });
+    } else {
+      const pct = rule.percent_value / 100;
+      comps.filter(c => rule.selected_components.includes(c.component_name))
+        .forEach(c => {
+          const amt = Math.round(c.amount_bdt * pct * 100) / 100;
+          if (amt > 0) breakdown[c.component_name] = amt;
+        });
+    }
+    return breakdown;
+  };
+
+  const hasDiscount = (rule: DiscountRule) => {
+    if (rule.discount_type === "FLAT") return getFlatTotal(rule) > 0;
+    return rule.percent_value > 0 && rule.selected_components.length > 0;
+  };
+
+  /* ── Validation ── */
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     discountRules.forEach((rule, pid) => {
-      const product = products?.find(p => p.product_id === pid);
+      const product = allProducts?.find(p => p.product_id === pid);
       const name = product?.product_name ?? pid;
-      if (rule.discount_value < 0) errors.push(`${name}: Negative discount value.`);
+      const comps = componentCache[pid] ?? [];
+
       if (rule.discount_type === "FLAT") {
-        const comps = componentCache[pid] ?? [];
         Object.entries(rule.component_mapping).forEach(([comp, amt]) => {
           if (amt < 0) errors.push(`${name} → ${comp}: Negative value.`);
           const orig = comps.find(c => c.component_name === comp);
           if (orig && amt > orig.amount_bdt) errors.push(`${name} → ${comp}: Exceeds ${formatBDT(orig.amount_bdt)}.`);
         });
       }
-      if (rule.discount_type === "PERCENT" && rule.discount_value > 100) {
-        errors.push(`${name}: Percentage cannot exceed 100%.`);
+      if (rule.discount_type === "PERCENT") {
+        if (rule.percent_value < 0) errors.push(`${name}: Negative percentage.`);
+        if (rule.percent_value > 100) errors.push(`${name}: Percentage cannot exceed 100%.`);
       }
     });
     return errors;
-  }, [discountRules, componentCache, products]);
+  }, [discountRules, componentCache, allProducts]);
 
   /* ── Save mutation ── */
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // 1. Delete existing rules for this campaign
+      // Delete existing rules
       const { error: delErr } = await supabase
         .from("campaign_product_rules")
         .delete()
         .eq("campaign_id", campaignId);
       if (delErr) throw delErr;
 
-      const allRules: any[] = [];
+      const allRuleInserts: any[] = [];
 
-      // 2. Insert UNAVAILABLE rules for blocked products
+      // UNAVAILABLE rules
       for (const pid of blockedIds) {
-        allRules.push({
-          campaign_id: campaignId,
-          product_id: pid,
-          rule_type: "UNAVAILABLE" as const,
-        });
+        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "UNAVAILABLE" as const });
       }
 
-      // 3. Insert EXCLUSIVE rules for unlocked exclusive products
+      // EXCLUSIVE rules
       for (const pid of exclusiveIds) {
-        allRules.push({
-          campaign_id: campaignId,
-          product_id: pid,
-          rule_type: "EXCLUSIVE" as const,
-        });
+        allRuleInserts.push({ campaign_id: campaignId, product_id: pid, rule_type: "EXCLUSIVE" as const });
       }
 
-      // 4. Insert DISCOUNT rules
+      // DISCOUNT rules — each product independent
       for (const [pid, rule] of discountRules.entries()) {
-        if (rule.discount_value <= 0) continue;
+        if (!hasDiscount(rule)) continue;
         const comps = componentCache[pid] ?? [];
+        const resolved = resolveToAbsoluteBDT(rule, comps);
+        const applicableComponents = Object.keys(resolved);
+        const totalDiscount = Object.values(resolved).reduce((s, v) => s + v, 0);
 
-        let applicableComponents: string[] = [];
-        let discountVal = rule.discount_value;
-
-        if (rule.discount_type === "FLAT") {
-          applicableComponents = Object.entries(rule.component_mapping)
-            .filter(([, amt]) => amt > 0)
-            .map(([name]) => name);
-        } else {
-          applicableComponents = rule.selected_components;
-        }
-
-        allRules.push({
+        allRuleInserts.push({
           campaign_id: campaignId,
           product_id: pid,
           rule_type: "DISCOUNT" as const,
           discount_type: rule.discount_type,
-          discount_value: discountVal,
+          discount_value: rule.discount_type === "PERCENT" ? rule.percent_value : totalDiscount,
           applicable_components: applicableComponents,
         });
       }
 
-      if (allRules.length > 0) {
+      if (allRuleInserts.length > 0) {
         const { data: insertedRules, error: insErr } = await supabase
           .from("campaign_product_rules")
-          .insert(allRules)
+          .insert(allRuleInserts)
           .select("rule_id, product_id, rule_type");
         if (insErr) throw insErr;
 
-        // Insert discount mappings
+        // Insert discount mappings with resolved BDT amounts
         const mappings: any[] = [];
         for (const ir of (insertedRules ?? [])) {
           if (ir.rule_type !== "DISCOUNT") continue;
           const rule = discountRules.get(ir.product_id);
           if (!rule) continue;
           const comps = componentCache[ir.product_id] ?? [];
-
-          if (rule.discount_type === "FLAT") {
-            Object.entries(rule.component_mapping)
-              .filter(([, amt]) => amt > 0)
-              .forEach(([name, amt]) => {
-                mappings.push({ rule_id: ir.rule_id, component_name: name, discount_amount_bdt: amt });
-              });
-          } else {
-            const pct = rule.discount_value / 100;
-            comps
-              .filter(c => rule.selected_components.includes(c.component_name))
-              .forEach(c => {
-                mappings.push({
-                  rule_id: ir.rule_id,
-                  component_name: c.component_name,
-                  discount_amount_bdt: Math.round(c.amount_bdt * pct * 100) / 100,
-                });
-              });
-          }
+          const resolved = resolveToAbsoluteBDT(rule, comps);
+          Object.entries(resolved).forEach(([name, amt]) => {
+            mappings.push({ rule_id: ir.rule_id, component_name: name, discount_amount_bdt: amt });
+          });
         }
         if (mappings.length > 0) {
           const { error: mErr } = await supabase.from("campaign_discount_mappings").insert(mappings);
@@ -368,7 +400,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     setComponentCache({});
   };
 
-  /* ── Pre-populate wizard from existing rules when opening ── */
+  /* ── Pre-populate wizard from existing rules ── */
   const openWizard = useCallback(() => {
     if (rules) {
       const blocked = new Set<string>();
@@ -380,7 +412,6 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
       setBlockedIds(blocked);
       setExclusiveIds(exclusive);
 
-      // Pre-populate discount rules
       const dRules = new Map<string, DiscountRule>();
       rules.forEach((r: any) => {
         if (r.rule_type === "DISCOUNT") {
@@ -393,7 +424,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
           dRules.set(r.product_id, {
             product_id: r.product_id,
             discount_type: r.discount_type ?? "FLAT",
-            discount_value: Number(r.discount_value ?? 0),
+            percent_value: r.discount_type === "PERCENT" ? Number(r.discount_value ?? 0) : 0,
             component_mapping: mapping,
             selected_components: r.discount_type === "PERCENT" ? selComps : [],
           });
@@ -405,29 +436,49 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
     setOpen(true);
   }, [rules]);
 
-  /* ── Compute flat total for a rule ── */
-  const getFlatTotal = (rule: DiscountRule) =>
-    Object.values(rule.component_mapping).reduce((s, v) => s + (v || 0), 0);
-
-  /* ── Resolved percent BDT for a rule ── */
-  const getPercentBDT = (rule: DiscountRule, comps: PriceComponent[]) => {
-    const pct = rule.discount_value / 100;
-    return comps
-      .filter(c => rule.selected_components.includes(c.component_name))
-      .reduce((s, c) => s + c.amount_bdt * pct, 0);
-  };
-
-  /* ── Category grouping helper ── */
+  /* ── Category grouping helper (uses network-filtered list) ── */
   const groupedProducts = useMemo(() => {
-    if (!products) return {};
     const groups: Record<string, ProductRow[]> = {};
-    products.forEach(p => {
+    networkFilteredProducts.forEach(p => {
       const cat = p.product_category;
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(p);
     });
     return groups;
-  }, [products]);
+  }, [networkFilteredProducts]);
+
+  /* ── Review: build unified summary rows ── */
+  const reviewRows = useMemo(() => {
+    const rows: { product_id: string; product_name: string; category: string; discount_type: string; base_disc_bdt: number; vat_disc_bdt: number; sd_disc_bdt: number; other_disc_bdt: number; total_disc_bdt: number }[] = [];
+    discountRules.forEach((rule, pid) => {
+      if (!hasDiscount(rule)) return;
+      const product = allProducts?.find(p => p.product_id === pid);
+      const comps = componentCache[pid] ?? [];
+      const resolved = resolveToAbsoluteBDT(rule, comps);
+      const base = resolved["BASE"] ?? 0;
+      const vat = resolved["VAT"] ?? 0;
+      const sd = resolved["SD"] ?? 0;
+      const other = Object.entries(resolved).filter(([k]) => !["BASE", "VAT", "SD"].includes(k)).reduce((s, [, v]) => s + v, 0);
+      rows.push({
+        product_id: pid,
+        product_name: product?.product_name ?? pid,
+        category: product?.product_category ?? "",
+        discount_type: rule.discount_type === "PERCENT" ? `${rule.percent_value}%` : "Absolute",
+        base_disc_bdt: base,
+        vat_disc_bdt: vat,
+        sd_disc_bdt: sd,
+        other_disc_bdt: other,
+        total_disc_bdt: base + vat + sd + other,
+      });
+    });
+    return rows;
+  }, [discountRules, componentCache, allProducts]);
+
+  const networkBadge = (cap: string) => {
+    if (cap === "4G") return <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">4G</Badge>;
+    if (cap === "5G") return <Badge variant="outline" className="text-[10px] border-blue-500 text-blue-700">5G</Badge>;
+    return <Badge variant="outline" className="text-[10px]">{cap}</Badge>;
+  };
 
   return (
     <TooltipProvider>
@@ -463,17 +514,13 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                       {r.products?.product_name}
                       {r.products?.is_exclusive && (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                          </TooltipTrigger>
+                          <TooltipTrigger asChild><ShieldCheck className="h-3.5 w-3.5 text-primary" /></TooltipTrigger>
                           <TooltipContent>Exclusive product</TooltipContent>
                         </Tooltip>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">{r.products?.product_category}</Badge>
-                  </TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">{r.products?.product_category}</Badge></TableCell>
                   <TableCell>
                     <Badge variant={r.rule_type === "DISCOUNT" ? "default" : r.rule_type === "UNAVAILABLE" ? "destructive" : "secondary"} className="text-xs">
                       {r.rule_type}
@@ -481,9 +528,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                   </TableCell>
                   <TableCell className="text-sm">
                     {r.rule_type === "DISCOUNT"
-                      ? r.discount_type === "PERCENT"
-                        ? `${r.discount_value}%`
-                        : formatBDT(r.discount_value)
+                      ? r.discount_type === "PERCENT" ? `${r.discount_value}%` : formatBDT(r.discount_value)
                       : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -502,20 +547,20 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
           </Table>
         </div>
 
-        {/* ── 3-Phase Wizard Dialog ── */}
-        <Dialog open={open} onOpenChange={(v) => { if (!v) return; /* prevent close via overlay — use Cancel */ }}>
+        {/* ── 4-Phase Wizard Dialog ── */}
+        <Dialog open={open} onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onEscapeKeyDown={e => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>Product Rules Wizard</DialogTitle>
               <DialogDescription>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {PHASE_LABELS.map((label, i) => (
                     <div key={i} className="flex items-center gap-1.5">
                       <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                         i === phase ? "bg-primary text-primary-foreground" : i < phase ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                      }`}>{i + 1}</span>
+                      }`}>{i}</span>
                       <span className={`text-xs ${i === phase ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</span>
-                      {i < 2 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                      {i < 3 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                     </div>
                   ))}
                 </div>
@@ -523,11 +568,60 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
             </DialogHeader>
 
             <div className="py-2 min-h-[300px]">
-              {/* ═══ PHASE 1: Availability & Exclusivity ═══ */}
+              {/* ═══ PHASE 0: Network Filter ═══ */}
               {phase === 0 && (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Products are auto-filtered based on the campaign's targeting network type. You can override below.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm">Campaign Network Type:</Label>
+                    <Select value={campaignNetworkType} onValueChange={(v) => setCampaignNetworkType(v as any)}>
+                      <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ANY">All Networks</SelectItem>
+                        <SelectItem value="4G">4G Only</SelectItem>
+                        <SelectItem value="5G">5G Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Alert>
+                    <AlertDescription className="text-xs">
+                      {campaignNetworkType === "ANY"
+                        ? `Showing all ${networkFilteredProducts.length} active products.`
+                        : `Showing ${networkFilteredProducts.length} products compatible with ${campaignNetworkType}. Products tagged exclusively as ${campaignNetworkType === "4G" ? "5G" : "4G"} are hidden.`}
+                    </AlertDescription>
+                  </Alert>
+                  {/* Quick preview */}
+                  <div className="border rounded-md max-h-[200px] overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Network</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {networkFilteredProducts.map(p => (
+                          <TableRow key={p.product_id}>
+                            <TableCell className="text-xs">{p.product_name}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-[10px]">{p.product_category}</Badge></TableCell>
+                            <TableCell>{networkBadge(p.network_capability)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ PHASE 1: Availability & Exclusivity ═══ */}
+              {phase === 1 && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Define the hardware portfolio for this campaign. Block products to hide them, or unlock exclusive products to make them available.
+                    Define the hardware portfolio. Block products to hide them, or unlock exclusive products.
                   </p>
                   {productsLoading ? (
                     <p className="text-center text-muted-foreground py-8">Loading products...</p>
@@ -539,18 +633,13 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[240px]">Product</TableHead>
-                                <TableHead className="w-[120px] text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Ban className="h-3.5 w-3.5 text-destructive" />
-                                    <span>Block</span>
-                                  </div>
+                                <TableHead className="w-[200px]">Product</TableHead>
+                                <TableHead className="w-[80px]">Network</TableHead>
+                                <TableHead className="w-[100px] text-center">
+                                  <div className="flex items-center justify-center gap-1"><Ban className="h-3.5 w-3.5 text-destructive" /><span>Block</span></div>
                                 </TableHead>
-                                <TableHead className="w-[140px] text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Unlock className="h-3.5 w-3.5 text-primary" />
-                                    <span>Exclusive Unlock</span>
-                                  </div>
+                                <TableHead className="w-[120px] text-center">
+                                  <div className="flex items-center justify-center gap-1"><Unlock className="h-3.5 w-3.5 text-primary" /><span>Exclusive</span></div>
                                 </TableHead>
                               </TableRow>
                             </TableHeader>
@@ -559,23 +648,15 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                                 <TableRow key={p.product_id}>
                                   <TableCell className="text-sm font-medium">
                                     {p.product_name}
-                                    {p.is_exclusive && (
-                                      <Badge variant="secondary" className="ml-2 text-[10px]">Exclusive</Badge>
-                                    )}
+                                    {p.is_exclusive && <Badge variant="secondary" className="ml-2 text-[10px]">Exclusive</Badge>}
                                   </TableCell>
+                                  <TableCell>{networkBadge(p.network_capability)}</TableCell>
                                   <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={blockedIds.has(p.product_id)}
-                                      onCheckedChange={() => toggleBlocked(p.product_id)}
-                                    />
+                                    <Checkbox checked={blockedIds.has(p.product_id)} onCheckedChange={() => toggleBlocked(p.product_id)} />
                                   </TableCell>
                                   <TableCell className="text-center">
                                     {p.is_exclusive ? (
-                                      <Checkbox
-                                        checked={exclusiveIds.has(p.product_id)}
-                                        onCheckedChange={() => toggleExclusive(p.product_id)}
-                                        disabled={blockedIds.has(p.product_id)}
-                                      />
+                                      <Checkbox checked={exclusiveIds.has(p.product_id)} onCheckedChange={() => toggleExclusive(p.product_id)} disabled={blockedIds.has(p.product_id)} />
                                     ) : (
                                       <span className="text-muted-foreground text-xs">N/A</span>
                                     )}
@@ -591,14 +672,14 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                 </div>
               )}
 
-              {/* ═══ PHASE 2: Discount & Pricing Rules ═══ */}
-              {phase === 1 && (
+              {/* ═══ PHASE 2: Discount Rules (Independent per product) ═══ */}
+              {phase === 2 && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Configure discounts for each available product. Leave empty to skip discount for a product.
+                    Configure discounts independently for each product. FLAT and PERCENT rules can coexist across products.
                   </p>
                   {availableProducts.length === 0 ? (
-                    <Alert><AlertDescription>All products are blocked. Go back to Phase 1 to unblock products.</AlertDescription></Alert>
+                    <Alert><AlertDescription>All products are blocked. Go back to unblock products.</AlertDescription></Alert>
                   ) : (
                     availableProducts.map(p => {
                       const rule = discountRules.get(p.product_id);
@@ -611,24 +692,18 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm">{p.product_name}</span>
                               <Badge variant="outline" className="text-[10px]">{p.product_category}</Badge>
+                              {networkBadge(p.network_capability)}
                               {p.is_exclusive && <Badge variant="secondary" className="text-[10px]">Exclusive</Badge>}
                             </div>
-                            {!hasComps && (
-                              <span className="text-xs text-muted-foreground">No pricing set up</span>
-                            )}
+                            {!hasComps && <span className="text-xs text-muted-foreground">No pricing set up</span>}
                           </div>
 
                           {hasComps && (
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
                                 <Label className="text-xs">Discount Type</Label>
-                                <Select
-                                  value={rule?.discount_type ?? ""}
-                                  onValueChange={(v) => setDiscountType(p.product_id, v as "FLAT" | "PERCENT")}
-                                >
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder="Select type" />
-                                  </SelectTrigger>
+                                <Select value={rule?.discount_type ?? ""} onValueChange={(v) => setDiscountType(p.product_id, v as "FLAT" | "PERCENT")}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select type" /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="FLAT">Absolute BDT</SelectItem>
                                     <SelectItem value="PERCENT">Percentage %</SelectItem>
@@ -639,27 +714,17 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                               {rule?.discount_type === "PERCENT" && (
                                 <div className="space-y-1.5">
                                   <Label className="text-xs">Discount %</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    max="100"
-                                    className="h-8 text-xs"
-                                    value={rule.discount_value || ""}
-                                    onChange={e => setDiscountValue(p.product_id, parseFloat(e.target.value) || 0)}
-                                    placeholder="e.g. 10"
-                                  />
+                                  <Input type="number" step="0.01" min="0" max="100" className="h-8 text-xs"
+                                    value={rule.percent_value || ""} onChange={e => setPercentValue(p.product_id, parseFloat(e.target.value) || 0)} placeholder="e.g. 10" />
                                 </div>
                               )}
                             </div>
                           )}
 
-                          {/* FLAT: 4 component inputs */}
+                          {/* FLAT: component inputs */}
                           {rule?.discount_type === "FLAT" && hasComps && (
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                                Discount per component (BDT)
-                              </Label>
+                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Discount per component (BDT)</Label>
                               <div className="grid grid-cols-2 gap-2">
                                 {comps.map(c => {
                                   const val = rule.component_mapping[c.component_name] ?? 0;
@@ -670,16 +735,9 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                                         <span className="text-xs font-medium">{c.component_name}</span>
                                         <span className="text-[10px] text-muted-foreground">max {formatBDT(c.amount_bdt)}</span>
                                       </div>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max={c.amount_bdt}
+                                      <Input type="number" step="0.01" min="0" max={c.amount_bdt}
                                         className={`h-8 text-xs ${exceeds ? "border-destructive" : ""}`}
-                                        value={val || ""}
-                                        onChange={e => setComponentDiscount(p.product_id, c.component_name, parseFloat(e.target.value) || 0)}
-                                        placeholder="0"
-                                      />
+                                        value={val || ""} onChange={e => setComponentDiscount(p.product_id, c.component_name, parseFloat(e.target.value) || 0)} placeholder="0" />
                                     </div>
                                   );
                                 })}
@@ -691,19 +749,15 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                             </div>
                           )}
 
-                          {/* PERCENT: component checkboxes + resolved amount */}
-                          {rule?.discount_type === "PERCENT" && rule.discount_value > 0 && hasComps && (
+                          {/* PERCENT: component checkboxes */}
+                          {rule?.discount_type === "PERCENT" && rule.percent_value > 0 && hasComps && (
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                                Apply to which components?
-                              </Label>
+                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Apply to which components?</Label>
                               <div className="space-y-1">
                                 {comps.map(c => (
                                   <label key={c.component_name} className="flex items-center gap-2 text-xs cursor-pointer">
-                                    <Checkbox
-                                      checked={rule.selected_components.includes(c.component_name)}
-                                      onCheckedChange={() => togglePercentComponent(p.product_id, c.component_name)}
-                                    />
+                                    <Checkbox checked={rule.selected_components.includes(c.component_name)}
+                                      onCheckedChange={() => togglePercentComponent(p.product_id, c.component_name)} />
                                     <span>{c.component_name}</span>
                                     <span className="ml-auto text-muted-foreground font-mono">{formatBDT(c.amount_bdt)}</span>
                                   </label>
@@ -725,11 +779,11 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
               )}
 
               {/* ═══ PHASE 3: Review & Save ═══ */}
-              {phase === 2 && (
+              {phase === 3 && (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Review your product rule configuration before saving.</p>
+                  <p className="text-sm text-muted-foreground">Review your configuration. All discounts are shown as resolved BDT amounts.</p>
 
-                  {/* Summary */}
+                  {/* Summary cards */}
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="border rounded-md p-3">
                       <p className="text-2xl font-bold text-destructive">{blockedIds.size}</p>
@@ -737,11 +791,11 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                     </div>
                     <div className="border rounded-md p-3">
                       <p className="text-2xl font-bold text-primary">{exclusiveIds.size}</p>
-                      <p className="text-xs text-muted-foreground">Exclusive Unlocked</p>
+                      <p className="text-xs text-muted-foreground">Exclusive</p>
                     </div>
                     <div className="border rounded-md p-3">
-                      <p className="text-2xl font-bold">{Array.from(discountRules.values()).filter(r => r.discount_value > 0).length}</p>
-                      <p className="text-xs text-muted-foreground">Discount Rules</p>
+                      <p className="text-2xl font-bold">{reviewRows.length}</p>
+                      <p className="text-xs text-muted-foreground">Discounted</p>
                     </div>
                   </div>
 
@@ -751,7 +805,7 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blocked Products</h4>
                       <div className="flex flex-wrap gap-1.5">
                         {Array.from(blockedIds).map(id => {
-                          const p = products?.find(x => x.product_id === id);
+                          const p = allProducts?.find(x => x.product_id === id);
                           return <Badge key={id} variant="destructive" className="text-xs">{p?.product_name ?? id}</Badge>;
                         })}
                       </div>
@@ -764,40 +818,49 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Exclusive Unlocked</h4>
                       <div className="flex flex-wrap gap-1.5">
                         {Array.from(exclusiveIds).map(id => {
-                          const p = products?.find(x => x.product_id === id);
+                          const p = allProducts?.find(x => x.product_id === id);
                           return <Badge key={id} variant="secondary" className="text-xs">{p?.product_name ?? id}</Badge>;
                         })}
                       </div>
                     </div>
                   )}
 
-                  {/* Discount rules detail */}
-                  {Array.from(discountRules.entries())
-                    .filter(([, r]) => r.discount_value > 0)
-                    .map(([pid, rule]) => {
-                      const p = products?.find(x => x.product_id === pid);
-                      const comps = componentCache[pid] ?? [];
-                      return (
-                        <div key={pid} className="border rounded-md p-3 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{p?.product_name}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              {rule.discount_type === "FLAT" ? `${formatBDT(getFlatTotal(rule))} off` : `${rule.discount_value}% → ${formatBDT(getPercentBDT(rule, comps))}`}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {rule.discount_type === "FLAT"
-                              ? Object.entries(rule.component_mapping).filter(([, v]) => v > 0).map(([n, v]) => `${n}: -${formatBDT(v)}`).join(", ")
-                              : rule.selected_components.map(c => {
-                                  const comp = comps.find(x => x.component_name === c);
-                                  const amt = comp ? Math.round(comp.amount_bdt * (rule.discount_value / 100) * 100) / 100 : 0;
-                                  return `${c}: -${formatBDT(amt)}`;
-                                }).join(", ")
-                            }
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Unified discount table — all resolved to absolute BDT */}
+                  {reviewRows.length > 0 && (
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Discount Breakdown (Resolved BDT)</h4>
+                      <div className="border rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Product</TableHead>
+                              <TableHead className="text-center">Type</TableHead>
+                              <TableHead className="text-right">Base</TableHead>
+                              <TableHead className="text-right">VAT</TableHead>
+                              <TableHead className="text-right">SD</TableHead>
+                              <TableHead className="text-right">Other</TableHead>
+                              <TableHead className="text-right font-semibold">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {reviewRows.map(row => (
+                              <TableRow key={row.product_id}>
+                                <TableCell className="text-xs font-medium">{row.product_name}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant="outline" className="text-[10px]">{row.discount_type}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right text-xs font-mono">{row.base_disc_bdt > 0 ? formatBDT(row.base_disc_bdt) : "—"}</TableCell>
+                                <TableCell className="text-right text-xs font-mono">{row.vat_disc_bdt > 0 ? formatBDT(row.vat_disc_bdt) : "—"}</TableCell>
+                                <TableCell className="text-right text-xs font-mono">{row.sd_disc_bdt > 0 ? formatBDT(row.sd_disc_bdt) : "—"}</TableCell>
+                                <TableCell className="text-right text-xs font-mono">{row.other_disc_bdt > 0 ? formatBDT(row.other_disc_bdt) : "—"}</TableCell>
+                                <TableCell className="text-right text-xs font-mono font-semibold">{formatBDT(row.total_disc_bdt)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Validation errors */}
                   {validationErrors.length > 0 && (
@@ -821,17 +884,13 @@ export default function ProductRulesTab({ campaignId }: { campaignId: string }) 
                     <ChevronLeft className="h-4 w-4 mr-1" />Back
                   </Button>
                 )}
-                {phase < 2 ? (
-                  <Button onClick={phase === 0 ? goToPhase2 : () => setPhase(2)}>
+                {phase < 3 ? (
+                  <Button onClick={phase === 1 ? goToPhase2 : () => setPhase(p => p + 1)}>
                     Next<ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 ) : (
-                  <Button
-                    onClick={() => saveMutation.mutate()}
-                    disabled={saveMutation.isPending || validationErrors.length > 0}
-                  >
-                    <Save className="h-4 w-4 mr-1" />
-                    {saveMutation.isPending ? "Saving..." : "Save Rules"}
+                  <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || validationErrors.length > 0}>
+                    <Save className="h-4 w-4 mr-1" />{saveMutation.isPending ? "Saving..." : "Save Rules"}
                   </Button>
                 )}
               </div>
