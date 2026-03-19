@@ -128,6 +128,28 @@ function CampaignDashboard() {
         }
       }
 
+      // 4. Clone referral programs (strip IDs, copy referee_rewards JSONB)
+      const { data: refPrograms, error: rpErr } = await supabase
+        .from("referral_programs")
+        .select("max_referrals_per_customer, global_referral_limit, referrer_discount_type, referrer_discount_value, referrer_reward_billing_cycles, referrer_applicable_product_category, referee_rewards, status")
+        .eq("campaign_id", original.campaign_id);
+      if (rpErr) throw rpErr;
+      if (refPrograms?.length) {
+        const rpInserts = refPrograms.map((r: any) => ({
+          campaign_id: newId,
+          max_referrals_per_customer: r.max_referrals_per_customer,
+          global_referral_limit: r.global_referral_limit,
+          referrer_discount_type: r.referrer_discount_type,
+          referrer_discount_value: r.referrer_discount_value,
+          referrer_reward_billing_cycles: r.referrer_reward_billing_cycles,
+          referrer_applicable_product_category: r.referrer_applicable_product_category,
+          referee_rewards: r.referee_rewards ?? [],
+          status: false,
+        }));
+        const { error: rpInsErr } = await supabase.from("referral_programs").insert(rpInserts);
+        if (rpInsErr) throw rpInsErr;
+      }
+
       return newId;
     },
     onSuccess: () => {
