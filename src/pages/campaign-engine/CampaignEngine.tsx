@@ -254,20 +254,16 @@ export default function CampaignEngine() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Campaign Engine</h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns, coupons, and referral programs.</p>
+        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns and coupons.</p>
       </div>
 
       <Tabs defaultValue="campaigns" className="space-y-4">
         <TabsList>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="coupons">Coupon Management</TabsTrigger>
-          <TabsTrigger value="referrals">Referral Programs</TabsTrigger>
-          <TabsTrigger value="referral-analytics">Referral Analytics</TabsTrigger>
         </TabsList>
         <TabsContent value="campaigns"><CampaignDashboard /></TabsContent>
         <TabsContent value="coupons"><CouponManagementTab /></TabsContent>
-        <TabsContent value="referrals"><ReferralProgramsTab /></TabsContent>
-        <TabsContent value="referral-analytics"><ReferralAnalyticsTab /></TabsContent>
       </Tabs>
     </div>
   );
