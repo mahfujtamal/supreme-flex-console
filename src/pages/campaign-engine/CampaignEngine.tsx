@@ -17,8 +17,6 @@ import { useToast } from "@/hooks/use-toast";
 import CampaignFormDialog from "./CampaignFormDialog";
 import ManageCampaignDialog from "./ManageCampaignDialog";
 import CouponManagementTab from "./CouponManagementTab";
-import ReferralProgramsTab from "./ReferralProgramsTab";
-import ReferralAnalyticsTab from "./ReferralAnalyticsTab";
 
 const PAGE_SIZE = 10;
 
@@ -127,28 +125,6 @@ function CampaignDashboard() {
           const { error: mErr } = await supabase.from("campaign_discount_mappings").insert(mappings);
           if (mErr) throw mErr;
         }
-      }
-
-      // 4. Clone referral programs (strip IDs, copy referee_rewards JSONB)
-      const { data: refPrograms, error: rpErr } = await supabase
-        .from("referral_programs")
-        .select("max_referrals_per_customer, global_referral_limit, referrer_discount_type, referrer_discount_value, referrer_reward_billing_cycles, referrer_applicable_product_category, referee_rewards, status")
-        .eq("campaign_id", original.campaign_id);
-      if (rpErr) throw rpErr;
-      if (refPrograms?.length) {
-        const rpInserts = refPrograms.map((r: any) => ({
-          campaign_id: newId,
-          max_referrals_per_customer: r.max_referrals_per_customer,
-          global_referral_limit: r.global_referral_limit,
-          referrer_discount_type: r.referrer_discount_type,
-          referrer_discount_value: r.referrer_discount_value,
-          referrer_reward_billing_cycles: r.referrer_reward_billing_cycles,
-          referrer_applicable_product_category: r.referrer_applicable_product_category,
-          referee_rewards: r.referee_rewards ?? [],
-          status: false,
-        }));
-        const { error: rpInsErr } = await supabase.from("referral_programs").insert(rpInserts);
-        if (rpInsErr) throw rpInsErr;
       }
 
       return newId;
@@ -278,20 +254,16 @@ export default function CampaignEngine() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Campaign Engine</h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns, coupons, and referral programs.</p>
+        <p className="text-sm text-muted-foreground mt-1">Create and manage promotional campaigns and coupons.</p>
       </div>
 
       <Tabs defaultValue="campaigns" className="space-y-4">
         <TabsList>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="coupons">Coupon Management</TabsTrigger>
-          <TabsTrigger value="referrals">Referral Programs</TabsTrigger>
-          <TabsTrigger value="referral-analytics">Referral Analytics</TabsTrigger>
         </TabsList>
         <TabsContent value="campaigns"><CampaignDashboard /></TabsContent>
         <TabsContent value="coupons"><CouponManagementTab /></TabsContent>
-        <TabsContent value="referrals"><ReferralProgramsTab /></TabsContent>
-        <TabsContent value="referral-analytics"><ReferralAnalyticsTab /></TabsContent>
       </Tabs>
     </div>
   );
