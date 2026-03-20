@@ -1,0 +1,1 @@
+DELETE FROM referral_programs WHERE referral_program_id = 'cca6e036-5ce7-4b06-baaf-f55a88921619';
