@@ -610,8 +610,12 @@ export default function ReferralProgramsTab() {
                         {form.referrer_reward_type === "CYCLES" ? "Number of Cycles" : "Number of Purchases"}
                       </Label>
                       <Input
-                        type="number" min={1} value={form.referrer_reward_value}
-                        onChange={(e) => setForm(f => ({ ...f, referrer_reward_value: parseInt(e.target.value) || 1 }))}
+                        type="number" min={1} step={1} value={form.referrer_reward_value}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (v > 0) setForm(f => ({ ...f, referrer_reward_value: v }));
+                        }}
+                        onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
                       />
                     </div>
                     <div className="space-y-1.5">
