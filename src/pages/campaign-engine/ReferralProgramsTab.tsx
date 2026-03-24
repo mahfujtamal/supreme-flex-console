@@ -491,6 +491,7 @@ export default function ReferralProgramsTab() {
       max_referrals: row.max_referrals_per_customer,
       referral_code_prefix: row.referral_code_prefix ?? "",
       status: row.status,
+      reward_on_signup: row.reward_on_signup ?? false,
       reward_rules: rules.map(r => ({ ...r, id: r.id || generateRuleId() })),
     });
     setDialogOpen(true);
