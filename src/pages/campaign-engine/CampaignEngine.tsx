@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import CampaignFormDialog from "./CampaignFormDialog";
 import ManageCampaignDialog from "./ManageCampaignDialog";
 import CouponManagementTab from "./CouponManagementTab";
+import ReferralProgramsTab from "./ReferralProgramsTab";
 
 const PAGE_SIZE = 10;
 
