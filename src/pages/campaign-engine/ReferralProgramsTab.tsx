@@ -425,7 +425,7 @@ export default function ReferralProgramsTab() {
                     </TableCell>
                     <TableCell className="font-medium text-sm">
                       {(row as any).campaign_master?.campaign_name ?? "—"}
-                      {locked && <Lock className="inline ml-1.5 h-3.5 w-3.5 text-amber-600" />}
+                      {locked && <Lock className="inline ml-1.5 h-3.5 w-3.5 text-warning" />}
                     </TableCell>
                     <TableCell className="text-sm">{(row as any).referrer_prod?.product_name ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(row.start_date), "dd MMM yy")}</TableCell>
