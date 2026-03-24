@@ -450,9 +450,9 @@ export default function ReferralProgramsTab() {
                     <TableRow key={`${row.program_id}-exp`}>
                       <TableCell colSpan={9} className="bg-muted/30 p-4">
                         {locked && (
-                          <Alert variant="default" className="mb-3 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
-                            <AlertTriangle className="h-4 w-4 text-amber-600" />
-                            <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                          <Alert variant="default" className="mb-3 border-warning bg-warning/10">
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                            <AlertDescription className="text-foreground text-sm">
                               <strong>Active Contract:</strong> Financial fields locked. Only End Date is editable.
                             </AlertDescription>
                           </Alert>
