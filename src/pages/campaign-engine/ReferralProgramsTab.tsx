@@ -267,16 +267,16 @@ export default function ReferralProgramsTab() {
         referrer_reward_type: form.referrer_reward_type,
         referrer_reward_value: form.referrer_reward_value,
         referrer_reward_unit: form.referrer_reward_unit,
-        referee_config_matrix: form.referee_matrix,
+        referee_config_matrix: JSON.parse(JSON.stringify(form.referee_matrix)),
         referral_code_prefix: form.referral_code_prefix || null,
         status: form.status,
       };
 
       if (editId) {
-        const { error } = await supabase.from("referral_programs").update(payload).eq("program_id", editId);
+        const { error } = await supabase.from("referral_programs").update(payload as any).eq("program_id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("referral_programs").insert(payload);
+        const { error } = await supabase.from("referral_programs").insert(payload as any);
         if (error) throw error;
       }
     },
