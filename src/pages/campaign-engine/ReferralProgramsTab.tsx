@@ -781,11 +781,19 @@ export default function ReferralProgramsTab() {
                           <div className="space-y-2">
                             {rules.map((rule, idx) => {
                               const live = rule.start_date && rule.end_date && isRuleLive(rule);
+                              // Compute priority: rule with latest start_date among overlapping wins
+                              const overlapping = rules.filter(other => {
+                                if (other.id === rule.id || !other.start_date || !other.end_date) return false;
+                                return new Date(rule.start_date) <= new Date(other.end_date) && new Date(other.start_date) <= new Date(rule.end_date);
+                              });
+                              const isWinner = overlapping.length === 0 || overlapping.every(o => new Date(rule.start_date) >= new Date(o.start_date));
                               return (
                                 <div key={rule.id || idx} className={cn("border rounded-md p-3 text-xs", live && "border-primary bg-primary/5")}>
                                   <div className="flex items-center gap-2 mb-1">
+                                    {isWinner && <Star className="h-3 w-3 text-warning fill-warning" />}
                                     <span className="font-semibold">{rule.rule_name || `Rule ${idx + 1}`}</span>
                                     {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+                                    {isWinner && <Badge variant="outline" className="text-[9px] h-4 text-warning border-warning">PRIORITY</Badge>}
                                     <span className="text-muted-foreground ml-auto">
                                       {rule.start_date ? format(new Date(rule.start_date), "dd MMM yy") : "?"} – {rule.end_date ? format(new Date(rule.end_date), "dd MMM yy") : "?"}
                                     </span>
