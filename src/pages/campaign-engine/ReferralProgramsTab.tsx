@@ -519,16 +519,26 @@ export default function ReferralProgramsTab() {
   /* ── Render a single reward rule card ── */
   function RuleCard({ rule, idx }: { rule: RewardRule; idx: number }) {
     const live = rule.start_date && rule.end_date && isRuleLive(rule);
+    const isWinner = winningRuleIds.has(rule.id);
     const priceData = priceCompMap?.[rule.product_id];
     const components = priceData?.components ?? [];
     const { originalTotal, discountAmount, netPrice } = calcNetPrice(rule, components);
+    const hasDateError = rule.start_date && rule.end_date && rule.start_date > rule.end_date;
+    const hasMissingFields = !rule.product_id || !rule.discount_value || rule.discount_value <= 0;
 
     return (
-      <AccordionItem key={rule.id} value={rule.id} className={cn("border rounded-lg px-3", live && "border-primary")}>
+      <AccordionItem key={rule.id} value={rule.id} className={cn(
+        "border rounded-lg px-3",
+        live && "border-primary",
+        hasDateError && "border-destructive",
+      )}>
         <AccordionTrigger className="text-sm py-2">
           <div className="flex items-center gap-2">
+            {isWinner && <Star className="h-3.5 w-3.5 text-warning fill-warning" />}
             <span className="font-medium">{rule.rule_name || `Rule ${idx + 1}`}</span>
             {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+            {isWinner && <Badge variant="outline" className="text-[9px] h-4 text-warning border-warning">PRIORITY</Badge>}
+            {hasMissingFields && <Badge variant="outline" className="text-[9px] h-4 text-destructive border-destructive">INCOMPLETE</Badge>}
             {rule.start_date && rule.end_date && (
               <span className="text-[10px] text-muted-foreground ml-2">
                 {rule.start_date} → {rule.end_date}
