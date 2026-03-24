@@ -417,7 +417,7 @@ export default function ReferralProgramsTab() {
               const isExpanded = expandedRow === row.program_id;
               return (
                 <>
-                  <TableRow key={row.program_id} className={locked ? "bg-amber-50/50 dark:bg-amber-950/20" : ""}>
+                  <TableRow key={row.program_id} className={locked ? "bg-warning/10" : ""}>
                     <TableCell>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setExpandedRow(isExpanded ? null : row.program_id)}>
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
