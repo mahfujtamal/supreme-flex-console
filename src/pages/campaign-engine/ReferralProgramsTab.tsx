@@ -556,7 +556,24 @@ export default function ReferralProgramsTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.start_date} onSelect={(d) => setForm(f => ({ ...f, start_date: d }))} className="p-3 pointer-events-auto" />
+                    <Calendar
+                      mode="single"
+                      selected={form.start_date}
+                      onSelect={(d) => setForm(f => ({ ...f, start_date: d }))}
+                      disabled={(date) => {
+                        if (!selectedCampaign) return false;
+                        const campStart = new Date(selectedCampaign.start_date);
+                        campStart.setHours(0, 0, 0, 0);
+                        if (date < campStart) return true;
+                        if (selectedCampaign.end_date) {
+                          const campEnd = new Date(selectedCampaign.end_date);
+                          campEnd.setHours(23, 59, 59, 999);
+                          if (date > campEnd) return true;
+                        }
+                        return false;
+                      }}
+                      className="p-3 pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -569,7 +586,25 @@ export default function ReferralProgramsTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.end_date} onSelect={(d) => setForm(f => ({ ...f, end_date: d }))} className="p-3 pointer-events-auto" />
+                    <Calendar
+                      mode="single"
+                      selected={form.end_date}
+                      onSelect={(d) => setForm(f => ({ ...f, end_date: d }))}
+                      disabled={(date) => {
+                        if (!selectedCampaign) return false;
+                        const campStart = new Date(selectedCampaign.start_date);
+                        campStart.setHours(0, 0, 0, 0);
+                        if (date < campStart) return true;
+                        if (selectedCampaign.end_date) {
+                          const campEnd = new Date(selectedCampaign.end_date);
+                          campEnd.setHours(23, 59, 59, 999);
+                          if (date > campEnd) return true;
+                        }
+                        if (form.start_date && date < form.start_date) return true;
+                        return false;
+                      }}
+                      className="p-3 pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
