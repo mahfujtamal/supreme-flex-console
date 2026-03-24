@@ -497,6 +497,23 @@ export default function ReferralProgramsTab() {
     setForm({ ...emptyForm });
   }
 
+  /* ── Force Approve ── */
+  const forceApproveMutation = useMutation({
+    mutationFn: async (ledgerId: string) => {
+      const { error } = await supabase.rpc("force_approve_referral_reward", {
+        p_ledger_id: ledgerId,
+        p_admin_name: "Admin",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["referral-reward-ledger"] });
+      toast({ title: "✓ Reward Force Approved", description: "The pending reward has been manually released." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+
   function openEdit(row: any) {
     const rules: RewardRule[] = Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [];
     setEditId(row.program_id);
