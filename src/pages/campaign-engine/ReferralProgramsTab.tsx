@@ -401,9 +401,34 @@ export default function ReferralProgramsTab() {
     mutationFn: async () => {
       if (!form.campaign_id || !form.start_date) throw new Error("Fill all required fields.");
       if (form.reward_rules.length === 0) throw new Error("Add at least one reward rule.");
+
+      // Unique start date check
+      const startDates = form.reward_rules.map(r => r.start_date).filter(Boolean);
+      if (new Set(startDates).size < startDates.length) {
+        throw new Error("Two Reward Rules cannot have the same Start Date. Please adjust the timing.");
+      }
+
+      // Date range & field checks
       for (const rule of form.reward_rules) {
+        const label = rule.rule_name || "(unnamed)";
         if (!rule.rule_name || !rule.product_id || !rule.start_date || !rule.end_date)
-          throw new Error(`Rule "${rule.rule_name || '(unnamed)'}" is missing required fields.`);
+          throw new Error(`Rule "${label}" is missing required fields.`);
+        if (rule.start_date > rule.end_date)
+          throw new Error(`Rule "${label}": Start Date must be before End Date.`);
+        if (!rule.discount_value || rule.discount_value <= 0)
+          throw new Error(`Rule "${label}": Discount Value must be greater than 0.`);
+
+        // Check within campaign range
+        if (selectedCampaign) {
+          const campStart = new Date(selectedCampaign.start_date); campStart.setHours(0, 0, 0, 0);
+          if (new Date(rule.start_date) < campStart)
+            throw new Error(`Rule "${label}": Referrer reward dates must be within the overall campaign period.`);
+          if (selectedCampaign.end_date) {
+            const campEnd = new Date(selectedCampaign.end_date); campEnd.setHours(23, 59, 59, 999);
+            if (new Date(rule.end_date) > campEnd)
+              throw new Error(`Rule "${label}": Referrer reward dates must be within the overall campaign period.`);
+          }
+        }
       }
       const payload = {
         campaign_id: form.campaign_id,
