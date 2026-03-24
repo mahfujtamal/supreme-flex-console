@@ -1012,10 +1012,24 @@ export default function ReferralProgramsTab() {
               </div>
             </div>
 
-            {/* Status */}
-            <div className="flex items-center gap-3">
-              <Switch checked={form.status} onCheckedChange={(v) => setForm(f => ({ ...f, status: v }))} />
-              <Label className="text-sm">{form.status ? "Active" : "Inactive"}</Label>
+            {/* Status & Trigger Toggle */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Switch checked={form.status} onCheckedChange={(v) => setForm(f => ({ ...f, status: v }))} />
+                <Label className="text-sm">{form.status ? "Active" : "Inactive"}</Label>
+              </div>
+              <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center gap-3">
+                <Switch checked={form.reward_on_signup} onCheckedChange={(v) => setForm(f => ({ ...f, reward_on_signup: v }))} />
+                <div>
+                  <Label className="text-sm">Trigger Reward on Sign-up?</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {form.reward_on_signup
+                      ? "Reward released immediately on referee sign-up (bypasses Paid + Activated check)"
+                      : "Default: Reward released only after referee is ACTIVE and first invoice is PAID"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
