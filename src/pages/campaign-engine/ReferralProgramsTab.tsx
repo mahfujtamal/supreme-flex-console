@@ -513,17 +513,17 @@ export default function ReferralProgramsTab() {
                 </p>
               )}
             </div>
+          </div>
 
-            {/* Cycles / Purchases */}
+          {/* Row 3: Cycles & Unit */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-[10px]">{rule.reward_type === "CYCLES" ? "Cycles" : "Purchases"}</Label>
+              <Label className="text-[10px]">{rule.reward_type === "CYCLES" ? "Number of Cycles" : "Number of Purchases"}</Label>
               <Input type="number" min={1} step={1} className="h-8 text-xs" value={rule.reward_value}
                 onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) updateRule(rule.id, { reward_value: v }); }}
                 onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
               />
             </div>
-
-            {/* Unit (read-only) */}
             <div className="space-y-1">
               <Label className="text-[10px]">Unit</Label>
               <Input className="h-8 text-xs bg-muted" value={rule.reward_unit} readOnly />
