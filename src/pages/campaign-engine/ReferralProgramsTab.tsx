@@ -445,6 +445,7 @@ export default function ReferralProgramsTab() {
         referrer_reward_unit: form.reward_rules[0]?.reward_unit ?? "",
         referrer_product_id: form.reward_rules[0]?.product_id ?? null,
         status: form.status,
+        reward_on_signup: form.reward_on_signup,
       };
       if (editId) {
         const { error } = await supabase.from("referral_programs").update(payload as any).eq("program_id", editId);
