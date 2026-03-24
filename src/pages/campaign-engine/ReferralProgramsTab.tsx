@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
   Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
   ChevronDown, ChevronUp, CalendarIcon, Clock, Zap, Star,
+  ShieldCheck, CircleDot, CheckCircle2, XCircle, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
