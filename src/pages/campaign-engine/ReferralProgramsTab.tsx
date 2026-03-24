@@ -574,11 +574,16 @@ export default function ReferralProgramsTab() {
                 </Popover>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Code Prefix</Label>
+                <Label className="text-xs">Code Prefix <span className="text-muted-foreground">(Optional)</span></Label>
                 <Input
-                  value={form.referral_code_prefix} maxLength={8} placeholder="e.g. REF"
-                  onChange={(e) => setForm(f => ({ ...f, referral_code_prefix: e.target.value.toUpperCase() }))}
+                  value={form.referral_code_prefix} maxLength={7} placeholder="e.g. GP-"
+                  onChange={(e) => setForm(f => ({ ...f, referral_code_prefix: e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, "") }))}
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  {form.referral_code_prefix
+                    ? `Code format: ${form.referral_code_prefix}${"X".repeat(8 - form.referral_code_prefix.length)} (8 chars total)`
+                    : "If blank, a random 8-char alphanumeric code will be generated (e.g. XJ92KL77)"}
+                </p>
               </div>
             </div>
 
