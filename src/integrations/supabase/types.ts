@@ -1327,6 +1327,7 @@ export type Database = {
           referrer_reward_type: string
           referrer_reward_unit: string | null
           referrer_reward_value: number
+          reward_on_signup: boolean
           start_date: string
           status: boolean
           updated_at: string
@@ -1344,6 +1345,7 @@ export type Database = {
           referrer_reward_type?: string
           referrer_reward_unit?: string | null
           referrer_reward_value?: number
+          reward_on_signup?: boolean
           start_date: string
           status?: boolean
           updated_at?: string
@@ -1361,6 +1363,7 @@ export type Database = {
           referrer_reward_type?: string
           referrer_reward_unit?: string | null
           referrer_reward_value?: number
+          reward_on_signup?: boolean
           start_date?: string
           status?: boolean
           updated_at?: string
@@ -1427,6 +1430,85 @@ export type Database = {
           },
           {
             foreignKeyName: "referral_redemptions_referrer_customer_id_fkey"
+            columns: ["referrer_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      referral_reward_ledger: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          earned_at: string | null
+          force_approved_at: string | null
+          force_approved_by: string | null
+          ledger_id: string
+          notification_log: Json
+          program_id: string
+          referee_customer_id: string
+          referee_invoice_paid: boolean
+          referee_service_active: boolean
+          referral_code: string
+          referrer_customer_id: string
+          reward_rule_snapshot: Json
+          reward_status: Database["public"]["Enums"]["referral_reward_status"]
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          earned_at?: string | null
+          force_approved_at?: string | null
+          force_approved_by?: string | null
+          ledger_id?: string
+          notification_log?: Json
+          program_id: string
+          referee_customer_id: string
+          referee_invoice_paid?: boolean
+          referee_service_active?: boolean
+          referral_code: string
+          referrer_customer_id: string
+          reward_rule_snapshot?: Json
+          reward_status?: Database["public"]["Enums"]["referral_reward_status"]
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          earned_at?: string | null
+          force_approved_at?: string | null
+          force_approved_by?: string | null
+          ledger_id?: string
+          notification_log?: Json
+          program_id?: string
+          referee_customer_id?: string
+          referee_invoice_paid?: boolean
+          referee_service_active?: boolean
+          referral_code?: string
+          referrer_customer_id?: string
+          reward_rule_snapshot?: Json
+          reward_status?: Database["public"]["Enums"]["referral_reward_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_reward_ledger_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "referral_programs"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "referral_reward_ledger_referee_customer_id_fkey"
+            columns: ["referee_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "referral_reward_ledger_referrer_customer_id_fkey"
             columns: ["referrer_customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
@@ -1683,6 +1765,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_release_referral_reward: {
+        Args: { p_ledger_id: string }
+        Returns: Database["public"]["Enums"]["referral_reward_status"]
+      }
+      force_approve_referral_reward: {
+        Args: { p_admin_name?: string; p_ledger_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1744,6 +1834,13 @@ export type Database = {
       ownership_transfer_behavior: "KEEP" | "REMOVE"
       payment_status: "PENDING_COD" | "PAID_COD" | "ONLINE_PAID"
       product_category: "WIFI_PLAN" | "CPE" | "SIM" | "ADDON"
+      referral_reward_status:
+        | "PENDING"
+        | "AWAITING_ACTIVATION"
+        | "AWAITING_PAYMENT"
+        | "EARNED"
+        | "APPLIED"
+        | "FORCE_APPROVED"
       referrer_product_category:
         | "WIFI_PLAN"
         | "CPE"
@@ -1940,6 +2037,14 @@ export const Constants = {
       ownership_transfer_behavior: ["KEEP", "REMOVE"],
       payment_status: ["PENDING_COD", "PAID_COD", "ONLINE_PAID"],
       product_category: ["WIFI_PLAN", "CPE", "SIM", "ADDON"],
+      referral_reward_status: [
+        "PENDING",
+        "AWAITING_ACTIVATION",
+        "AWAITING_PAYMENT",
+        "EARNED",
+        "APPLIED",
+        "FORCE_APPROVED",
+      ],
       referrer_product_category: [
         "WIFI_PLAN",
         "CPE",

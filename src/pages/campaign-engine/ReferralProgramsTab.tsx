@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
   Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
   ChevronDown, ChevronUp, CalendarIcon, Clock, Zap, Star,
+  ShieldCheck, CircleDot, CheckCircle2, XCircle, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,7 @@ interface ProgramForm {
   max_referrals: number;
   referral_code_prefix: string;
   status: boolean;
+  reward_on_signup: boolean;
   reward_rules: RewardRule[];
 }
 
@@ -77,6 +79,7 @@ const emptyForm: ProgramForm = {
   max_referrals: 1,
   referral_code_prefix: "",
   status: true,
+  reward_on_signup: false,
   reward_rules: [],
 };
 
@@ -131,6 +134,7 @@ export default function ReferralProgramsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProgramForm>({ ...emptyForm });
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [showTracker, setShowTracker] = useState(false);
 
   /* ── Data queries ── */
   const { data: campaigns } = useQuery({
@@ -201,6 +205,21 @@ export default function ReferralProgramsTab() {
       const counts: Record<string, number> = {};
       data?.forEach((r: any) => { counts[r.program_id] = (counts[r.program_id] || 0) + 1; });
       return counts;
+    },
+  });
+
+  /* ── Reward Lifecycle Ledger ── */
+  const { data: rewardLedger, isLoading: ledgerLoading } = useQuery({
+    queryKey: ["referral-reward-ledger"],
+    enabled: showTracker,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("referral_reward_ledger")
+        .select("*, referral_programs!inner(referral_code_prefix)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -442,6 +461,7 @@ export default function ReferralProgramsTab() {
         referrer_reward_unit: form.reward_rules[0]?.reward_unit ?? "",
         referrer_product_id: form.reward_rules[0]?.product_id ?? null,
         status: form.status,
+        reward_on_signup: form.reward_on_signup,
       };
       if (editId) {
         const { error } = await supabase.from("referral_programs").update(payload as any).eq("program_id", editId);
@@ -477,6 +497,23 @@ export default function ReferralProgramsTab() {
     setForm({ ...emptyForm });
   }
 
+  /* ── Force Approve ── */
+  const forceApproveMutation = useMutation({
+    mutationFn: async (ledgerId: string) => {
+      const { error } = await supabase.rpc("force_approve_referral_reward", {
+        p_ledger_id: ledgerId,
+        p_admin_name: "Admin",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["referral-reward-ledger"] });
+      toast({ title: "✓ Reward Force Approved", description: "The pending reward has been manually released." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+
   function openEdit(row: any) {
     const rules: RewardRule[] = Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [];
     setEditId(row.program_id);
@@ -487,6 +524,7 @@ export default function ReferralProgramsTab() {
       max_referrals: row.max_referrals_per_customer,
       referral_code_prefix: row.referral_code_prefix ?? "",
       status: row.status,
+      reward_on_signup: row.reward_on_signup ?? false,
       reward_rules: rules.map(r => ({ ...r, id: r.id || generateRuleId() })),
     });
     setDialogOpen(true);
@@ -828,7 +866,102 @@ export default function ReferralProgramsTab() {
         )}
       </div>
 
-      {/* ── Create / Edit Dialog ── */}
+      {/* ── Reward Lifecycle Tracker ── */}
+      <div className="border rounded-lg bg-card">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+          onClick={() => setShowTracker(t => !t)}
+        >
+          <div className="flex items-center gap-2">
+            <CircleDot className="h-4 w-4 text-primary" />
+            <span>Reward Lifecycle Tracker</span>
+            <Badge variant="outline" className="text-[10px]">
+              {rewardLedger?.length ?? 0} pending
+            </Badge>
+          </div>
+          {showTracker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {showTracker && (
+          <div className="border-t px-4 py-3">
+            {ledgerLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Loading reward records...</p>
+            ) : !rewardLedger?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No referral reward records yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Referrer</TableHead>
+                    <TableHead>Referee</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Conditions</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewardLedger.map((row: any) => {
+                    const isPending = ["PENDING", "AWAITING_ACTIVATION", "AWAITING_PAYMENT"].includes(row.reward_status);
+                    return (
+                      <TableRow key={row.ledger_id} className={isPending ? "bg-warning/5" : ""}>
+                        <TableCell className="text-sm">{row.referrer_customer_id?.slice(0, 8)}…</TableCell>
+                        <TableCell className="text-sm">{row.referee_customer_id?.slice(0, 8)}…</TableCell>
+                        <TableCell className="text-sm font-mono">{row.referral_code}</TableCell>
+                        <TableCell>
+                          {row.reward_status === "PENDING" && (
+                            <Badge variant="secondary" className="text-[10px]"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
+                          )}
+                          {row.reward_status === "AWAITING_ACTIVATION" && (
+                            <Badge className="text-[10px] bg-amber-500/20 text-amber-700 border-amber-300"><RotateCcw className="h-3 w-3 mr-1" />Awaiting Activation</Badge>
+                          )}
+                          {row.reward_status === "AWAITING_PAYMENT" && (
+                            <Badge className="text-[10px] bg-orange-500/20 text-orange-700 border-orange-300"><RotateCcw className="h-3 w-3 mr-1" />Awaiting Payment</Badge>
+                          )}
+                          {row.reward_status === "EARNED" && (
+                            <Badge className="text-[10px] bg-emerald-500/20 text-emerald-700 border-emerald-300"><CheckCircle2 className="h-3 w-3 mr-1" />Earned</Badge>
+                          )}
+                          {row.reward_status === "APPLIED" && (
+                            <Badge className="text-[10px] bg-primary/20 text-primary"><CheckCircle2 className="h-3 w-3 mr-1" />Applied</Badge>
+                          )}
+                          {row.reward_status === "FORCE_APPROVED" && (
+                            <Badge className="text-[10px] bg-violet-500/20 text-violet-700 border-violet-300"><ShieldCheck className="h-3 w-3 mr-1" />Force Approved</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2 text-[10px]">
+                            <span className={row.referee_service_active ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                              {row.referee_service_active ? "✓ Active" : "✗ Inactive"}
+                            </span>
+                            <span className={row.referee_invoice_paid ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                              {row.referee_invoice_paid ? "✓ Paid" : "✗ Unpaid"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{format(new Date(row.created_at), "dd MMM yy")}</TableCell>
+                        <TableCell>
+                          {isPending && (
+                            <Button
+                              variant="outline" size="sm" className="h-7 text-xs"
+                              onClick={() => forceApproveMutation.mutate(row.ledger_id)}
+                              disabled={forceApproveMutation.isPending}
+                            >
+                              <ShieldCheck className="h-3 w-3 mr-1" />Force Approve
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        )}
+      </div>
+
+
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1007,10 +1140,24 @@ export default function ReferralProgramsTab() {
               </div>
             </div>
 
-            {/* Status */}
-            <div className="flex items-center gap-3">
-              <Switch checked={form.status} onCheckedChange={(v) => setForm(f => ({ ...f, status: v }))} />
-              <Label className="text-sm">{form.status ? "Active" : "Inactive"}</Label>
+            {/* Status & Trigger Toggle */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <Switch checked={form.status} onCheckedChange={(v) => setForm(f => ({ ...f, status: v }))} />
+                <Label className="text-sm">{form.status ? "Active" : "Inactive"}</Label>
+              </div>
+              <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center gap-3">
+                <Switch checked={form.reward_on_signup} onCheckedChange={(v) => setForm(f => ({ ...f, reward_on_signup: v }))} />
+                <div>
+                  <Label className="text-sm">Trigger Reward on Sign-up?</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {form.reward_on_signup
+                      ? "Reward released immediately on referee sign-up (bypasses Paid + Activated check)"
+                      : "Default: Reward released only after referee is ACTIVE and first invoice is PAID"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
