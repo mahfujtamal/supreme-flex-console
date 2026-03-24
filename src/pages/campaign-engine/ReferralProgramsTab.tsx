@@ -134,6 +134,7 @@ export default function ReferralProgramsTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProgramForm>({ ...emptyForm });
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [showTracker, setShowTracker] = useState(false);
 
   /* ── Data queries ── */
   const { data: campaigns } = useQuery({
