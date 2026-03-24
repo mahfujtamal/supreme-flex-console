@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
   Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
-  ChevronDown, ChevronUp, CalendarIcon, Clock, Zap,
+  ChevronDown, ChevronUp, CalendarIcon, Clock, Zap, Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
