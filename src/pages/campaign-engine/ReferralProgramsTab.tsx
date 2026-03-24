@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isWithinInterval, parseISO } from "date-fns";
+import { format } from "date-fns";
 import {
   Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
   ChevronDown, ChevronUp, CalendarIcon, Clock, Zap,
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -38,6 +38,11 @@ import { formatBDT } from "@/lib/currency";
 const PAGE_SIZE = 10;
 
 /* ── Types ── */
+interface PriceComp {
+  component_name: string;
+  amount_bdt: number;
+}
+
 interface RewardRule {
   id: string;
   rule_name: string;
@@ -92,9 +97,29 @@ function getUnitLabel(billingFreq: string) {
 
 function isRuleLive(rule: RewardRule) {
   const now = new Date();
-  const start = new Date(rule.start_date);
-  const end = new Date(rule.end_date);
-  return now >= start && now <= end;
+  return now >= new Date(rule.start_date) && now <= new Date(rule.end_date);
+}
+
+/* ── Net price calculation ── */
+function calcNetPrice(
+  rule: RewardRule,
+  components: PriceComp[],
+): { originalTotal: number; discountAmount: number; netPrice: number } {
+  if (!components.length) return { originalTotal: 0, discountAmount: 0, netPrice: 0 };
+  const originalTotal = components.reduce((s, c) => s + c.amount_bdt, 0);
+  const checkedTotal = components
+    .filter(c => rule.applicable_components.includes(c.component_name))
+    .reduce((s, c) => s + c.amount_bdt, 0);
+
+  let discountAmount = 0;
+  if (rule.discount_type === "FLAT") {
+    discountAmount = Math.min(rule.discount_value, checkedTotal);
+  } else {
+    discountAmount = (rule.discount_value / 100) * checkedTotal;
+  }
+  discountAmount = Math.round(discountAmount * 100) / 100;
+  const netPrice = Math.max(0, originalTotal - discountAmount);
+  return { originalTotal, discountAmount, netPrice };
 }
 
 export default function ReferralProgramsTab() {
@@ -135,7 +160,7 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  /* ── Referee trigger list: products from parent campaign's product rules ── */
+  /* ── Referee trigger list from parent campaign ── */
   const { data: campaignProductRules } = useQuery({
     queryKey: ["campaign-product-rules-for-referral", form.campaign_id],
     enabled: !!form.campaign_id,
@@ -184,29 +209,34 @@ export default function ReferralProgramsTab() {
     [campaigns, form.campaign_id],
   );
 
-  /* ── Price components for reward rule products ── */
+  /* ── Price components with AMOUNTS for reward rule products ── */
   const ruleProductIds = useMemo(() => [...new Set(form.reward_rules.map(r => r.product_id).filter(Boolean))], [form.reward_rules]);
-  const { data: priceComps } = useQuery({
-    queryKey: ["price-components-for-rules", ruleProductIds],
+  const { data: priceCompMap } = useQuery({
+    queryKey: ["price-components-with-amounts", ruleProductIds],
     enabled: ruleProductIds.length > 0,
     queryFn: async () => {
       const { data: versions, error: vErr } = await supabase
         .from("product_price_versions")
-        .select("price_version_id, product_id")
+        .select("price_version_id, product_id, base_price_bdt")
         .in("product_id", ruleProductIds)
         .eq("status", true);
       if (vErr) throw vErr;
-      if (!versions?.length) return {} as Record<string, string[]>;
+      if (!versions?.length) return {} as Record<string, { base_price: number; components: PriceComp[] }>;
       const versionIds = versions.map(v => v.price_version_id);
       const { data: comps, error: cErr } = await supabase
         .from("price_components")
-        .select("price_version_id, component_name")
-        .in("price_version_id", versionIds);
+        .select("price_version_id, component_name, amount_bdt")
+        .in("price_version_id", versionIds)
+        .order("sort_order");
       if (cErr) throw cErr;
-      const result: Record<string, string[]> = {};
+      const result: Record<string, { base_price: number; components: PriceComp[] }> = {};
       for (const v of versions) {
-        const names = comps?.filter(c => c.price_version_id === v.price_version_id).map(c => c.component_name) ?? [];
-        result[v.product_id] = [...new Set([...(result[v.product_id] ?? []), ...names])];
+        const pComps = comps?.filter(c => c.price_version_id === v.price_version_id)
+          .map(c => ({ component_name: c.component_name, amount_bdt: Number(c.amount_bdt) })) ?? [];
+        // Keep first active version per product
+        if (!result[v.product_id]) {
+          result[v.product_id] = { base_price: Number(v.base_price_bdt), components: pComps };
+        }
       }
       return result;
     },
@@ -215,9 +245,7 @@ export default function ReferralProgramsTab() {
   /* ── Referee trigger items grouped ── */
   const refereeTriggers = useMemo(() => {
     if (!campaignProductRules) return { wifi: [], cpe: [], addons: [] };
-    const wifi: any[] = [];
-    const cpe: any[] = [];
-    const addons: any[] = [];
+    const wifi: any[] = [], cpe: any[] = [], addons: any[] = [];
     for (const rule of campaignProductRules) {
       const prod = (rule as any).products;
       if (!prod) continue;
@@ -229,7 +257,7 @@ export default function ReferralProgramsTab() {
     return { wifi, cpe, addons };
   }, [campaignProductRules]);
 
-  const totalTriggerCount = (refereeTriggers.wifi.length + refereeTriggers.cpe.length + refereeTriggers.addons.length);
+  const totalTriggerCount = refereeTriggers.wifi.length + refereeTriggers.cpe.length + refereeTriggers.addons.length;
 
   /* ── Reward rule helpers ── */
   function addRewardRule() {
@@ -287,6 +315,7 @@ export default function ReferralProgramsTab() {
       reward_type: cycle ? "CYCLES" : "PURCHASES",
       reward_unit: cycle ? getUnitLabel(p.billing_frequency) : "Purchases",
       applicable_components: [],
+      discount_value: 0,
     });
   }
 
@@ -296,11 +325,9 @@ export default function ReferralProgramsTab() {
       if (!form.campaign_id || !form.start_date) throw new Error("Fill all required fields.");
       if (form.reward_rules.length === 0) throw new Error("Add at least one reward rule.");
       for (const rule of form.reward_rules) {
-        if (!rule.rule_name || !rule.product_id || !rule.start_date || !rule.end_date) {
+        if (!rule.rule_name || !rule.product_id || !rule.start_date || !rule.end_date)
           throw new Error(`Rule "${rule.rule_name || '(unnamed)'}" is missing required fields.`);
-        }
       }
-
       const payload = {
         campaign_id: form.campaign_id,
         start_date: form.start_date.toISOString(),
@@ -314,7 +341,6 @@ export default function ReferralProgramsTab() {
         referrer_product_id: form.reward_rules[0]?.product_id ?? null,
         status: form.status,
       };
-
       if (editId) {
         const { error } = await supabase.from("referral_programs").update(payload as any).eq("program_id", editId);
         if (error) throw error;
@@ -385,6 +411,179 @@ export default function ReferralProgramsTab() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  /* ── Render a single reward rule card ── */
+  function RuleCard({ rule, idx }: { rule: RewardRule; idx: number }) {
+    const live = rule.start_date && rule.end_date && isRuleLive(rule);
+    const priceData = priceCompMap?.[rule.product_id];
+    const components = priceData?.components ?? [];
+    const { originalTotal, discountAmount, netPrice } = calcNetPrice(rule, components);
+
+    return (
+      <AccordionItem key={rule.id} value={rule.id} className={cn("border rounded-lg px-3", live && "border-primary")}>
+        <AccordionTrigger className="text-sm py-2">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{rule.rule_name || `Rule ${idx + 1}`}</span>
+            {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+            {rule.start_date && rule.end_date && (
+              <span className="text-[10px] text-muted-foreground ml-2">
+                {rule.start_date} → {rule.end_date}
+              </span>
+            )}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="space-y-4 pb-3">
+          {/* Row 1: Rule Name & Dates */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[10px]">Rule Name <span className="text-destructive">*</span></Label>
+              <Input className="h-8 text-xs" placeholder="e.g. Standard April Reward"
+                value={rule.rule_name} onChange={(e) => updateRule(rule.id, { rule_name: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">Start Date <span className="text-destructive">*</span></Label>
+              <Input type="date" className="h-8 text-xs" value={rule.start_date}
+                min={form.start_date ? form.start_date.toISOString().slice(0, 10) : ""}
+                max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
+                onChange={(e) => updateRule(rule.id, { start_date: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">End Date <span className="text-destructive">*</span></Label>
+              <Input type="date" className="h-8 text-xs" value={rule.end_date}
+                min={rule.start_date || (form.start_date ? form.start_date.toISOString().slice(0, 10) : "")}
+                max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
+                onChange={(e) => updateRule(rule.id, { end_date: e.target.value })} />
+            </div>
+          </div>
+
+          {/* Row 2: Product | Price/Discount | Cycles/Unit — 4-col layout */}
+          <div className="grid grid-cols-4 gap-3">
+            {/* Product Dropdown */}
+            <div className="space-y-1">
+              <Label className="text-[10px]">Product <span className="text-destructive">*</span></Label>
+              <Select value={rule.product_id} onValueChange={(v) => onRuleProductChange(rule.id, v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select product..." /></SelectTrigger>
+                <SelectContent>
+                  {products?.map(p => (
+                    <SelectItem key={p.product_id} value={p.product_id}>
+                      <span className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[8px] h-3.5 px-1">{p.product_category}</Badge>
+                        {p.product_name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Original Price (read-only) */}
+              {rule.product_id && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-[10px] text-muted-foreground">Original Price:</span>
+                  <span className="text-[10px] font-semibold font-mono">
+                    {originalTotal > 0 ? formatBDT(originalTotal) : "—"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Discount Type & Value */}
+            <div className="space-y-1">
+              <Label className="text-[10px]">Discount</Label>
+              <div className="flex gap-1">
+                <Select value={rule.discount_type} onValueChange={(v) => updateRule(rule.id, { discount_type: v as "FLAT" | "PERCENT" })}>
+                  <SelectTrigger className="h-8 text-xs w-[72px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT">BDT</SelectItem>
+                    <SelectItem value="PERCENT">%</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input type="number" min={0}
+                  max={rule.discount_type === "PERCENT" ? 100 : undefined}
+                  className="h-8 text-xs flex-1" value={rule.discount_value}
+                  onChange={(e) => updateRule(rule.id, { discount_value: parseFloat(e.target.value) || 0 })} />
+              </div>
+              {/* Offer Price preview */}
+              {rule.product_id && rule.discount_value > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Offer: <span className="font-mono font-semibold text-primary">{formatBDT(netPrice)}</span>
+                  {rule.discount_type === "PERCENT" && rule.discount_value >= 100 && (
+                    <span className="ml-1 text-emerald-600 font-semibold">FREE</span>
+                  )}
+                </p>
+              )}
+            </div>
+
+            {/* Cycles / Purchases */}
+            <div className="space-y-1">
+              <Label className="text-[10px]">{rule.reward_type === "CYCLES" ? "Cycles" : "Purchases"}</Label>
+              <Input type="number" min={1} step={1} className="h-8 text-xs" value={rule.reward_value}
+                onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) updateRule(rule.id, { reward_value: v }); }}
+                onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
+              />
+            </div>
+
+            {/* Unit (read-only) */}
+            <div className="space-y-1">
+              <Label className="text-[10px]">Unit</Label>
+              <Input className="h-8 text-xs bg-muted" value={rule.reward_unit} readOnly />
+            </div>
+          </div>
+
+          {/* Row 3: Component Checkboxes + Net Price Preview */}
+          {rule.product_id && (
+            <div className="border rounded-md p-3 bg-muted/30 space-y-2">
+              <Label className="text-[10px] font-semibold">Applicable Components — Discount applies ONLY to checked items</Label>
+              {components.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
+                    {components.map(comp => {
+                      const checked = rule.applicable_components.includes(comp.component_name);
+                      return (
+                        <label key={comp.component_name} className="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                          <Checkbox className="h-3.5 w-3.5"
+                            checked={checked}
+                            onCheckedChange={() => toggleRuleComponent(rule.id, comp.component_name)}
+                          />
+                          <span className={checked ? "font-medium" : "text-muted-foreground"}>
+                            {comp.component_name}
+                          </span>
+                          <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                            {formatBDT(comp.amount_bdt)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {/* Net Price Summary */}
+                  <Separator className="my-1" />
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="space-x-3">
+                      <span className="text-muted-foreground">Original: <span className="font-mono">{formatBDT(originalTotal)}</span></span>
+                      <span className="text-destructive">Discount: <span className="font-mono">−{formatBDT(discountAmount)}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Calculated Net Price:</span>
+                      <span className={cn("font-mono font-bold text-sm", netPrice === 0 ? "text-emerald-600" : "text-foreground")}>
+                        {netPrice === 0 ? "FREE" : formatBDT(netPrice)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">No price components found. Set up pricing for this product first.</p>
+              )}
+            </div>
+          )}
+
+          {/* Remove button */}
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" className="text-destructive text-xs h-7" onClick={() => removeRule(rule.id)}>
+              <Trash2 className="h-3 w-3 mr-1" />Remove Rule
+            </Button>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
     );
   }
 
@@ -680,120 +879,9 @@ export default function ReferralProgramsTab() {
                   </Card>
                 ) : (
                   <Accordion type="multiple" defaultValue={form.reward_rules.map(r => r.id)} className="space-y-2">
-                    {form.reward_rules.map((rule, idx) => {
-                      const live = rule.start_date && rule.end_date && isRuleLive(rule);
-                      const compOptions = priceComps?.[rule.product_id] ?? [];
-                      return (
-                        <AccordionItem key={rule.id} value={rule.id} className={cn("border rounded-lg px-3", live && "border-primary")}>
-                          <AccordionTrigger className="text-sm py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{rule.rule_name || `Rule ${idx + 1}`}</span>
-                              {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
-                              {rule.start_date && rule.end_date && (
-                                <span className="text-[10px] text-muted-foreground ml-2">
-                                  {rule.start_date} → {rule.end_date}
-                                </span>
-                              )}
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="space-y-3 pb-3">
-                            {/* Rule Name & Dates */}
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Rule Name <span className="text-destructive">*</span></Label>
-                                <Input className="h-8 text-xs" placeholder="e.g. Standard April Reward"
-                                  value={rule.rule_name} onChange={(e) => updateRule(rule.id, { rule_name: e.target.value })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Start Date <span className="text-destructive">*</span></Label>
-                                <Input type="date" className="h-8 text-xs" value={rule.start_date}
-                                  min={form.start_date ? form.start_date.toISOString().slice(0, 10) : ""}
-                                  max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
-                                  onChange={(e) => updateRule(rule.id, { start_date: e.target.value })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">End Date <span className="text-destructive">*</span></Label>
-                                <Input type="date" className="h-8 text-xs" value={rule.end_date}
-                                  min={rule.start_date || (form.start_date ? form.start_date.toISOString().slice(0, 10) : "")}
-                                  max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
-                                  onChange={(e) => updateRule(rule.id, { end_date: e.target.value })} />
-                              </div>
-                            </div>
-
-                            {/* Product & Reward */}
-                            <div className="grid grid-cols-4 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Product <span className="text-destructive">*</span></Label>
-                                <Select value={rule.product_id} onValueChange={(v) => onRuleProductChange(rule.id, v)}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
-                                  <SelectContent>
-                                    {products?.map(p => (
-                                      <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">
-                                  {rule.reward_type === "CYCLES" ? "Cycles" : "Purchases"}
-                                </Label>
-                                <Input type="number" min={1} step={1} className="h-8 text-xs" value={rule.reward_value}
-                                  onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) updateRule(rule.id, { reward_value: v }); }}
-                                  onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Unit</Label>
-                                <Input className="h-8 text-xs bg-muted" value={rule.reward_unit} readOnly />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Discount</Label>
-                                <div className="flex gap-1">
-                                  <Select value={rule.discount_type} onValueChange={(v) => updateRule(rule.id, { discount_type: v as "FLAT" | "PERCENT" })}>
-                                    <SelectTrigger className="h-8 text-xs w-20"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="FLAT">BDT</SelectItem>
-                                      <SelectItem value="PERCENT">%</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Input type="number" min={0} className="h-8 text-xs flex-1" value={rule.discount_value}
-                                    onChange={(e) => updateRule(rule.id, { discount_value: parseFloat(e.target.value) || 0 })} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Component Checkboxes */}
-                            {rule.product_id && (
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Applicable Components</Label>
-                                {compOptions.length > 0 ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    {compOptions.map(comp => (
-                                      <label key={comp} className="flex items-center gap-1 text-[10px] cursor-pointer">
-                                        <Checkbox className="h-3 w-3"
-                                          checked={rule.applicable_components.includes(comp)}
-                                          onCheckedChange={() => toggleRuleComponent(rule.id, comp)}
-                                        />
-                                        {comp}
-                                      </label>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-[10px] text-muted-foreground">No price components found for this product</p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Remove button */}
-                            <div className="flex justify-end">
-                              <Button variant="ghost" size="sm" className="text-destructive text-xs h-7" onClick={() => removeRule(rule.id)}>
-                                <Trash2 className="h-3 w-3 mr-1" />Remove Rule
-                              </Button>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
+                    {form.reward_rules.map((rule, idx) => (
+                      <RuleCard key={rule.id} rule={rule} idx={idx} />
+                    ))}
                   </Accordion>
                 )}
               </div>
