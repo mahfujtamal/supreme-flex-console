@@ -1006,9 +1006,21 @@ export default function ReferralProgramsTab() {
             </div>
           </div>
 
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc pl-4 text-xs space-y-0.5">
+                  {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !isFormValid}>
               {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
             </Button>
           </DialogFooter>
