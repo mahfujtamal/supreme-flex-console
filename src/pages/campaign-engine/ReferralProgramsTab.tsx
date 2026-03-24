@@ -208,6 +208,21 @@ export default function ReferralProgramsTab() {
     },
   });
 
+  /* ── Reward Lifecycle Ledger ── */
+  const { data: rewardLedger, isLoading: ledgerLoading } = useQuery({
+    queryKey: ["referral-reward-ledger"],
+    enabled: showTracker,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("referral_reward_ledger")
+        .select("*, referral_programs!inner(referral_code_prefix)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const selectedCampaign = useMemo(
     () => campaigns?.find(c => c.campaign_id === form.campaign_id),
     [campaigns, form.campaign_id],
