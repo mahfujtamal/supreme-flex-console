@@ -68,6 +68,7 @@ interface ProgramForm {
   max_referrals: number;
   referral_code_prefix: string;
   status: boolean;
+  reward_on_signup: boolean;
   reward_rules: RewardRule[];
 }
 
@@ -78,6 +79,7 @@ const emptyForm: ProgramForm = {
   max_referrals: 1,
   referral_code_prefix: "",
   status: true,
+  reward_on_signup: false,
   reward_rules: [],
 };
 
