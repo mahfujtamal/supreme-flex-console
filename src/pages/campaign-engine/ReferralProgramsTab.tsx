@@ -453,7 +453,7 @@ export default function ReferralProgramsTab() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["referral-programs"] });
-      toast({ title: editId ? "Program updated" : "Program created" });
+      toast({ title: "✓ Rules Validated & Scheduled", description: editId ? "Program updated successfully." : "New referral program created." });
       closeDialog();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
