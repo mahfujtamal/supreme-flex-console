@@ -866,7 +866,102 @@ export default function ReferralProgramsTab() {
         )}
       </div>
 
-      {/* ── Create / Edit Dialog ── */}
+      {/* ── Reward Lifecycle Tracker ── */}
+      <div className="border rounded-lg bg-card">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+          onClick={() => setShowTracker(t => !t)}
+        >
+          <div className="flex items-center gap-2">
+            <CircleDot className="h-4 w-4 text-primary" />
+            <span>Reward Lifecycle Tracker</span>
+            <Badge variant="outline" className="text-[10px]">
+              {rewardLedger?.length ?? 0} pending
+            </Badge>
+          </div>
+          {showTracker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {showTracker && (
+          <div className="border-t px-4 py-3">
+            {ledgerLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Loading reward records...</p>
+            ) : !rewardLedger?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No referral reward records yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Referrer</TableHead>
+                    <TableHead>Referee</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Conditions</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewardLedger.map((row: any) => {
+                    const isPending = ["PENDING", "AWAITING_ACTIVATION", "AWAITING_PAYMENT"].includes(row.reward_status);
+                    return (
+                      <TableRow key={row.ledger_id} className={isPending ? "bg-warning/5" : ""}>
+                        <TableCell className="text-sm">{row.referrer_customer_id?.slice(0, 8)}…</TableCell>
+                        <TableCell className="text-sm">{row.referee_customer_id?.slice(0, 8)}…</TableCell>
+                        <TableCell className="text-sm font-mono">{row.referral_code}</TableCell>
+                        <TableCell>
+                          {row.reward_status === "PENDING" && (
+                            <Badge variant="secondary" className="text-[10px]"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
+                          )}
+                          {row.reward_status === "AWAITING_ACTIVATION" && (
+                            <Badge className="text-[10px] bg-amber-500/20 text-amber-700 border-amber-300"><RotateCcw className="h-3 w-3 mr-1" />Awaiting Activation</Badge>
+                          )}
+                          {row.reward_status === "AWAITING_PAYMENT" && (
+                            <Badge className="text-[10px] bg-orange-500/20 text-orange-700 border-orange-300"><RotateCcw className="h-3 w-3 mr-1" />Awaiting Payment</Badge>
+                          )}
+                          {row.reward_status === "EARNED" && (
+                            <Badge className="text-[10px] bg-emerald-500/20 text-emerald-700 border-emerald-300"><CheckCircle2 className="h-3 w-3 mr-1" />Earned</Badge>
+                          )}
+                          {row.reward_status === "APPLIED" && (
+                            <Badge className="text-[10px] bg-primary/20 text-primary"><CheckCircle2 className="h-3 w-3 mr-1" />Applied</Badge>
+                          )}
+                          {row.reward_status === "FORCE_APPROVED" && (
+                            <Badge className="text-[10px] bg-violet-500/20 text-violet-700 border-violet-300"><ShieldCheck className="h-3 w-3 mr-1" />Force Approved</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2 text-[10px]">
+                            <span className={row.referee_service_active ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                              {row.referee_service_active ? "✓ Active" : "✗ Inactive"}
+                            </span>
+                            <span className={row.referee_invoice_paid ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                              {row.referee_invoice_paid ? "✓ Paid" : "✗ Unpaid"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{format(new Date(row.created_at), "dd MMM yy")}</TableCell>
+                        <TableCell>
+                          {isPending && (
+                            <Button
+                              variant="outline" size="sm" className="h-7 text-xs"
+                              onClick={() => forceApproveMutation.mutate(row.ledger_id)}
+                              disabled={forceApproveMutation.isPending}
+                            >
+                              <ShieldCheck className="h-3 w-3 mr-1" />Force Approve
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        )}
+      </div>
+
+
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
