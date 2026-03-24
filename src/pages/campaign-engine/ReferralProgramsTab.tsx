@@ -259,6 +259,83 @@ export default function ReferralProgramsTab() {
 
   const totalTriggerCount = refereeTriggers.wifi.length + refereeTriggers.cpe.length + refereeTriggers.addons.length;
 
+  /* ── Validation & Priority Logic ── */
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    const rules = form.reward_rules;
+    if (rules.length === 0) return errors;
+
+    // Unique start date check
+    const startDates = rules.map(r => r.start_date).filter(Boolean);
+    const uniqueStarts = new Set(startDates);
+    if (uniqueStarts.size < startDates.length) {
+      errors.push("Two Reward Rules cannot have the same Start Date. Please adjust the timing.");
+    }
+
+    const campStart = selectedCampaign ? new Date(selectedCampaign.start_date) : null;
+    const campEnd = selectedCampaign?.end_date ? new Date(selectedCampaign.end_date) : null;
+    if (campStart) campStart.setHours(0, 0, 0, 0);
+    if (campEnd) campEnd.setHours(23, 59, 59, 999);
+
+    for (const rule of rules) {
+      const label = rule.rule_name || "(unnamed)";
+      // Date range within campaign
+      if (rule.start_date && campStart && new Date(rule.start_date) < campStart) {
+        errors.push(`Rule "${label}": Start date is before the campaign start.`);
+      }
+      if (rule.end_date && campEnd && new Date(rule.end_date) > campEnd) {
+        errors.push(`Rule "${label}": End date is after the campaign end.`);
+      }
+      // Start < End
+      if (rule.start_date && rule.end_date && rule.start_date > rule.end_date) {
+        errors.push(`Rule "${label}": Start Date must be before End Date.`);
+      }
+    }
+    return errors;
+  }, [form.reward_rules, selectedCampaign]);
+
+  const isFormValid = useMemo(() => {
+    if (!form.campaign_id || !form.start_date) return false;
+    if (form.reward_rules.length === 0) return false;
+    if (validationErrors.length > 0) return false;
+    for (const rule of form.reward_rules) {
+      if (!rule.product_id || !rule.rule_name) return false;
+      if (!rule.start_date || !rule.end_date) return false;
+      if (rule.start_date > rule.end_date) return false;
+      if (!rule.discount_value || rule.discount_value <= 0) return false;
+    }
+    return true;
+  }, [form, validationErrors]);
+
+  /* ── Winning rule detection: among overlapping rules, the one with the latest start_date wins ── */
+  const winningRuleIds = useMemo(() => {
+    const rules = form.reward_rules.filter(r => r.start_date && r.end_date);
+    if (rules.length <= 1) return new Set(rules.map(r => r.id));
+    const winners = new Set<string>();
+
+    for (const rule of rules) {
+      const rStart = new Date(rule.start_date);
+      const rEnd = new Date(rule.end_date);
+      // Find all rules that overlap with this one
+      const overlapping = rules.filter(other => {
+        if (other.id === rule.id) return false;
+        const oStart = new Date(other.start_date);
+        const oEnd = new Date(other.end_date);
+        return rStart <= oEnd && oStart <= rEnd;
+      });
+      if (overlapping.length === 0) {
+        // No overlap — this rule is a winner in its own period
+        winners.add(rule.id);
+      } else {
+        // Among overlapping set + self, find the one with max start_date
+        const allInSet = [rule, ...overlapping];
+        allInSet.sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+        winners.add(allInSet[0].id);
+      }
+    }
+    return winners;
+  }, [form.reward_rules]);
+
   /* ── Reward rule helpers ── */
   function addRewardRule() {
     const newRule: RewardRule = {
