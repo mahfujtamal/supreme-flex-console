@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, isWithinInterval, parseISO } from "date-fns";
 import {
-  Plus, Search, Pencil, Trash2, Lock, AlertTriangle, ChevronDown, ChevronUp,
+  Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
+  ChevronDown, ChevronUp, CalendarIcon, Clock, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -28,6 +30,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBDT } from "@/lib/currency";
@@ -35,14 +38,21 @@ import { formatBDT } from "@/lib/currency";
 const PAGE_SIZE = 10;
 
 /* ── Types ── */
-interface RefereeItem {
+interface RewardRule {
+  id: string;
+  rule_name: string;
   product_id: string;
   product_name: string;
   product_category: string;
   addon_type: string | null;
+  reward_type: "CYCLES" | "PURCHASES";
+  reward_value: number;
+  reward_unit: string;
   discount_type: "FLAT" | "PERCENT";
   discount_value: number;
   applicable_components: string[];
+  start_date: string;
+  end_date: string;
 }
 
 interface ProgramForm {
@@ -50,13 +60,9 @@ interface ProgramForm {
   start_date: Date | undefined;
   end_date: Date | undefined;
   max_referrals: number;
-  referrer_product_id: string;
-  referrer_reward_type: "CYCLES" | "PURCHASES";
-  referrer_reward_value: number;
-  referrer_reward_unit: string;
-  referee_matrix: RefereeItem[];
   referral_code_prefix: string;
   status: boolean;
+  reward_rules: RewardRule[];
 }
 
 const emptyForm: ProgramForm = {
@@ -64,18 +70,31 @@ const emptyForm: ProgramForm = {
   start_date: undefined,
   end_date: undefined,
   max_referrals: 1,
-  referrer_product_id: "",
-  referrer_reward_type: "CYCLES",
-  referrer_reward_value: 1,
-  referrer_reward_unit: "",
-  referee_matrix: [],
   referral_code_prefix: "",
   status: true,
+  reward_rules: [],
 };
 
-/* ── Helpers ── */
+function generateRuleId() {
+  return crypto.randomUUID().slice(0, 8);
+}
+
 function isCycleBased(cat: string, addonType: string | null) {
   return cat === "WIFI_PLAN" || (cat === "ADDON" && addonType === "DIGITAL");
+}
+
+function getUnitLabel(billingFreq: string) {
+  if (billingFreq === "MONTHLY") return "Months";
+  if (billingFreq === "WEEKLY") return "Weeks";
+  if (billingFreq === "YEARLY") return "Years";
+  return "Cycles";
+}
+
+function isRuleLive(rule: RewardRule) {
+  const now = new Date();
+  const start = new Date(rule.start_date);
+  const end = new Date(rule.end_date);
+  return now >= start && now <= end;
 }
 
 export default function ReferralProgramsTab() {
@@ -89,7 +108,6 @@ export default function ReferralProgramsTab() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   /* ── Data queries ── */
-  // Referral-based campaigns
   const { data: campaigns } = useQuery({
     queryKey: ["referral-campaigns"],
     queryFn: async () => {
@@ -104,7 +122,6 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  // All active products
   const { data: products } = useQuery({
     queryKey: ["products-all-active"],
     queryFn: async () => {
@@ -118,13 +135,26 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  // Programs list
+  /* ── Referee trigger list: products from parent campaign's product rules ── */
+  const { data: campaignProductRules } = useQuery({
+    queryKey: ["campaign-product-rules-for-referral", form.campaign_id],
+    enabled: !!form.campaign_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_product_rules")
+        .select("rule_id, product_id, rule_type, products!inner(product_name, product_category, addon_type)")
+        .eq("campaign_id", form.campaign_id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: programsData, isLoading } = useQuery({
     queryKey: ["referral-programs", page, search],
     queryFn: async () => {
       let q = supabase
         .from("referral_programs")
-        .select("*, campaign_master!inner(campaign_name), referrer_prod:products!referral_programs_referrer_product_id_fkey(product_name, product_category, addon_type)", { count: "exact" })
+        .select("*, campaign_master!inner(campaign_name)", { count: "exact" })
         .order("created_at", { ascending: false });
       if (search) q = q.or(`referral_code_prefix.ilike.%${search}%`);
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -133,7 +163,6 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  // Redemption counts per program (for lock logic)
   const programIds = useMemo(() => programsData?.items?.map((p: any) => p.program_id) ?? [], [programsData]);
   const { data: redemptionCounts } = useQuery({
     queryKey: ["redemption-counts", programIds],
@@ -150,41 +179,30 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  /* ── Filtered product lists ── */
-  const wifiPlans = useMemo(() => products?.filter(p => p.product_category === "WIFI_PLAN") ?? [], [products]);
-  const cpeProducts = useMemo(() => products?.filter(p => p.product_category === "CPE") ?? [], [products]);
-  const physicalAddons = useMemo(() => products?.filter(p => p.product_category === "ADDON" && p.addon_type === "PHYSICAL") ?? [], [products]);
-  const digitalAddons = useMemo(() => products?.filter(p => p.product_category === "ADDON" && p.addon_type === "DIGITAL") ?? [], [products]);
-
-  /* ── Selected campaign date range ── */
   const selectedCampaign = useMemo(
     () => campaigns?.find(c => c.campaign_id === form.campaign_id),
     [campaigns, form.campaign_id],
   );
 
-  /* ── Price components fetcher (for dynamic checkboxes) ── */
-  const refereeProductIds = useMemo(() => form.referee_matrix.map(r => r.product_id), [form.referee_matrix]);
+  /* ── Price components for reward rule products ── */
+  const ruleProductIds = useMemo(() => [...new Set(form.reward_rules.map(r => r.product_id).filter(Boolean))], [form.reward_rules]);
   const { data: priceComps } = useQuery({
-    queryKey: ["price-components-for-referee", refereeProductIds],
-    enabled: refereeProductIds.length > 0,
+    queryKey: ["price-components-for-rules", ruleProductIds],
+    enabled: ruleProductIds.length > 0,
     queryFn: async () => {
-      // Get active price versions for these products, then their components
       const { data: versions, error: vErr } = await supabase
         .from("product_price_versions")
         .select("price_version_id, product_id")
-        .in("product_id", refereeProductIds)
+        .in("product_id", ruleProductIds)
         .eq("status", true);
       if (vErr) throw vErr;
       if (!versions?.length) return {} as Record<string, string[]>;
-
       const versionIds = versions.map(v => v.price_version_id);
       const { data: comps, error: cErr } = await supabase
         .from("price_components")
         .select("price_version_id, component_name")
         .in("price_version_id", versionIds);
       if (cErr) throw cErr;
-
-      // Map product_id -> component names
       const result: Record<string, string[]> = {};
       for (const v of versions) {
         const names = comps?.filter(c => c.price_version_id === v.price_version_id).map(c => c.component_name) ?? [];
@@ -194,81 +212,106 @@ export default function ReferralProgramsTab() {
     },
   });
 
-  /* ── Referrer product change ── */
-  useEffect(() => {
-    if (!form.referrer_product_id || !products) return;
-    const p = products.find(pr => pr.product_id === form.referrer_product_id);
-    if (!p) return;
-    const cycle = isCycleBased(p.product_category, p.addon_type);
+  /* ── Referee trigger items grouped ── */
+  const refereeTriggers = useMemo(() => {
+    if (!campaignProductRules) return { wifi: [], cpe: [], addons: [] };
+    const wifi: any[] = [];
+    const cpe: any[] = [];
+    const addons: any[] = [];
+    for (const rule of campaignProductRules) {
+      const prod = (rule as any).products;
+      if (!prod) continue;
+      const item = { product_id: rule.product_id, product_name: prod.product_name, rule_type: rule.rule_type, category: prod.product_category, addon_type: prod.addon_type };
+      if (prod.product_category === "WIFI_PLAN") wifi.push(item);
+      else if (prod.product_category === "CPE") cpe.push(item);
+      else addons.push(item);
+    }
+    return { wifi, cpe, addons };
+  }, [campaignProductRules]);
+
+  const totalTriggerCount = (refereeTriggers.wifi.length + refereeTriggers.cpe.length + refereeTriggers.addons.length);
+
+  /* ── Reward rule helpers ── */
+  function addRewardRule() {
+    const newRule: RewardRule = {
+      id: generateRuleId(),
+      rule_name: "",
+      product_id: "",
+      product_name: "",
+      product_category: "",
+      addon_type: null,
+      reward_type: "CYCLES",
+      reward_value: 1,
+      reward_unit: "",
+      discount_type: "FLAT",
+      discount_value: 0,
+      applicable_components: [],
+      start_date: form.start_date ? form.start_date.toISOString().slice(0, 10) : "",
+      end_date: form.end_date ? form.end_date.toISOString().slice(0, 10) : "",
+    };
+    setForm(f => ({ ...f, reward_rules: [...f.reward_rules, newRule] }));
+  }
+
+  function updateRule(ruleId: string, patch: Partial<RewardRule>) {
     setForm(f => ({
       ...f,
-      referrer_reward_type: cycle ? "CYCLES" : "PURCHASES",
-      referrer_reward_unit: cycle
-        ? (p.billing_frequency === "MONTHLY" ? "Months" : p.billing_frequency === "WEEKLY" ? "Weeks" : p.billing_frequency === "YEARLY" ? "Years" : "Cycles")
-        : "Purchases",
-    }));
-  }, [form.referrer_product_id, products]);
-
-  /* ── Add referee products ── */
-  function addRefereeProducts(productIds: string[]) {
-    if (!products) return;
-    const existing = new Set(form.referee_matrix.map(r => r.product_id));
-    const newItems: RefereeItem[] = productIds
-      .filter(id => !existing.has(id))
-      .map(id => {
-        const p = products.find(pr => pr.product_id === id)!;
-        return {
-          product_id: id,
-          product_name: p.product_name,
-          product_category: p.product_category,
-          addon_type: p.addon_type,
-          discount_type: "FLAT" as const,
-          discount_value: 0,
-          applicable_components: [],
-        };
-      });
-    if (newItems.length)
-      setForm(f => ({ ...f, referee_matrix: [...f.referee_matrix, ...newItems] }));
-  }
-
-  function removeRefereeProduct(productId: string) {
-    setForm(f => ({ ...f, referee_matrix: f.referee_matrix.filter(r => r.product_id !== productId) }));
-  }
-
-  function updateRefereeItem(productId: string, patch: Partial<RefereeItem>) {
-    setForm(f => ({
-      ...f,
-      referee_matrix: f.referee_matrix.map(r => r.product_id === productId ? { ...r, ...patch } : r),
+      reward_rules: f.reward_rules.map(r => r.id === ruleId ? { ...r, ...patch } : r),
     }));
   }
 
-  function toggleComponent(productId: string, compName: string) {
-    const item = form.referee_matrix.find(r => r.product_id === productId);
-    if (!item) return;
-    const has = item.applicable_components.includes(compName);
-    updateRefereeItem(productId, {
+  function removeRule(ruleId: string) {
+    setForm(f => ({ ...f, reward_rules: f.reward_rules.filter(r => r.id !== ruleId) }));
+  }
+
+  function toggleRuleComponent(ruleId: string, compName: string) {
+    const rule = form.reward_rules.find(r => r.id === ruleId);
+    if (!rule) return;
+    const has = rule.applicable_components.includes(compName);
+    updateRule(ruleId, {
       applicable_components: has
-        ? item.applicable_components.filter(c => c !== compName)
-        : [...item.applicable_components, compName],
+        ? rule.applicable_components.filter(c => c !== compName)
+        : [...rule.applicable_components, compName],
     });
   }
 
-  /* ── Save mutation ── */
+  function onRuleProductChange(ruleId: string, productId: string) {
+    if (!products) return;
+    const p = products.find(pr => pr.product_id === productId);
+    if (!p) return;
+    const cycle = isCycleBased(p.product_category, p.addon_type);
+    updateRule(ruleId, {
+      product_id: productId,
+      product_name: p.product_name,
+      product_category: p.product_category,
+      addon_type: p.addon_type,
+      reward_type: cycle ? "CYCLES" : "PURCHASES",
+      reward_unit: cycle ? getUnitLabel(p.billing_frequency) : "Purchases",
+      applicable_components: [],
+    });
+  }
+
+  /* ── Save ── */
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.campaign_id || !form.start_date || !form.referrer_product_id) throw new Error("Fill all required fields.");
+      if (!form.campaign_id || !form.start_date) throw new Error("Fill all required fields.");
+      if (form.reward_rules.length === 0) throw new Error("Add at least one reward rule.");
+      for (const rule of form.reward_rules) {
+        if (!rule.rule_name || !rule.product_id || !rule.start_date || !rule.end_date) {
+          throw new Error(`Rule "${rule.rule_name || '(unnamed)'}" is missing required fields.`);
+        }
+      }
 
       const payload = {
         campaign_id: form.campaign_id,
         start_date: form.start_date.toISOString(),
         end_date: form.end_date ? form.end_date.toISOString() : null,
         max_referrals_per_customer: form.max_referrals,
-        referrer_product_id: form.referrer_product_id,
-        referrer_reward_type: form.referrer_reward_type,
-        referrer_reward_value: form.referrer_reward_value,
-        referrer_reward_unit: form.referrer_reward_unit,
-        referee_config_matrix: JSON.parse(JSON.stringify(form.referee_matrix)),
         referral_code_prefix: form.referral_code_prefix || null,
+        referee_config_matrix: JSON.parse(JSON.stringify(form.reward_rules)),
+        referrer_reward_type: form.reward_rules[0]?.reward_type ?? "CYCLES",
+        referrer_reward_value: form.reward_rules[0]?.reward_value ?? 1,
+        referrer_reward_unit: form.reward_rules[0]?.reward_unit ?? "",
+        referrer_product_id: form.reward_rules[0]?.product_id ?? null,
         status: form.status,
       };
 
@@ -307,75 +350,42 @@ export default function ReferralProgramsTab() {
   }
 
   function openEdit(row: any) {
+    const rules: RewardRule[] = Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [];
     setEditId(row.program_id);
     setForm({
       campaign_id: row.campaign_id,
       start_date: new Date(row.start_date),
       end_date: row.end_date ? new Date(row.end_date) : undefined,
       max_referrals: row.max_referrals_per_customer,
-      referrer_product_id: row.referrer_product_id ?? "",
-      referrer_reward_type: row.referrer_reward_type ?? "CYCLES",
-      referrer_reward_value: row.referrer_reward_value ?? 1,
-      referrer_reward_unit: row.referrer_reward_unit ?? "",
-      referee_matrix: Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [],
       referral_code_prefix: row.referral_code_prefix ?? "",
       status: row.status,
+      reward_rules: rules.map(r => ({ ...r, id: r.id || generateRuleId() })),
     });
     setDialogOpen(true);
   }
 
+  function isLocked(programId: string) {
+    return (redemptionCounts?.[programId] ?? 0) > 0;
+  }
+
   const totalPages = Math.ceil((programsData?.count ?? 0) / PAGE_SIZE);
 
-  /* ── Summary counts for referee matrix ── */
-  const matrixSummary = useMemo(() => {
-    const w = form.referee_matrix.filter(r => r.product_category === "WIFI_PLAN").length;
-    const c = form.referee_matrix.filter(r => r.product_category === "CPE").length;
-    const pa = form.referee_matrix.filter(r => r.product_category === "ADDON" && r.addon_type === "PHYSICAL").length;
-    const da = form.referee_matrix.filter(r => r.product_category === "ADDON" && r.addon_type === "DIGITAL").length;
-    const parts: string[] = [];
-    if (w) parts.push(`${w} WiFi Plan${w > 1 ? "s" : ""}`);
-    if (c) parts.push(`${c} CPE`);
-    if (pa) parts.push(`${pa} Physical Addon${pa > 1 ? "s" : ""}`);
-    if (da) parts.push(`${da} Digital Addon${da > 1 ? "s" : ""}`);
-    return parts.join(", ") || "None selected";
-  }, [form.referee_matrix]);
-
-  /* ── Category multi-select helper ── */
-  function CategoryPicker({ label, items, category }: { label: string; items: any[]; category: string }) {
-    const selected = form.referee_matrix.filter(r =>
-      category === "CPE" ? r.product_category === "CPE" :
-      category === "PHYSICAL" ? (r.product_category === "ADDON" && r.addon_type === "PHYSICAL") :
-      category === "DIGITAL" ? (r.product_category === "ADDON" && r.addon_type === "DIGITAL") :
-      r.product_category === "WIFI_PLAN"
-    );
-    const selectedIds = new Set(selected.map(s => s.product_id));
-
+  /* ── Trigger card helper ── */
+  function TriggerCard({ title, items, color }: { title: string; items: any[]; color: string }) {
+    if (items.length === 0) return null;
     return (
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium">{label}</Label>
-        <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
-          {items.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No products available</p>
-          ) : items.map(p => (
-            <label key={p.product_id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-              <Checkbox
-                checked={selectedIds.has(p.product_id)}
-                onCheckedChange={(checked) => {
-                  if (checked) addRefereeProducts([p.product_id]);
-                  else removeRefereeProduct(p.product_id);
-                }}
-              />
-              <span className="truncate">{p.product_name}</span>
-            </label>
+      <div className="space-y-1">
+        <p className={cn("text-[10px] font-semibold uppercase tracking-wider", color)}>{title}</p>
+        <div className="flex flex-wrap gap-1">
+          {items.map(item => (
+            <Badge key={item.product_id} variant="outline" className="text-[10px] font-normal">
+              {item.product_name}
+              {item.rule_type === "EXCLUSIVE" && <Zap className="ml-1 h-2.5 w-2.5 text-primary" />}
+            </Badge>
           ))}
         </div>
       </div>
     );
-  }
-
-  /* ── Check if program is locked ── */
-  function isLocked(programId: string) {
-    return (redemptionCounts?.[programId] ?? 0) > 0;
   }
 
   return (
@@ -397,23 +407,22 @@ export default function ReferralProgramsTab() {
             <TableRow>
               <TableHead className="w-8" />
               <TableHead>Campaign</TableHead>
-              <TableHead>Referrer Product</TableHead>
               <TableHead className="w-[100px]">Start</TableHead>
               <TableHead className="w-[100px]">End</TableHead>
               <TableHead className="w-[60px]">Max Ref</TableHead>
-              <TableHead className="w-[80px]">Referee Items</TableHead>
+              <TableHead className="w-[80px]">Rules</TableHead>
               <TableHead className="w-[80px]">Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
             ) : !programsData?.items?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No referral programs found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No referral programs found.</TableCell></TableRow>
             ) : programsData.items.map((row: any) => {
               const locked = isLocked(row.program_id);
-              const matrix: RefereeItem[] = Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [];
+              const rules: RewardRule[] = Array.isArray(row.referee_config_matrix) ? row.referee_config_matrix : [];
               const isExpanded = expandedRow === row.program_id;
               return (
                 <>
@@ -427,11 +436,10 @@ export default function ReferralProgramsTab() {
                       {(row as any).campaign_master?.campaign_name ?? "—"}
                       {locked && <Lock className="inline ml-1.5 h-3.5 w-3.5 text-warning" />}
                     </TableCell>
-                    <TableCell className="text-sm">{(row as any).referrer_prod?.product_name ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(row.start_date), "dd MMM yy")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{row.end_date ? format(new Date(row.end_date), "dd MMM yy") : "—"}</TableCell>
                     <TableCell className="text-sm font-mono">{row.max_referrals_per_customer}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs">{matrix.length}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs">{rules.length} rule{rules.length !== 1 ? "s" : ""}</Badge></TableCell>
                     <TableCell>
                       <Badge variant={row.status ? "default" : "secondary"} className="text-xs">{row.status ? "Active" : "Inactive"}</Badge>
                     </TableCell>
@@ -448,7 +456,7 @@ export default function ReferralProgramsTab() {
                   </TableRow>
                   {isExpanded && (
                     <TableRow key={`${row.program_id}-exp`}>
-                      <TableCell colSpan={9} className="bg-muted/30 p-4">
+                      <TableCell colSpan={8} className="bg-muted/30 p-4">
                         {locked && (
                           <Alert variant="default" className="mb-3 border-warning bg-warning/10">
                             <AlertTriangle className="h-4 w-4 text-warning" />
@@ -457,39 +465,31 @@ export default function ReferralProgramsTab() {
                             </AlertDescription>
                           </Alert>
                         )}
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">
-                            Referrer: <strong>{row.referrer_reward_value} {row.referrer_reward_unit}</strong> ({row.referrer_reward_type})
-                            {row.referral_code_prefix && <> · Prefix: <code className="text-xs">{row.referral_code_prefix}</code></>}
-                          </p>
-                          {matrix.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium mb-1">Referee Reward Matrix:</p>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="text-xs">Product</TableHead>
-                                    <TableHead className="text-xs w-20">Discount</TableHead>
-                                    <TableHead className="text-xs">Applied To</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {matrix.map((item, idx) => (
-                                    <TableRow key={idx}>
-                                      <TableCell className="text-xs py-1">{item.product_name}</TableCell>
-                                      <TableCell className="text-xs py-1 font-mono">
-                                        {item.discount_type === "FLAT" ? formatBDT(item.discount_value) : `${item.discount_value}%`}
-                                      </TableCell>
-                                      <TableCell className="text-xs py-1">
-                                        {item.applicable_components?.length ? item.applicable_components.join(", ") : <span className="text-muted-foreground">All</span>}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          )}
-                        </div>
+                        <p className="text-xs font-medium mb-2">Referrer Reward Rules Timeline:</p>
+                        {rules.length > 0 ? (
+                          <div className="space-y-2">
+                            {rules.map((rule, idx) => {
+                              const live = rule.start_date && rule.end_date && isRuleLive(rule);
+                              return (
+                                <div key={rule.id || idx} className={cn("border rounded-md p-3 text-xs", live && "border-primary bg-primary/5")}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold">{rule.rule_name || `Rule ${idx + 1}`}</span>
+                                    {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+                                    <span className="text-muted-foreground ml-auto">
+                                      {rule.start_date ? format(new Date(rule.start_date), "dd MMM yy") : "?"} – {rule.end_date ? format(new Date(rule.end_date), "dd MMM yy") : "?"}
+                                    </span>
+                                  </div>
+                                  <p className="text-muted-foreground">
+                                    Product: <strong>{rule.product_name}</strong> · {rule.reward_value} {rule.reward_unit} · Discount: {rule.discount_type === "FLAT" ? formatBDT(rule.discount_value) : `${rule.discount_value}%`}
+                                    {rule.applicable_components?.length > 0 && <> · Components: {rule.applicable_components.join(", ")}</>}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No reward rules configured.</p>
+                        )}
                       </TableCell>
                     </TableRow>
                   )}
@@ -511,7 +511,7 @@ export default function ReferralProgramsTab() {
 
       {/* ── Create / Edit Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Referral Program" : "New Referral Program"}</DialogTitle>
           </DialogHeader>
@@ -536,7 +536,6 @@ export default function ReferralProgramsTab() {
                   </p>
                 )}
               </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs">Max Referrals per Customer</Label>
                 <Input
@@ -548,28 +547,23 @@ export default function ReferralProgramsTab() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Start Date <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Program Start Date <span className="text-destructive">*</span></Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.start_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
                       {form.start_date ? format(form.start_date, "dd MMM yyyy") : "Pick date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      mode="single"
-                      selected={form.start_date}
+                      mode="single" selected={form.start_date}
                       onSelect={(d) => setForm(f => ({ ...f, start_date: d }))}
                       disabled={(date) => {
                         if (!selectedCampaign) return false;
-                        const campStart = new Date(selectedCampaign.start_date);
-                        campStart.setHours(0, 0, 0, 0);
-                        if (date < campStart) return true;
-                        if (selectedCampaign.end_date) {
-                          const campEnd = new Date(selectedCampaign.end_date);
-                          campEnd.setHours(23, 59, 59, 999);
-                          if (date > campEnd) return true;
-                        }
+                        const cs = new Date(selectedCampaign.start_date); cs.setHours(0,0,0,0);
+                        if (date < cs) return true;
+                        if (selectedCampaign.end_date) { const ce = new Date(selectedCampaign.end_date); ce.setHours(23,59,59,999); if (date > ce) return true; }
                         return false;
                       }}
                       className="p-3 pointer-events-auto"
@@ -578,28 +572,23 @@ export default function ReferralProgramsTab() {
                 </Popover>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">End Date</Label>
+                <Label className="text-xs">Program End Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.end_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
                       {form.end_date ? format(form.end_date, "dd MMM yyyy") : "Optional"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      mode="single"
-                      selected={form.end_date}
+                      mode="single" selected={form.end_date}
                       onSelect={(d) => setForm(f => ({ ...f, end_date: d }))}
                       disabled={(date) => {
                         if (!selectedCampaign) return false;
-                        const campStart = new Date(selectedCampaign.start_date);
-                        campStart.setHours(0, 0, 0, 0);
-                        if (date < campStart) return true;
-                        if (selectedCampaign.end_date) {
-                          const campEnd = new Date(selectedCampaign.end_date);
-                          campEnd.setHours(23, 59, 59, 999);
-                          if (date > campEnd) return true;
-                        }
+                        const cs = new Date(selectedCampaign.start_date); cs.setHours(0,0,0,0);
+                        if (date < cs) return true;
+                        if (selectedCampaign.end_date) { const ce = new Date(selectedCampaign.end_date); ce.setHours(23,59,59,999); if (date > ce) return true; }
                         if (form.start_date && date < form.start_date) return true;
                         return false;
                       }}
@@ -617,150 +606,198 @@ export default function ReferralProgramsTab() {
                 <p className="text-[10px] text-muted-foreground">
                   {form.referral_code_prefix
                     ? `Code format: ${form.referral_code_prefix}${"X".repeat(8 - form.referral_code_prefix.length)} (8 chars total)`
-                    : "If blank, a random 8-char alphanumeric code will be generated (e.g. XJ92KL77)"}
+                    : "If blank, a random 8-char alphanumeric code will be generated"}
                 </p>
               </div>
             </div>
 
-            {/* ── Accordion: Referrer + Referee ── */}
-            <Accordion type="multiple" defaultValue={["referrer", "referee"]} className="space-y-2">
-              {/* Referrer Reward */}
-              <AccordionItem value="referrer" className="border rounded-lg px-4">
-                <AccordionTrigger className="text-sm font-semibold">Referrer Reward</AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Reward Product <span className="text-destructive">*</span></Label>
-                      <Select value={form.referrer_product_id} onValueChange={(v) => setForm(f => ({ ...f, referrer_product_id: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select product..." /></SelectTrigger>
-                        <SelectContent>
-                          {products?.map(p => (
-                            <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">
-                        {form.referrer_reward_type === "CYCLES" ? "Number of Cycles" : "Number of Purchases"}
-                      </Label>
-                      <Input
-                        type="number" min={1} step={1} value={form.referrer_reward_value}
-                        onChange={(e) => {
-                          const v = parseInt(e.target.value);
-                          if (v > 0) setForm(f => ({ ...f, referrer_reward_value: v }));
-                        }}
-                        onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Unit</Label>
-                      <Input value={form.referrer_reward_unit} readOnly className="bg-muted" />
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+            <Separator />
 
-              {/* Referee 4-Tier Matrix */}
-              <AccordionItem value="referee" className="border rounded-lg px-4">
-                <AccordionTrigger className="text-sm font-semibold">
-                  <span className="flex items-center gap-2">
-                    Referee Reward — 4-Tier Matrix
-                    <Badge variant="outline" className="text-[10px] font-normal">{matrixSummary}</Badge>
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-4 pb-4">
-                  <p className="text-xs text-muted-foreground italic">
-                    Referee can choose any, all, or none of these items during sign-up.
+            {/* ── Two-panel layout ── */}
+            <div className="grid grid-cols-[280px_1fr] gap-4">
+              {/* LEFT: Referee Trigger List (Read-Only) */}
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Referee Trigger List</h4>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Read-only. Pulled from parent campaign product rules. These items trigger the referrer reward globally.
                   </p>
+                </div>
 
-                  {/* Category pickers */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <CategoryPicker label="WiFi Plans" items={wifiPlans} category="WIFI_PLAN" />
-                    <CategoryPicker label="CPE (Hardware)" items={cpeProducts} category="CPE" />
-                    <CategoryPicker label="Physical Addons" items={physicalAddons} category="PHYSICAL" />
-                    <CategoryPicker label="Digital Addons" items={digitalAddons} category="DIGITAL" />
+                {!form.campaign_id ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center text-xs text-muted-foreground">
+                      Select a campaign to view trigger items
+                    </CardContent>
+                  </Card>
+                ) : totalTriggerCount === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center text-xs text-muted-foreground">
+                      No product rules configured for this campaign
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="py-3 px-3 space-y-3">
+                      <TriggerCard title="WiFi Plans" items={refereeTriggers.wifi} color="text-primary" />
+                      <TriggerCard title="CPE / Hardware" items={refereeTriggers.cpe} color="text-emerald-600" />
+                      <TriggerCard title="Addons" items={refereeTriggers.addons} color="text-violet-600" />
+                      <Separator />
+                      <p className="text-[10px] text-muted-foreground">
+                        <strong>{totalTriggerCount}</strong> product{totalTriggerCount !== 1 ? "s" : ""} trigger referrer rewards
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Alert className="border-muted">
+                  <AlertDescription className="text-[10px] text-muted-foreground">
+                    Any active Referrer Reward Rule below applies globally to all items in this trigger list.
+                  </AlertDescription>
+                </Alert>
+              </div>
+
+              {/* RIGHT: Referrer Reward Timeline (Multi-Rule Builder) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Referrer Reward Timeline</h4>
+                    <p className="text-[10px] text-muted-foreground italic">
+                      If dates overlap, the rule with the LATEST start date applies.
+                    </p>
                   </div>
+                  <Button size="sm" variant="outline" onClick={addRewardRule} disabled={!form.campaign_id}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />Add New Reward Period
+                  </Button>
+                </div>
 
-                  {/* Discount config table */}
-                  {form.referee_matrix.length > 0 && (
-                    <div className="border rounded-lg">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Product</TableHead>
-                            <TableHead className="text-xs w-24">Type</TableHead>
-                            <TableHead className="text-xs w-28">Value</TableHead>
-                            <TableHead className="text-xs">Components</TableHead>
-                            <TableHead className="text-xs w-10" />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {form.referee_matrix.map((item) => {
-                            const compOptions = priceComps?.[item.product_id] ?? [];
-                            return (
-                              <TableRow key={item.product_id}>
-                                <TableCell className="text-xs py-1.5">
-                                  <div>
-                                    <span className="font-medium">{item.product_name}</span>
-                                    <Badge variant="outline" className="ml-1.5 text-[9px]">
-                                      {item.product_category === "ADDON" ? (item.addon_type === "PHYSICAL" ? "Phys Add-on" : "Digital Add-on") : item.product_category.replace("_", " ")}
-                                    </Badge>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-1.5">
-                                  <Select
-                                    value={item.discount_type}
-                                    onValueChange={(v) => updateRefereeItem(item.product_id, { discount_type: v as "FLAT" | "PERCENT" })}
-                                  >
-                                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                {form.reward_rules.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center text-xs text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                      No reward periods defined. Click "Add New Reward Period" to start.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Accordion type="multiple" defaultValue={form.reward_rules.map(r => r.id)} className="space-y-2">
+                    {form.reward_rules.map((rule, idx) => {
+                      const live = rule.start_date && rule.end_date && isRuleLive(rule);
+                      const compOptions = priceComps?.[rule.product_id] ?? [];
+                      return (
+                        <AccordionItem key={rule.id} value={rule.id} className={cn("border rounded-lg px-3", live && "border-primary")}>
+                          <AccordionTrigger className="text-sm py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{rule.rule_name || `Rule ${idx + 1}`}</span>
+                              {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+                              {rule.start_date && rule.end_date && (
+                                <span className="text-[10px] text-muted-foreground ml-2">
+                                  {rule.start_date} → {rule.end_date}
+                                </span>
+                              )}
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="space-y-3 pb-3">
+                            {/* Rule Name & Dates */}
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Rule Name <span className="text-destructive">*</span></Label>
+                                <Input className="h-8 text-xs" placeholder="e.g. Standard April Reward"
+                                  value={rule.rule_name} onChange={(e) => updateRule(rule.id, { rule_name: e.target.value })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Start Date <span className="text-destructive">*</span></Label>
+                                <Input type="date" className="h-8 text-xs" value={rule.start_date}
+                                  min={form.start_date ? form.start_date.toISOString().slice(0, 10) : ""}
+                                  max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
+                                  onChange={(e) => updateRule(rule.id, { start_date: e.target.value })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">End Date <span className="text-destructive">*</span></Label>
+                                <Input type="date" className="h-8 text-xs" value={rule.end_date}
+                                  min={rule.start_date || (form.start_date ? form.start_date.toISOString().slice(0, 10) : "")}
+                                  max={form.end_date ? form.end_date.toISOString().slice(0, 10) : ""}
+                                  onChange={(e) => updateRule(rule.id, { end_date: e.target.value })} />
+                              </div>
+                            </div>
+
+                            {/* Product & Reward */}
+                            <div className="grid grid-cols-4 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Product <span className="text-destructive">*</span></Label>
+                                <Select value={rule.product_id} onValueChange={(v) => onRuleProductChange(rule.id, v)}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {products?.map(p => (
+                                      <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">
+                                  {rule.reward_type === "CYCLES" ? "Cycles" : "Purchases"}
+                                </Label>
+                                <Input type="number" min={1} step={1} className="h-8 text-xs" value={rule.reward_value}
+                                  onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) updateRule(rule.id, { reward_value: v }); }}
+                                  onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Unit</Label>
+                                <Input className="h-8 text-xs bg-muted" value={rule.reward_unit} readOnly />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Discount</Label>
+                                <div className="flex gap-1">
+                                  <Select value={rule.discount_type} onValueChange={(v) => updateRule(rule.id, { discount_type: v as "FLAT" | "PERCENT" })}>
+                                    <SelectTrigger className="h-8 text-xs w-20"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="FLAT">Flat (BDT)</SelectItem>
-                                      <SelectItem value="PERCENT">Percent (%)</SelectItem>
+                                      <SelectItem value="FLAT">BDT</SelectItem>
+                                      <SelectItem value="PERCENT">%</SelectItem>
                                     </SelectContent>
                                   </Select>
-                                </TableCell>
-                                <TableCell className="py-1.5">
-                                  <Input
-                                    type="number" min={0}
-                                    className="h-7 text-xs"
-                                    value={item.discount_value}
-                                    onChange={(e) => updateRefereeItem(item.product_id, { discount_value: parseFloat(e.target.value) || 0 })}
-                                  />
-                                </TableCell>
-                                <TableCell className="py-1.5">
-                                  {compOptions.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {compOptions.map(comp => (
-                                        <label key={comp} className="flex items-center gap-1 text-[10px] cursor-pointer">
-                                          <Checkbox
-                                            className="h-3 w-3"
-                                            checked={item.applicable_components.includes(comp)}
-                                            onCheckedChange={() => toggleComponent(item.product_id, comp)}
-                                          />
-                                          {comp}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground">No price components</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-1.5">
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeRefereeProduct(item.product_id)}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                                  <Input type="number" min={0} className="h-8 text-xs flex-1" value={rule.discount_value}
+                                    onChange={(e) => updateRule(rule.id, { discount_value: parseFloat(e.target.value) || 0 })} />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Component Checkboxes */}
+                            {rule.product_id && (
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Applicable Components</Label>
+                                {compOptions.length > 0 ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {compOptions.map(comp => (
+                                      <label key={comp} className="flex items-center gap-1 text-[10px] cursor-pointer">
+                                        <Checkbox className="h-3 w-3"
+                                          checked={rule.applicable_components.includes(comp)}
+                                          onCheckedChange={() => toggleRuleComponent(rule.id, comp)}
+                                        />
+                                        {comp}
+                                      </label>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">No price components found for this product</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Remove button */}
+                            <div className="flex justify-end">
+                              <Button variant="ghost" size="sm" className="text-destructive text-xs h-7" onClick={() => removeRule(rule.id)}>
+                                <Trash2 className="h-3 w-3 mr-1" />Remove Rule
+                              </Button>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                )}
+              </div>
+            </div>
 
             {/* Status */}
             <div className="flex items-center gap-3">
