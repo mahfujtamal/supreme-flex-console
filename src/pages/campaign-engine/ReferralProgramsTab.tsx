@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
   Plus, Search, Pencil, Trash2, Lock, AlertTriangle,
-  ChevronDown, ChevronUp, CalendarIcon, Clock, Zap,
+  ChevronDown, ChevronUp, CalendarIcon, Clock, Zap, Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -259,6 +259,83 @@ export default function ReferralProgramsTab() {
 
   const totalTriggerCount = refereeTriggers.wifi.length + refereeTriggers.cpe.length + refereeTriggers.addons.length;
 
+  /* ── Validation & Priority Logic ── */
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    const rules = form.reward_rules;
+    if (rules.length === 0) return errors;
+
+    // Unique start date check
+    const startDates = rules.map(r => r.start_date).filter(Boolean);
+    const uniqueStarts = new Set(startDates);
+    if (uniqueStarts.size < startDates.length) {
+      errors.push("Two Reward Rules cannot have the same Start Date. Please adjust the timing.");
+    }
+
+    const campStart = selectedCampaign ? new Date(selectedCampaign.start_date) : null;
+    const campEnd = selectedCampaign?.end_date ? new Date(selectedCampaign.end_date) : null;
+    if (campStart) campStart.setHours(0, 0, 0, 0);
+    if (campEnd) campEnd.setHours(23, 59, 59, 999);
+
+    for (const rule of rules) {
+      const label = rule.rule_name || "(unnamed)";
+      // Date range within campaign
+      if (rule.start_date && campStart && new Date(rule.start_date) < campStart) {
+        errors.push(`Rule "${label}": Start date is before the campaign start.`);
+      }
+      if (rule.end_date && campEnd && new Date(rule.end_date) > campEnd) {
+        errors.push(`Rule "${label}": End date is after the campaign end.`);
+      }
+      // Start < End
+      if (rule.start_date && rule.end_date && rule.start_date > rule.end_date) {
+        errors.push(`Rule "${label}": Start Date must be before End Date.`);
+      }
+    }
+    return errors;
+  }, [form.reward_rules, selectedCampaign]);
+
+  const isFormValid = useMemo(() => {
+    if (!form.campaign_id || !form.start_date) return false;
+    if (form.reward_rules.length === 0) return false;
+    if (validationErrors.length > 0) return false;
+    for (const rule of form.reward_rules) {
+      if (!rule.product_id || !rule.rule_name) return false;
+      if (!rule.start_date || !rule.end_date) return false;
+      if (rule.start_date > rule.end_date) return false;
+      if (!rule.discount_value || rule.discount_value <= 0) return false;
+    }
+    return true;
+  }, [form, validationErrors]);
+
+  /* ── Winning rule detection: among overlapping rules, the one with the latest start_date wins ── */
+  const winningRuleIds = useMemo(() => {
+    const rules = form.reward_rules.filter(r => r.start_date && r.end_date);
+    if (rules.length <= 1) return new Set(rules.map(r => r.id));
+    const winners = new Set<string>();
+
+    for (const rule of rules) {
+      const rStart = new Date(rule.start_date);
+      const rEnd = new Date(rule.end_date);
+      // Find all rules that overlap with this one
+      const overlapping = rules.filter(other => {
+        if (other.id === rule.id) return false;
+        const oStart = new Date(other.start_date);
+        const oEnd = new Date(other.end_date);
+        return rStart <= oEnd && oStart <= rEnd;
+      });
+      if (overlapping.length === 0) {
+        // No overlap — this rule is a winner in its own period
+        winners.add(rule.id);
+      } else {
+        // Among overlapping set + self, find the one with max start_date
+        const allInSet = [rule, ...overlapping];
+        allInSet.sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+        winners.add(allInSet[0].id);
+      }
+    }
+    return winners;
+  }, [form.reward_rules]);
+
   /* ── Reward rule helpers ── */
   function addRewardRule() {
     const newRule: RewardRule = {
@@ -324,9 +401,34 @@ export default function ReferralProgramsTab() {
     mutationFn: async () => {
       if (!form.campaign_id || !form.start_date) throw new Error("Fill all required fields.");
       if (form.reward_rules.length === 0) throw new Error("Add at least one reward rule.");
+
+      // Unique start date check
+      const startDates = form.reward_rules.map(r => r.start_date).filter(Boolean);
+      if (new Set(startDates).size < startDates.length) {
+        throw new Error("Two Reward Rules cannot have the same Start Date. Please adjust the timing.");
+      }
+
+      // Date range & field checks
       for (const rule of form.reward_rules) {
+        const label = rule.rule_name || "(unnamed)";
         if (!rule.rule_name || !rule.product_id || !rule.start_date || !rule.end_date)
-          throw new Error(`Rule "${rule.rule_name || '(unnamed)'}" is missing required fields.`);
+          throw new Error(`Rule "${label}" is missing required fields.`);
+        if (rule.start_date > rule.end_date)
+          throw new Error(`Rule "${label}": Start Date must be before End Date.`);
+        if (!rule.discount_value || rule.discount_value <= 0)
+          throw new Error(`Rule "${label}": Discount Value must be greater than 0.`);
+
+        // Check within campaign range
+        if (selectedCampaign) {
+          const campStart = new Date(selectedCampaign.start_date); campStart.setHours(0, 0, 0, 0);
+          if (new Date(rule.start_date) < campStart)
+            throw new Error(`Rule "${label}": Referrer reward dates must be within the overall campaign period.`);
+          if (selectedCampaign.end_date) {
+            const campEnd = new Date(selectedCampaign.end_date); campEnd.setHours(23, 59, 59, 999);
+            if (new Date(rule.end_date) > campEnd)
+              throw new Error(`Rule "${label}": Referrer reward dates must be within the overall campaign period.`);
+          }
+        }
       }
       const payload = {
         campaign_id: form.campaign_id,
@@ -351,7 +453,7 @@ export default function ReferralProgramsTab() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["referral-programs"] });
-      toast({ title: editId ? "Program updated" : "Program created" });
+      toast({ title: "✓ Rules Validated & Scheduled", description: editId ? "Program updated successfully." : "New referral program created." });
       closeDialog();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -417,16 +519,26 @@ export default function ReferralProgramsTab() {
   /* ── Render a single reward rule card ── */
   function RuleCard({ rule, idx }: { rule: RewardRule; idx: number }) {
     const live = rule.start_date && rule.end_date && isRuleLive(rule);
+    const isWinner = winningRuleIds.has(rule.id);
     const priceData = priceCompMap?.[rule.product_id];
     const components = priceData?.components ?? [];
     const { originalTotal, discountAmount, netPrice } = calcNetPrice(rule, components);
+    const hasDateError = rule.start_date && rule.end_date && rule.start_date > rule.end_date;
+    const hasMissingFields = !rule.product_id || !rule.discount_value || rule.discount_value <= 0;
 
     return (
-      <AccordionItem key={rule.id} value={rule.id} className={cn("border rounded-lg px-3", live && "border-primary")}>
+      <AccordionItem key={rule.id} value={rule.id} className={cn(
+        "border rounded-lg px-3",
+        live && "border-primary",
+        hasDateError && "border-destructive",
+      )}>
         <AccordionTrigger className="text-sm py-2">
           <div className="flex items-center gap-2">
+            {isWinner && <Star className="h-3.5 w-3.5 text-warning fill-warning" />}
             <span className="font-medium">{rule.rule_name || `Rule ${idx + 1}`}</span>
             {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+            {isWinner && <Badge variant="outline" className="text-[9px] h-4 text-warning border-warning">PRIORITY</Badge>}
+            {hasMissingFields && <Badge variant="outline" className="text-[9px] h-4 text-destructive border-destructive">INCOMPLETE</Badge>}
             {rule.start_date && rule.end_date && (
               <span className="text-[10px] text-muted-foreground ml-2">
                 {rule.start_date} → {rule.end_date}
@@ -669,11 +781,19 @@ export default function ReferralProgramsTab() {
                           <div className="space-y-2">
                             {rules.map((rule, idx) => {
                               const live = rule.start_date && rule.end_date && isRuleLive(rule);
+                              // Compute priority: rule with latest start_date among overlapping wins
+                              const overlapping = rules.filter(other => {
+                                if (other.id === rule.id || !other.start_date || !other.end_date) return false;
+                                return new Date(rule.start_date) <= new Date(other.end_date) && new Date(other.start_date) <= new Date(rule.end_date);
+                              });
+                              const isWinner = overlapping.length === 0 || overlapping.every(o => new Date(rule.start_date) >= new Date(o.start_date));
                               return (
                                 <div key={rule.id || idx} className={cn("border rounded-md p-3 text-xs", live && "border-primary bg-primary/5")}>
                                   <div className="flex items-center gap-2 mb-1">
+                                    {isWinner && <Star className="h-3 w-3 text-warning fill-warning" />}
                                     <span className="font-semibold">{rule.rule_name || `Rule ${idx + 1}`}</span>
                                     {live && <Badge className="text-[9px] h-4 bg-primary">LIVE</Badge>}
+                                    {isWinner && <Badge variant="outline" className="text-[9px] h-4 text-warning border-warning">PRIORITY</Badge>}
                                     <span className="text-muted-foreground ml-auto">
                                       {rule.start_date ? format(new Date(rule.start_date), "dd MMM yy") : "?"} – {rule.end_date ? format(new Date(rule.end_date), "dd MMM yy") : "?"}
                                     </span>
@@ -894,9 +1014,21 @@ export default function ReferralProgramsTab() {
             </div>
           </div>
 
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc pl-4 text-xs space-y-0.5">
+                  {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !isFormValid}>
               {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
             </Button>
           </DialogFooter>
