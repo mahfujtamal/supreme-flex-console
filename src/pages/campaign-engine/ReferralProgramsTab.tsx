@@ -458,8 +458,8 @@ export default function ReferralProgramsTab() {
             </div>
           </div>
 
-          {/* Row 2: Product | Price/Discount | Cycles/Unit — 4-col layout */}
-          <div className="grid grid-cols-4 gap-3">
+          {/* Row 2: Product & Reward config — 2x2 grid for visibility */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Product Dropdown */}
             <div className="space-y-1">
               <Label className="text-[10px]">Product <span className="text-destructive">*</span></Label>
