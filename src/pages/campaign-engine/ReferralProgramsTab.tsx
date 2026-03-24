@@ -556,7 +556,24 @@ export default function ReferralProgramsTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.start_date} onSelect={(d) => setForm(f => ({ ...f, start_date: d }))} className="p-3 pointer-events-auto" />
+                    <Calendar
+                      mode="single"
+                      selected={form.start_date}
+                      onSelect={(d) => setForm(f => ({ ...f, start_date: d }))}
+                      disabled={(date) => {
+                        if (!selectedCampaign) return false;
+                        const campStart = new Date(selectedCampaign.start_date);
+                        campStart.setHours(0, 0, 0, 0);
+                        if (date < campStart) return true;
+                        if (selectedCampaign.end_date) {
+                          const campEnd = new Date(selectedCampaign.end_date);
+                          campEnd.setHours(23, 59, 59, 999);
+                          if (date > campEnd) return true;
+                        }
+                        return false;
+                      }}
+                      className="p-3 pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -569,16 +586,39 @@ export default function ReferralProgramsTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.end_date} onSelect={(d) => setForm(f => ({ ...f, end_date: d }))} className="p-3 pointer-events-auto" />
+                    <Calendar
+                      mode="single"
+                      selected={form.end_date}
+                      onSelect={(d) => setForm(f => ({ ...f, end_date: d }))}
+                      disabled={(date) => {
+                        if (!selectedCampaign) return false;
+                        const campStart = new Date(selectedCampaign.start_date);
+                        campStart.setHours(0, 0, 0, 0);
+                        if (date < campStart) return true;
+                        if (selectedCampaign.end_date) {
+                          const campEnd = new Date(selectedCampaign.end_date);
+                          campEnd.setHours(23, 59, 59, 999);
+                          if (date > campEnd) return true;
+                        }
+                        if (form.start_date && date < form.start_date) return true;
+                        return false;
+                      }}
+                      className="p-3 pointer-events-auto"
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Code Prefix</Label>
+                <Label className="text-xs">Code Prefix <span className="text-muted-foreground">(Optional)</span></Label>
                 <Input
-                  value={form.referral_code_prefix} maxLength={8} placeholder="e.g. REF"
-                  onChange={(e) => setForm(f => ({ ...f, referral_code_prefix: e.target.value.toUpperCase() }))}
+                  value={form.referral_code_prefix} maxLength={7} placeholder="e.g. GP-"
+                  onChange={(e) => setForm(f => ({ ...f, referral_code_prefix: e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, "") }))}
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  {form.referral_code_prefix
+                    ? `Code format: ${form.referral_code_prefix}${"X".repeat(8 - form.referral_code_prefix.length)} (8 chars total)`
+                    : "If blank, a random 8-char alphanumeric code will be generated (e.g. XJ92KL77)"}
+                </p>
               </div>
             </div>
 
@@ -605,8 +645,12 @@ export default function ReferralProgramsTab() {
                         {form.referrer_reward_type === "CYCLES" ? "Number of Cycles" : "Number of Purchases"}
                       </Label>
                       <Input
-                        type="number" min={1} value={form.referrer_reward_value}
-                        onChange={(e) => setForm(f => ({ ...f, referrer_reward_value: parseInt(e.target.value) || 1 }))}
+                        type="number" min={1} step={1} value={form.referrer_reward_value}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (v > 0) setForm(f => ({ ...f, referrer_reward_value: v }));
+                        }}
+                        onKeyDown={(e) => { if (e.key === '.' || e.key === '-' || e.key === 'e') e.preventDefault(); }}
                       />
                     </div>
                     <div className="space-y-1.5">
