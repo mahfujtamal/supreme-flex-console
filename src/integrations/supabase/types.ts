@@ -1313,6 +1313,127 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_programs: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          end_date: string | null
+          is_locked: boolean
+          max_referrals_per_customer: number
+          program_id: string
+          referee_config_matrix: Json
+          referral_code_prefix: string | null
+          referrer_product_id: string | null
+          referrer_reward_type: string
+          referrer_reward_unit: string | null
+          referrer_reward_value: number
+          start_date: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          end_date?: string | null
+          is_locked?: boolean
+          max_referrals_per_customer?: number
+          program_id?: string
+          referee_config_matrix?: Json
+          referral_code_prefix?: string | null
+          referrer_product_id?: string | null
+          referrer_reward_type?: string
+          referrer_reward_unit?: string | null
+          referrer_reward_value?: number
+          start_date: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          end_date?: string | null
+          is_locked?: boolean
+          max_referrals_per_customer?: number
+          program_id?: string
+          referee_config_matrix?: Json
+          referral_code_prefix?: string | null
+          referrer_product_id?: string | null
+          referrer_reward_type?: string
+          referrer_reward_unit?: string | null
+          referrer_reward_value?: number
+          start_date?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_programs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "referral_programs_referrer_product_id_fkey"
+            columns: ["referrer_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      referral_redemptions: {
+        Row: {
+          applied_rewards: Json
+          created_at: string
+          program_id: string
+          redemption_id: string
+          referee_customer_id: string
+          referral_code: string
+          referrer_customer_id: string
+        }
+        Insert: {
+          applied_rewards?: Json
+          created_at?: string
+          program_id: string
+          redemption_id?: string
+          referee_customer_id: string
+          referral_code: string
+          referrer_customer_id: string
+        }
+        Update: {
+          applied_rewards?: Json
+          created_at?: string
+          program_id?: string
+          redemption_id?: string
+          referee_customer_id?: string
+          referral_code?: string
+          referrer_customer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_redemptions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "referral_programs"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "referral_redemptions_referee_customer_id_fkey"
+            columns: ["referee_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "referral_redemptions_referrer_customer_id_fkey"
+            columns: ["referrer_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
       role_master: {
         Row: {
           created_at: string
