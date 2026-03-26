@@ -324,6 +324,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
         channel_id: sourceChannelId || null,
         sub_channel_id: sourceSubChannelId || null,
         order_status: "ASSIGNED" as any,
+        fulfillment_status: "PAID_AWAITING_INSTALLATION" as any,
+        price_snapshot_date: new Date().toISOString(),
       } as any).eq("order_id", orderId);
       if (error) throw error;
 
