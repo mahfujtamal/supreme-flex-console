@@ -749,7 +749,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryClient.invalidateQueries({ queryKey: ["onetime_invoices"] });
   };
 
-  const isPhysical = (category: string) => ["CPE", "SIM", "ADDON"].includes(category);
+  const isPhysical = (category: string) => isPhysicalCategory(category);
   const currentStatus = order?.order_status ?? "PENDING_DISPATCH";
   const statusIdx = STATUS_FLOW.indexOf(currentStatus as any);
   const isTerminal = currentStatus === "INSTALLED" || currentStatus === "CANCELLED";
