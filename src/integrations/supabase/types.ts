@@ -974,6 +974,9 @@ export type Database = {
           invoice_id: string
           parent_summary_invoice_id: string | null
           payment_status: Database["public"]["Enums"]["invoice_payment_status"]
+          refund_amount_bdt: number | null
+          refund_reason: string | null
+          refunded_at: string | null
           trigger_type: Database["public"]["Enums"]["invoice_trigger_type"]
         }
         Insert: {
@@ -983,6 +986,9 @@ export type Database = {
           invoice_id?: string
           parent_summary_invoice_id?: string | null
           payment_status?: Database["public"]["Enums"]["invoice_payment_status"]
+          refund_amount_bdt?: number | null
+          refund_reason?: string | null
+          refunded_at?: string | null
           trigger_type: Database["public"]["Enums"]["invoice_trigger_type"]
         }
         Update: {
@@ -992,6 +998,9 @@ export type Database = {
           invoice_id?: string
           parent_summary_invoice_id?: string | null
           payment_status?: Database["public"]["Enums"]["invoice_payment_status"]
+          refund_amount_bdt?: number | null
+          refund_reason?: string | null
+          refunded_at?: string | null
           trigger_type?: Database["public"]["Enums"]["invoice_trigger_type"]
         }
         Relationships: [
@@ -1006,25 +1015,46 @@ export type Database = {
       }
       order_items: {
         Row: {
+          fulfillment_date: string | null
           inventory_id: string | null
+          item_fulfillment_status:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           item_id: string
+          locked_unit_price_bdt: number | null
           order_id: string
+          price_anchor_type: string
+          price_locked_at: string | null
           product_id: string
           quantity: number
           unit_price_bdt: number
         }
         Insert: {
+          fulfillment_date?: string | null
           inventory_id?: string | null
+          item_fulfillment_status?:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           item_id?: string
+          locked_unit_price_bdt?: number | null
           order_id: string
+          price_anchor_type?: string
+          price_locked_at?: string | null
           product_id: string
           quantity?: number
           unit_price_bdt?: number
         }
         Update: {
+          fulfillment_date?: string | null
           inventory_id?: string | null
+          item_fulfillment_status?:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           item_id?: string
+          locked_unit_price_bdt?: number | null
           order_id?: string
+          price_anchor_type?: string
+          price_locked_at?: string | null
           product_id?: string
           quantity?: number
           unit_price_bdt?: number
@@ -1063,9 +1093,13 @@ export type Database = {
           customer_name: string
           customer_type: Database["public"]["Enums"]["customer_type"]
           final_total_bdt: number
+          fulfillment_status:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           order_id: string
           order_status: Database["public"]["Enums"]["order_status"]
           payment_status: Database["public"]["Enums"]["payment_status"]
+          price_snapshot_date: string | null
           staff_user_id: string | null
           sub_channel_id: string | null
           updated_at: string
@@ -1079,9 +1113,13 @@ export type Database = {
           customer_name: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
           final_total_bdt?: number
+          fulfillment_status?:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           order_id?: string
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          price_snapshot_date?: string | null
           staff_user_id?: string | null
           sub_channel_id?: string | null
           updated_at?: string
@@ -1095,9 +1133,13 @@ export type Database = {
           customer_name?: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
           final_total_bdt?: number
+          fulfillment_status?:
+            | Database["public"]["Enums"]["fulfillment_status"]
+            | null
           order_id?: string
           order_status?: Database["public"]["Enums"]["order_status"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          price_snapshot_date?: string | null
           staff_user_id?: string | null
           sub_channel_id?: string | null
           updated_at?: string
@@ -1811,6 +1853,12 @@ export type Database = {
         | "DH_DELIVERY"
       dh_status: "ACTIVE" | "INACTIVE"
       discount_type: "FLAT" | "PERCENT"
+      fulfillment_status:
+        | "PAID_AWAITING_INSTALLATION"
+        | "PROVISIONAL"
+        | "EARNED"
+        | "CANCELLED"
+        | "REFUNDED"
       inventory_item_type: "CPE" | "SIM" | "ADDON"
       inventory_status:
         | "IN_WAREHOUSE"
@@ -2012,6 +2060,13 @@ export const Constants = {
       ],
       dh_status: ["ACTIVE", "INACTIVE"],
       discount_type: ["FLAT", "PERCENT"],
+      fulfillment_status: [
+        "PAID_AWAITING_INSTALLATION",
+        "PROVISIONAL",
+        "EARNED",
+        "CANCELLED",
+        "REFUNDED",
+      ],
       inventory_item_type: ["CPE", "SIM", "ADDON"],
       inventory_status: [
         "IN_WAREHOUSE",

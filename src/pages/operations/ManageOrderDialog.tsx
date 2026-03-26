@@ -324,6 +324,8 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
         channel_id: sourceChannelId || null,
         sub_channel_id: sourceSubChannelId || null,
         order_status: "ASSIGNED" as any,
+        fulfillment_status: "PAID_AWAITING_INSTALLATION" as any,
+        price_snapshot_date: new Date().toISOString(),
       } as any).eq("order_id", orderId);
       if (error) throw error;
 
@@ -356,16 +358,20 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     onError: (err: any) => toast.error(err.message),
   });
 
-  // ─── Cancel ───
+  // ─── Cancel (with Automatic Reversal & Refund) ───
   const cancelMutation = useMutation({
     mutationFn: async () => {
       if (!cancelReason) throw new Error("Select a cancellation reason");
+      if (!order) throw new Error("No order");
+
       const { error } = await supabase.from("orders").update({
         order_status: "CANCELLED" as any,
-      }).eq("order_id", orderId);
+        fulfillment_status: "CANCELLED" as any,
+      } as any).eq("order_id", orderId);
       if (error) throw error;
 
       // If inventory was linked, return to WITH_AGENT (safety rule)
+      let refundTotal = 0;
       if (orderItems?.length) {
         const linkedItems = orderItems.filter((i: any) => i.inventory_id);
         for (const item of linkedItems) {
@@ -373,20 +379,75 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             .update({ status: "WITH_AGENT" as any })
             .eq("inventory_id", item.inventory_id);
           await supabase.from("order_items")
-            .update({ inventory_id: null })
+            .update({ inventory_id: null, item_fulfillment_status: "CANCELLED" as any } as any)
             .eq("item_id", item.item_id);
+        }
+
+        // Calculate refund: Physical items → refund Request Date price; Digital → refund full paid amount
+        for (const item of orderItems) {
+          const cat = item.products?.product_category ?? "";
+          const lockedPrice = Number((item as any).locked_unit_price_bdt || item.unit_price_bdt);
+          // Physical add-on cancelled with payment done → refund request-date price
+          // WiFi Plan cancelled before activation → refund full amount paid
+          if (order.payment_status === "ONLINE_PAID" || order.payment_status === "PAID_COD") {
+            refundTotal += lockedPrice * item.quantity;
+          }
+        }
+      }
+
+      // Create refund record if payment was made
+      if (refundTotal > 0 && (order.payment_status === "ONLINE_PAID" || order.payment_status === "PAID_COD")) {
+        const { data: customers } = await supabase
+          .from("customers").select("customer_id").eq("full_name", order.customer_name).limit(1);
+        const customerId = customers?.[0]?.customer_id;
+        if (customerId) {
+          await supabase.from("onetime_invoices").insert({
+            customer_id: customerId,
+            trigger_type: "ACQUISITION" as any,
+            charged_amount_bdt: 0,
+            payment_status: "PAID" as any,
+            refund_amount_bdt: refundTotal,
+            refunded_at: new Date().toISOString(),
+            refund_reason: `Cancelled: ${cancelReason}${cancelNotes ? ` — ${cancelNotes}` : ""}`,
+          } as any);
         }
       }
     },
     onSuccess: () => {
       invalidateAll();
       setShowCancel(false);
-      toast.success("Order cancelled. Inventory returned to agent.");
+      toast.success("Order cancelled. Inventory returned & refund processed.");
     },
     onError: (err: any) => toast.error(err.message),
   });
 
-  // ─── Installation & Fulfillment ───
+  // ─── Price-Date Helper: Resolve active price at a given date ───
+  const resolvePrice = async (productId: string, anchorDate: Date) => {
+    const dateStr = anchorDate.toISOString();
+    const { data: pv } = await supabase
+      .from("product_price_versions")
+      .select("price_version_id, base_price_bdt")
+      .eq("product_id", productId)
+      .eq("status", true)
+      .lte("start_date", dateStr)
+      .or(`end_date.is.null,end_date.gte.${dateStr}`)
+      .order("start_date", { ascending: false })
+      .limit(1);
+    if (!pv?.length) return null;
+    const { data: components } = await supabase
+      .from("price_components")
+      .select("component_name, amount_bdt")
+      .eq("price_version_id", pv[0].price_version_id)
+      .order("sort_order");
+    const total = (components ?? []).reduce((s: number, c: any) => s + Number(c.amount_bdt), 0);
+    return { base_price_bdt: Number(pv[0].base_price_bdt), components: components ?? [], total };
+  };
+
+  // Helper: classify asset as physical or digital
+  const isPhysicalCategory = (cat: string) => ["CPE", "SIM", "ADDON"].includes(cat);
+  const isDigitalCategory = (cat: string) => ["WIFI_PLAN"].includes(cat);
+
+  // ─── Installation & Fulfillment (with Price-Date Logic) ───
   const installMutation = useMutation({
     mutationFn: async () => {
       if (!order) throw new Error("No order");
@@ -414,7 +475,6 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       if (existingAnchors?.length) {
         anchor = existingAnchors[0];
       } else {
-        // Create anchor — need customer_id from order name lookup or order items
         const { data: customers } = await supabase
           .from("customers").select("customer_id").eq("full_name", order.customer_name).limit(1);
         const customerId = customers?.[0]?.customer_id;
@@ -430,32 +490,55 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
       }
 
       const now = new Date();
+      const orderPlacedDate = new Date(order.created_at);
       let recalcTotal = 0;
 
-      // Process each order item
+      // Determine context: ACQ (new joiner) vs LC (existing customer)
+      const { data: existingServices } = await supabase
+        .from("active_services")
+        .select("service_id")
+        .eq("customer_id", anchor.customer_id)
+        .eq("service_status", "ACTIVE")
+        .limit(1);
+      const isACQ = !existingServices?.length; // No existing active services = new joiner
+
+      // Process each order item with Price-Date Logic
       for (const item of (orderItems ?? [])) {
         const cat = item.products?.product_category ?? "";
         const invId = installItems[item.item_id] || item.inventory_id;
 
+        // ── Price-Date Resolution ──
+        // Physical (CPE/SIM/Addon): price anchored to Request Placed Date
+        // Digital (WiFi Plan): price anchored to Fulfillment Date (now)
+        const priceAnchorType = isDigitalCategory(cat) ? "FULFILLMENT_DATE" : "REQUEST_DATE";
+        const priceAnchorDate = isDigitalCategory(cat) ? now : orderPlacedDate;
+        const resolvedPrice = await resolvePrice(item.product_id, priceAnchorDate);
+        const lockedPrice = resolvedPrice ? resolvedPrice.total : Number(item.unit_price_bdt);
+
+        // Update order_item with price-date metadata
+        await supabase.from("order_items").update({
+          price_anchor_type: priceAnchorType,
+          price_locked_at: priceAnchorDate.toISOString(),
+          locked_unit_price_bdt: lockedPrice,
+          fulfillment_date: now.toISOString(),
+          item_fulfillment_status: (isACQ ? "PROVISIONAL" : (isDigitalCategory(cat) ? "EARNED" : "PROVISIONAL")) as any,
+        } as any).eq("item_id", item.item_id);
+
         if (["CPE", "SIM"].includes(cat) && invId) {
-          // Get inventory details
           const { data: inv } = await supabase
             .from("inventory_master").select("*").eq("inventory_id", invId).single();
           if (!inv) continue;
 
-          // Mark inventory delivered
           await supabase.from("inventory_master")
             .update({ status: "DELIVERED" as any })
             .eq("inventory_id", invId);
 
-          // Link to order item if overridden
           if (installItems[item.item_id]) {
             await supabase.from("order_items")
               .update({ inventory_id: invId })
               .eq("item_id", item.item_id);
           }
 
-          // Create customer asset
           const assetType = cat === "CPE" ? "CPE" : cat === "SIM" ? "SIM" : "PHYSICAL_ADDON";
           const warrantyDays = WARRANTY_DAYS[assetType] ?? 365;
           await supabase.from("customer_assets").insert({
@@ -495,13 +578,14 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
           }
         }
 
-        recalcTotal += Number(item.unit_price_bdt) * item.quantity;
+        // Use locked price instead of original unit_price
+        recalcTotal += lockedPrice * item.quantity;
       }
 
       // Create active service with WiFi expiry (+1 day rule)
       const wifiItem = orderItems?.find((i: any) => i.products?.product_category === "WIFI_PLAN");
       if (wifiItem) {
-        const validityDays = 30; // Default, should come from product config
+        const validityDays = 30;
         const expiryDate = addDays(now, validityDays + 1);
         expiryDate.setHours(23, 59, 59, 999);
 
@@ -526,18 +610,31 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
         payment_status: order.payment_status === "ONLINE_PAID" ? ("PAID" as any) : ("PENDING" as any),
       });
 
-      // Update order to INSTALLED and final total if recalculated
+      // Determine fulfillment_status based on ACQ/LC context
+      // ACQ: PAID_AWAITING_INSTALLATION until CPE+SIM = INSTALLED → now all installed → EARNED
+      // LC Digital: EARNED immediately; LC Physical: PROVISIONAL until installed → now EARNED
+      const finalFulfillmentStatus = "EARNED";
+
+      // Update order to INSTALLED with fulfillment metadata
       await supabase.from("orders").update({
         order_status: "INSTALLED" as any,
         final_total_bdt: recalcTotal,
-      }).eq("order_id", orderId);
+        fulfillment_status: finalFulfillmentStatus as any,
+        price_snapshot_date: now.toISOString(),
+      } as any).eq("order_id", orderId);
+
+      // Mark all order items as EARNED now that installation is complete
+      for (const item of (orderItems ?? [])) {
+        await supabase.from("order_items").update({
+          item_fulfillment_status: "EARNED" as any,
+        } as any).eq("item_id", item.item_id);
+      }
 
       // Link current CPE inventory to active service
       const cpeItem = orderItems?.find((i: any) => i.products?.product_category === "CPE");
       if (cpeItem) {
         const cpeInvId = installItems[cpeItem.item_id] || cpeItem.inventory_id;
         if (cpeInvId) {
-          // Find the WiFi service we just created and link the CPE
           const { data: services } = await supabase
             .from("active_services")
             .select("service_id")
@@ -654,7 +751,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
     queryClient.invalidateQueries({ queryKey: ["onetime_invoices"] });
   };
 
-  const isPhysical = (category: string) => ["CPE", "SIM", "ADDON"].includes(category);
+  const isPhysical = (category: string) => isPhysicalCategory(category);
   const currentStatus = order?.order_status ?? "PENDING_DISPATCH";
   const statusIdx = STATUS_FLOW.indexOf(currentStatus as any);
   const isTerminal = currentStatus === "INSTALLED" || currentStatus === "CANCELLED";
