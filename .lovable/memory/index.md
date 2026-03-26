@@ -10,6 +10,9 @@ Enterprise telecom admin console (SupremeFlex). Inter font, slate palette, blue 
 - DB tables (Phase 2): network_zones, districts, areas, channels, sub_channels
 - DB tables (Phase 10): price_components, campaign_discount_mappings, transaction_ledger; campaign_master.campaign_rank, campaign_product_rules.applicable_components
 - Pricing: Component-based (BASE, VAT, SD + custom levies). Total = sum of components.
+- Price-Date Logic: Physical assets (CPE/SIM/Addon) use REQUEST_DATE; Digital (WiFi Plan) use FULFILLMENT_DATE
+- Fulfillment: orders.fulfillment_status + order_items.item_fulfillment_status (PAID_AWAITING_INSTALLATION→PROVISIONAL→EARNED)
+- Refunds: onetime_invoices has refund_amount_bdt, refunded_at, refund_reason columns
 - Discounts: PERCENT targets selected components; FLAT requires per-component breakdown that sums to total.
 - Transaction ledger: Immutable price+discount snapshot at fulfillment (JSONB breakdowns).
 - RLS: Authenticated read/write all (to be tightened with admin roles later)
