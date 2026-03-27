@@ -166,8 +166,12 @@ export default function AreasTab() {
 
       if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.join("\n"));
 
-      const { error } = await supabase.from("areas").insert(rows);
-      if (error) throw error;
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const { error } = await supabase.from("areas").insert(batch);
+        if (error) throw new Error(`Batch ${Math.floor(i / BATCH) + 1} failed: ${error.message}`);
+      }
 
       qc.invalidateQueries({ queryKey: ["areas"] });
       toast({ title: `${rows.length} areas uploaded`, description: errors.length ? `${errors.length} rows skipped` : undefined });
