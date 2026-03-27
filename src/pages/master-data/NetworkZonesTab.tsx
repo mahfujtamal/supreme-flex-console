@@ -232,8 +232,8 @@ export default function NetworkZonesTab() {
                     </div>
                   </TableCell>
                 </TableRow>
-              );
-            })}
+              ))}
+
           </TableBody>
         </Table>
         {totalPages > 1 && (
