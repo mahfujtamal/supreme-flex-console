@@ -16,6 +16,11 @@ import AuditLogs from "./pages/governance/AuditLogs";
 import CustomersPage from "./pages/customers/CustomersPage";
 import InvoicingPage from "./pages/invoicing/InvoicingPage";
 import AssetLifecyclePage from "./pages/assets/AssetLifecyclePage";
+import BulkInwardingPage from "./pages/inventory/BulkInwardingPage";
+import StockTransfersPage from "./pages/inventory/StockTransfersPage";
+import GpfiDashboard from "./pages/dashboards/GpfiDashboard";
+import HubManagerDashboard from "./pages/dashboards/HubManagerDashboard";
+import FieldExecutionDashboard from "./pages/dashboards/FieldExecutionDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +45,11 @@ const App = () => (
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/invoicing" element={<InvoicingPage />} />
               <Route path="/assets" element={<AssetLifecyclePage />} />
+              <Route path="/bulk-inwarding" element={<BulkInwardingPage />} />
+              <Route path="/stock-transfers" element={<StockTransfersPage />} />
+              <Route path="/gpfi-dashboard" element={<GpfiDashboard />} />
+              <Route path="/hub-manager-dashboard" element={<HubManagerDashboard />} />
+              <Route path="/field-execution" element={<FieldExecutionDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

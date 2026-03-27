@@ -10,6 +10,11 @@ import {
   Users,
   Receipt,
   HardDrive,
+  PackagePlus,
+  ArrowRightLeft,
+  Gauge,
+  Building2,
+  ScanLine,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -34,6 +39,11 @@ const navItems = [
   { title: "Customers", url: "/customers", icon: Users },
   { title: "Invoicing", url: "/invoicing", icon: Receipt },
   { title: "Asset Lifecycle", url: "/assets", icon: HardDrive },
+  { title: "Bulk Inwarding", url: "/bulk-inwarding", icon: PackagePlus },
+  { title: "Stock Transfers", url: "/stock-transfers", icon: ArrowRightLeft },
+  { title: "GPFI Dashboard", url: "/gpfi-dashboard", icon: Gauge },
+  { title: "Hub Manager", url: "/hub-manager-dashboard", icon: Building2 },
+  { title: "Field Execution", url: "/field-execution", icon: ScanLine },
   { title: "Governance", url: "/governance", icon: Shield },
   { title: "Logs", url: "/logs", icon: FileText },
 ];
