@@ -1,0 +1,7 @@
+
+ALTER TABLE public.network_zones ADD COLUMN "4g_rsrp" NUMERIC DEFAULT NULL;
+ALTER TABLE public.network_zones ADD COLUMN "4g_rsrq" NUMERIC DEFAULT NULL;
+ALTER TABLE public.network_zones ADD COLUMN "4g_snr" NUMERIC DEFAULT NULL;
+ALTER TABLE public.network_zones ADD COLUMN "5g_rsrp" NUMERIC DEFAULT NULL;
+ALTER TABLE public.network_zones ADD COLUMN "5g_rsrq" NUMERIC DEFAULT NULL;
+ALTER TABLE public.network_zones ADD COLUMN "5g_snr" NUMERIC DEFAULT NULL;
