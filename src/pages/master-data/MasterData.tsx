@@ -7,6 +7,7 @@ import SubChannelsTab from "./SubChannelsTab";
 import DistributionHousesTab from "./DistributionHousesTab";
 import FieldAgentsTab from "./FieldAgentsTab";
 import KamsTab from "./KamsTab";
+import HubManagersTab from "./HubManagersTab";
 
 export default function MasterData() {
   return (
@@ -25,6 +26,7 @@ export default function MasterData() {
           <TabsTrigger value="areas">Areas</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="sub-channels">Sub-Channels</TabsTrigger>
+          <TabsTrigger value="hub-managers">Hub Managers</TabsTrigger>
           <TabsTrigger value="dh">Distribution Houses</TabsTrigger>
           <TabsTrigger value="agents">Field Agents</TabsTrigger>
           <TabsTrigger value="kams">KAMs</TabsTrigger>
@@ -35,6 +37,7 @@ export default function MasterData() {
         <TabsContent value="areas"><AreasTab /></TabsContent>
         <TabsContent value="channels"><ChannelsTab /></TabsContent>
         <TabsContent value="sub-channels"><SubChannelsTab /></TabsContent>
+        <TabsContent value="hub-managers"><HubManagersTab /></TabsContent>
         <TabsContent value="dh"><DistributionHousesTab /></TabsContent>
         <TabsContent value="agents"><FieldAgentsTab /></TabsContent>
         <TabsContent value="kams"><KamsTab /></TabsContent>

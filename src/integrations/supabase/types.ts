@@ -830,6 +830,7 @@ export type Database = {
           agent_name: string
           created_at: string
           dh_id: string
+          hub_manager_id: string | null
           msisdn: string
           status: Database["public"]["Enums"]["agent_status"]
           updated_at: string
@@ -839,6 +840,7 @@ export type Database = {
           agent_name: string
           created_at?: string
           dh_id: string
+          hub_manager_id?: string | null
           msisdn: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
@@ -848,6 +850,7 @@ export type Database = {
           agent_name?: string
           created_at?: string
           dh_id?: string
+          hub_manager_id?: string | null
           msisdn?: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
@@ -859,6 +862,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "distribution_houses"
             referencedColumns: ["dh_id"]
+          },
+          {
+            foreignKeyName: "field_agents_hub_manager_id_fkey"
+            columns: ["hub_manager_id"]
+            isOneToOne: false
+            referencedRelation: "hub_managers"
+            referencedColumns: ["hub_manager_id"]
+          },
+        ]
+      }
+      hub_managers: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          email: string
+          hub_manager_id: string
+          msisdn: string
+          name: string
+          status: string
+          sub_channel_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          email: string
+          hub_manager_id?: string
+          msisdn: string
+          name: string
+          status?: string
+          sub_channel_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          email?: string
+          hub_manager_id?: string
+          msisdn?: string
+          name?: string
+          status?: string
+          sub_channel_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_managers_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "hub_managers_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sub_channels"
+            referencedColumns: ["sub_channel_id"]
           },
         ]
       }
@@ -874,6 +935,7 @@ export type Database = {
           product_id: string
           serial_number: string | null
           status: Database["public"]["Enums"]["inventory_status"]
+          stock_type: Database["public"]["Enums"]["stock_type"] | null
           updated_at: string
         }
         Insert: {
@@ -887,6 +949,7 @@ export type Database = {
           product_id: string
           serial_number?: string | null
           status?: Database["public"]["Enums"]["inventory_status"]
+          stock_type?: Database["public"]["Enums"]["stock_type"] | null
           updated_at?: string
         }
         Update: {
@@ -900,6 +963,7 @@ export type Database = {
           product_id?: string
           serial_number?: string | null
           status?: Database["public"]["Enums"]["inventory_status"]
+          stock_type?: Database["public"]["Enums"]["stock_type"] | null
           updated_at?: string
         }
         Relationships: [
@@ -916,6 +980,7 @@ export type Database = {
         Row: {
           assigned_segments: string[]
           created_at: string
+          hub_manager_id: string | null
           kam_id: string
           msisdn: string
           name: string
@@ -925,6 +990,7 @@ export type Database = {
         Insert: {
           assigned_segments?: string[]
           created_at?: string
+          hub_manager_id?: string | null
           kam_id: string
           msisdn: string
           name: string
@@ -934,13 +1000,22 @@ export type Database = {
         Update: {
           assigned_segments?: string[]
           created_at?: string
+          hub_manager_id?: string | null
           kam_id?: string
           msisdn?: string
           name?: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kams_hub_manager_id_fkey"
+            columns: ["hub_manager_id"]
+            isOneToOne: false
+            referencedRelation: "hub_managers"
+            referencedColumns: ["hub_manager_id"]
+          },
+        ]
       }
       network_zones: {
         Row: {
@@ -1609,6 +1684,56 @@ export type Database = {
           },
         ]
       }
+      stock_transfers: {
+        Row: {
+          created_at: string
+          from_entity_id: string
+          from_entity_type: string
+          inventory_id: string
+          notes: string | null
+          requested_at: string
+          responded_at: string | null
+          to_entity_id: string
+          to_entity_type: string
+          transfer_id: string
+          transfer_status: Database["public"]["Enums"]["transfer_status"]
+        }
+        Insert: {
+          created_at?: string
+          from_entity_id: string
+          from_entity_type: string
+          inventory_id: string
+          notes?: string | null
+          requested_at?: string
+          responded_at?: string | null
+          to_entity_id: string
+          to_entity_type: string
+          transfer_id?: string
+          transfer_status?: Database["public"]["Enums"]["transfer_status"]
+        }
+        Update: {
+          created_at?: string
+          from_entity_id?: string
+          from_entity_type?: string
+          inventory_id?: string
+          notes?: string | null
+          requested_at?: string
+          responded_at?: string | null
+          to_entity_id?: string
+          to_entity_type?: string
+          transfer_id?: string
+          transfer_status?: Database["public"]["Enums"]["transfer_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_transfers_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_master"
+            referencedColumns: ["inventory_id"]
+          },
+        ]
+      }
       sub_channel_users: {
         Row: {
           created_at: string
@@ -1658,6 +1783,7 @@ export type Database = {
           channel_id: string
           created_at: string
           delivery_ownership: Database["public"]["Enums"]["delivery_ownership_mode"]
+          is_direct_delivery: boolean
           status: boolean
           sub_channel_id: string
           sub_channel_name: string
@@ -1667,6 +1793,7 @@ export type Database = {
           channel_id: string
           created_at?: string
           delivery_ownership?: Database["public"]["Enums"]["delivery_ownership_mode"]
+          is_direct_delivery?: boolean
           status?: boolean
           sub_channel_id?: string
           sub_channel_name: string
@@ -1676,6 +1803,7 @@ export type Database = {
           channel_id?: string
           created_at?: string
           delivery_ownership?: Database["public"]["Enums"]["delivery_ownership_mode"]
+          is_direct_delivery?: boolean
           status?: boolean
           sub_channel_id?: string
           sub_channel_name?: string
@@ -1867,6 +1995,9 @@ export type Database = {
         | "WITH_AGENT"
         | "DELIVERED"
         | "DEFECTIVE"
+        | "IN_GPFI_STAGING"
+        | "WITH_HUB_MANAGER"
+        | "WITH_FIELD_STAFF"
       invoice_payment_status: "PENDING" | "PAID"
       invoice_trigger_type: "ACQUISITION" | "CPE_CHANGE" | "PHYSICAL_ADDON"
       network_capability: "4G" | "5G" | "BOTH" | "ANY"
@@ -1899,7 +2030,9 @@ export type Database = {
       replacement_reason: "WARRANTY" | "PAID" | "UPGRADE"
       reward_status: "PENDING_ACTIVATION" | "REWARD_APPLIED" | "FAILED"
       service_status: "ACTIVE" | "SUSPENDED"
+      stock_type: "GPFI_STAGING" | "SWAP_BUFFER_STOCK" | "SALES_STOCK"
       test_status: "PENDING" | "SUCCESS" | "FAIL"
+      transfer_status: "PENDING" | "ACCEPTED" | "REJECTED"
       warranty_unit: "DAYS" | "MONTHS" | "YEARS"
     }
     CompositeTypes: {
@@ -2075,6 +2208,9 @@ export const Constants = {
         "WITH_AGENT",
         "DELIVERED",
         "DEFECTIVE",
+        "IN_GPFI_STAGING",
+        "WITH_HUB_MANAGER",
+        "WITH_FIELD_STAFF",
       ],
       invoice_payment_status: ["PENDING", "PAID"],
       invoice_trigger_type: ["ACQUISITION", "CPE_CHANGE", "PHYSICAL_ADDON"],
@@ -2111,7 +2247,9 @@ export const Constants = {
       replacement_reason: ["WARRANTY", "PAID", "UPGRADE"],
       reward_status: ["PENDING_ACTIVATION", "REWARD_APPLIED", "FAILED"],
       service_status: ["ACTIVE", "SUSPENDED"],
+      stock_type: ["GPFI_STAGING", "SWAP_BUFFER_STOCK", "SALES_STOCK"],
       test_status: ["PENDING", "SUCCESS", "FAIL"],
+      transfer_status: ["PENDING", "ACCEPTED", "REJECTED"],
       warranty_unit: ["DAYS", "MONTHS", "YEARS"],
     },
   },
