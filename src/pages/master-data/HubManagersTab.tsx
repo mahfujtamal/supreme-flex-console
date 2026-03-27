@@ -212,7 +212,7 @@ export default function HubManagersTab() {
                 <SelectContent>
                   <SelectItem value="dh">Distribution House</SelectItem>
                   <SelectItem value="sub_channel">Sub-Channel (Direct Delivery)</SelectItem>
-                  <SelectItem value="channel">Channel (B2B Central)</SelectItem>
+                  <SelectItem value="b2b">B2B Central (assigns to KAMs)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -231,16 +231,8 @@ export default function HubManagersTab() {
                 </Select>
               </div>
             )}
-            {assignmentType === "channel" && (
-              <div className="space-y-2">
-                <Label>Channel</Label>
-                <Select value={channelId} onValueChange={setChannelId}>
-                  <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
-                  <SelectContent>
-                    {channels?.map((c: any) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            {assignmentType === "b2b" && (
+              <p className="text-sm text-muted-foreground">This hub manager will directly assign assets to KAMs.</p>
             )}
             {assignmentType === "sub_channel" && (
               <div className="space-y-2">
