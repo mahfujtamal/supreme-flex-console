@@ -1,0 +1,1 @@
+ALTER TABLE public.hub_managers ADD COLUMN dh_id uuid REFERENCES public.distribution_houses(dh_id) ON DELETE SET NULL;

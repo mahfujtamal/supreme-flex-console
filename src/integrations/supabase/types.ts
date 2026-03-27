@@ -967,6 +967,7 @@ export type Database = {
         Row: {
           channel_id: string | null
           created_at: string
+          dh_id: string | null
           email: string
           hub_manager_id: string
           msisdn: string
@@ -978,6 +979,7 @@ export type Database = {
         Insert: {
           channel_id?: string | null
           created_at?: string
+          dh_id?: string | null
           email: string
           hub_manager_id?: string
           msisdn: string
@@ -989,6 +991,7 @@ export type Database = {
         Update: {
           channel_id?: string | null
           created_at?: string
+          dh_id?: string | null
           email?: string
           hub_manager_id?: string
           msisdn?: string
@@ -1004,6 +1007,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["channel_id"]
+          },
+          {
+            foreignKeyName: "hub_managers_dh_id_fkey"
+            columns: ["dh_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_houses"
+            referencedColumns: ["dh_id"]
           },
           {
             foreignKeyName: "hub_managers_sub_channel_id_fkey"
