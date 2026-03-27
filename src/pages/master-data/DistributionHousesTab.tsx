@@ -50,7 +50,7 @@ export default function DistributionHousesTab() {
   const qc = useQueryClient();
 
   // Lookups
-  const { data: allAreas } = useQuery({ queryKey: ["all_areas_lookup"], queryFn: async () => { const { data } = await supabase.from("areas").select("area_id, area_name").eq("status", true); return data ?? []; } });
+  const { data: allAreas } = useQuery({ queryKey: ["all_areas_lookup"], queryFn: async () => { const all: any[] = []; let from = 0; const PAGE = 1000; while (true) { const { data } = await supabase.from("areas").select("area_id, area_name").eq("status", true).order("area_name").range(from, from + PAGE - 1); if (!data || data.length === 0) break; all.push(...data); if (data.length < PAGE) break; from += PAGE; } return all; } });
   const { data: circles } = useQuery({ queryKey: ["circles_lookup"], queryFn: async () => { const { data } = await (supabase as any).from("circles").select("circle_id, circle_name").eq("status", true); return (data ?? []) as any[]; } });
   const { data: regions } = useQuery({ queryKey: ["regions_lookup", circleId], queryFn: async () => { let q = (supabase as any).from("regions").select("region_id, region_name").eq("status", true); if (circleId) q = q.eq("circle_id", circleId); const { data } = await q; return (data ?? []) as any[]; } });
   const { data: clusters } = useQuery({ queryKey: ["clusters_lookup", regionId], queryFn: async () => { let q = (supabase as any).from("clusters").select("cluster_id, cluster_name").eq("status", true); if (regionId) q = q.eq("region_id", regionId); const { data } = await q; return (data ?? []) as any[]; } });
@@ -140,8 +140,8 @@ export default function DistributionHousesTab() {
       // Build lookup maps
       const { data: allTerr } = await (supabase as any).from("territories").select("territory_id, territory_name");
       const terrMap = new Map((allTerr ?? []).map((t: any) => [t.territory_name.toLowerCase(), t.territory_id]));
-      const { data: allAreasData } = await supabase.from("areas").select("area_id, area_name");
-      const areaMap = new Map((allAreasData ?? []).map((a: any) => [a.area_name.toLowerCase(), a.area_id]));
+      const allAreasData: any[] = []; let aFrom = 0; while (true) { const { data: pg } = await supabase.from("areas").select("area_id, area_name").range(aFrom, aFrom + 999); if (!pg || pg.length === 0) break; allAreasData.push(...pg); if (pg.length < 1000) break; aFrom += 1000; }
+      const areaMap = new Map(allAreasData.map((a: any) => [a.area_name.toLowerCase(), a.area_id]));
 
       const dhRows: any[] = [];
       const areaLinks: { dhCode: string; areaIds: string[] }[] = [];
