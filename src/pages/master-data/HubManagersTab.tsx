@@ -78,7 +78,7 @@ export default function HubManagersTab() {
         name: name.trim(),
         email: email.trim(),
         msisdn: msisdn.trim(),
-        channel_id: assignmentType === "channel" ? channelId : null,
+        channel_id: null,
         sub_channel_id: assignmentType === "sub_channel" ? subChannelId : null,
         dh_id: assignmentType === "dh" ? dhId : null,
       };
@@ -115,7 +115,7 @@ export default function HubManagersTab() {
   const canSave = name.trim() && email.trim() && msisdn.trim() && (
     assignmentType === "dh" ? dhId :
     assignmentType === "sub_channel" ? subChannelId :
-    channelId
+    true
   );
 
   const getAssignmentLabel = (hm: any) => {
@@ -125,8 +125,8 @@ export default function HubManagersTab() {
     if (hm.sub_channels?.sub_channel_name) {
       return <Badge variant="default" className="text-xs">Sub-Ch: {hm.sub_channels.sub_channel_name}</Badge>;
     }
-    if (hm.channels?.channel_name) {
-      return <Badge variant="secondary" className="text-xs">B2B: {hm.channels.channel_name}</Badge>;
+    if (!hm.distribution_houses && !hm.sub_channels?.sub_channel_name) {
+      if (hm.channel_id || assignmentType === "b2b") return <Badge variant="secondary" className="text-xs">B2B Central</Badge>;
     }
     return <span className="text-muted-foreground text-sm">—</span>;
   };
