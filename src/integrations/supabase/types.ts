@@ -208,6 +208,7 @@ export type Database = {
           district_id: string
           is_4g_area: boolean
           is_5g_area: boolean
+          last_assigned_dh_index: number
           network_zone_id: string
           status: boolean
           updated_at: string
@@ -219,6 +220,7 @@ export type Database = {
           district_id: string
           is_4g_area?: boolean
           is_5g_area?: boolean
+          last_assigned_dh_index?: number
           network_zone_id: string
           status?: boolean
           updated_at?: string
@@ -230,6 +232,7 @@ export type Database = {
           district_id?: string
           is_4g_area?: boolean
           is_5g_area?: boolean
+          last_assigned_dh_index?: number
           network_zone_id?: string
           status?: boolean
           updated_at?: string
@@ -808,61 +811,77 @@ export type Database = {
         }
         Relationships: []
       }
-      distribution_houses: {
+      dh_area_assignments: {
         Row: {
-          area_id: string | null
+          area_id: string
           created_at: string
-          dh_code: string
           dh_id: string
-          district_id: string | null
-          last_assigned_at: string | null
-          name: string
-          phone_number: string | null
-          status: Database["public"]["Enums"]["dh_status"]
-          territory_id: string | null
-          updated_at: string
+          id: string
         }
         Insert: {
-          area_id?: string | null
+          area_id: string
           created_at?: string
-          dh_code: string
-          dh_id?: string
-          district_id?: string | null
-          last_assigned_at?: string | null
-          name: string
-          phone_number?: string | null
-          status?: Database["public"]["Enums"]["dh_status"]
-          territory_id?: string | null
-          updated_at?: string
+          dh_id: string
+          id?: string
         }
         Update: {
-          area_id?: string | null
+          area_id?: string
           created_at?: string
-          dh_code?: string
           dh_id?: string
-          district_id?: string | null
-          last_assigned_at?: string | null
-          name?: string
-          phone_number?: string | null
-          status?: Database["public"]["Enums"]["dh_status"]
-          territory_id?: string | null
-          updated_at?: string
+          id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "distribution_houses_area_id_fkey"
+            foreignKeyName: "dh_area_assignments_area_id_fkey"
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
             referencedColumns: ["area_id"]
           },
           {
-            foreignKeyName: "distribution_houses_district_id_fkey"
-            columns: ["district_id"]
+            foreignKeyName: "dh_area_assignments_dh_id_fkey"
+            columns: ["dh_id"]
             isOneToOne: false
-            referencedRelation: "districts"
-            referencedColumns: ["district_id"]
+            referencedRelation: "distribution_houses"
+            referencedColumns: ["dh_id"]
           },
+        ]
+      }
+      distribution_houses: {
+        Row: {
+          created_at: string
+          dh_code: string
+          dh_id: string
+          last_assigned_at: string | null
+          name: string
+          phone_number: string | null
+          status: Database["public"]["Enums"]["dh_status"]
+          territory_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dh_code: string
+          dh_id?: string
+          last_assigned_at?: string | null
+          name: string
+          phone_number?: string | null
+          status?: Database["public"]["Enums"]["dh_status"]
+          territory_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dh_code?: string
+          dh_id?: string
+          last_assigned_at?: string | null
+          name?: string
+          phone_number?: string | null
+          status?: Database["public"]["Enums"]["dh_status"]
+          territory_id?: string
+          updated_at?: string
+        }
+        Relationships: [
           {
             foreignKeyName: "distribution_houses_territory_id_fkey"
             columns: ["territory_id"]
