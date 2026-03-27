@@ -224,7 +224,21 @@ export default function DistributionHousesTab() {
     setDhCode(item.dh_code);
     setName(item.name);
     setPhoneNumber(item.phone_number ?? "");
-    setTerritoryId(item.territory_id ?? "");
+    const tId = item.territory_id ?? "";
+    setTerritoryId(tId);
+    // Resolve geography hierarchy: territory → cluster → region → circle
+    if (tId) {
+      const { data: terr } = await (supabase as any).from("territories").select("cluster_id").eq("territory_id", tId).single();
+      if (terr?.cluster_id) {
+        setClusterId(terr.cluster_id);
+        const { data: cl } = await (supabase as any).from("clusters").select("region_id").eq("cluster_id", terr.cluster_id).single();
+        if (cl?.region_id) {
+          setRegionId(cl.region_id);
+          const { data: rg } = await (supabase as any).from("regions").select("circle_id").eq("region_id", cl.region_id).single();
+          if (rg?.circle_id) setCircleId(rg.circle_id);
+        }
+      }
+    }
     // Load area assignments
     const { data: aa } = await (supabase as any).from("dh_area_assignments").select("area_id").eq("dh_id", item.dh_id);
     setSelectedAreaIds((aa ?? []).map((a: any) => a.area_id));
