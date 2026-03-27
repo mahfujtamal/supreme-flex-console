@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 const ALL_VALUE = "__ALL__";
 
@@ -29,6 +30,7 @@ export function MultiSelectDropdown({
   disabled = false,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   const isAll = selected.includes(ALL_VALUE);
@@ -82,38 +84,52 @@ export function MultiSelectDropdown({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-56 overflow-y-auto animate-in fade-in-0 zoom-in-95">
-          {/* ALL option */}
-          <label className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent border-b">
-            <Checkbox
-              checked={isAll}
-              onCheckedChange={toggleAll}
-              className="h-3.5 w-3.5"
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-64 animate-in fade-in-0 zoom-in-95">
+          {/* Search input */}
+          <div className="flex items-center border-b px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              onClick={(e) => e.stopPropagation()}
             />
-            <span className="text-sm font-medium">{allLabel}</span>
-          </label>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {/* ALL option */}
+            {!searchTerm && (
+              <label className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent border-b">
+                <Checkbox checked={isAll} onCheckedChange={toggleAll} className="h-3.5 w-3.5" />
+                <span className="text-sm font-medium">{allLabel}</span>
+              </label>
+            )}
 
-          {options.map((opt) => (
-            <label
-              key={opt.value}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-accent text-sm",
-                isAll && "opacity-40 pointer-events-none"
-              )}
-            >
-              <Checkbox
-                checked={isAll || selected.includes(opt.value)}
-                onCheckedChange={() => toggleItem(opt.value)}
-                disabled={isAll}
-                className="h-3.5 w-3.5"
-              />
-              <span>{opt.label}</span>
-            </label>
-          ))}
+            {options
+              .filter((opt) => !searchTerm || opt.label.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map((opt) => (
+                <label
+                  key={opt.value}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-accent text-sm",
+                    isAll && "opacity-40 pointer-events-none"
+                  )}
+                >
+                  <Checkbox
+                    checked={isAll || selected.includes(opt.value)}
+                    onCheckedChange={() => toggleItem(opt.value)}
+                    disabled={isAll}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
 
-          {!options.length && (
-            <p className="text-xs text-muted-foreground px-3 py-2">No options</p>
-          )}
+            {!options.filter((opt) => !searchTerm || opt.label.toLowerCase().includes(searchTerm.toLowerCase())).length && (
+              <p className="text-xs text-muted-foreground px-3 py-2">No options</p>
+            )}
+          </div>
         </div>
       )}
     </div>
