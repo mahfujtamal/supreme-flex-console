@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Upload, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,11 +62,27 @@ function useGeoTable(table: string, idCol: string) {
   return { data: data ?? [], isLoading, save, toggleStatus };
 }
 
+function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative w-64">
+      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Input placeholder="Search..." value={value} onChange={e => onChange(e.target.value)} className="pl-8 h-9" />
+    </div>
+  );
+}
+
 function CirclesSection() {
   const { data, isLoading, save, toggleStatus } = useGeoTable("circles", "circle_id");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter((c: any) => c.circle_name?.toLowerCase().includes(q));
+  }, [data, search]);
 
   const close = () => { setOpen(false); setEditId(null); setName(""); };
   const openEdit = (item: any) => { setEditId(item.circle_id); setName(item.circle_name); setOpen(true); };
@@ -77,13 +93,14 @@ function CirclesSection() {
         <h3 className="text-sm font-medium">Circles</h3>
         <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Circle</Button>
       </div>
+      <SearchInput value={search} onChange={setSearch} />
       <div className="border rounded-lg bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="w-[80px]">Status</TableHead><TableHead className="w-[60px]" /></TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Loading...</TableCell></TableRow>
-              : !data.length ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">No circles yet.</TableCell></TableRow>
-              : data.map((c: any) => (
+              : !filtered.length ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">{search ? "No matches found." : "No circles yet."}</TableCell></TableRow>
+              : filtered.map((c: any) => (
                 <TableRow key={c.circle_id}>
                   <TableCell className="font-medium">{c.circle_name}</TableCell>
                   <TableCell><Badge variant={c.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: c.circle_id, status: c.status })}>{c.status ? "Active" : "Inactive"}</Badge></TableCell>
@@ -116,6 +133,16 @@ function RegionsSection() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [circleId, setCircleId] = useState("");
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter((r: any) => {
+      const circleName = circles?.find((c: any) => c.circle_id === r.circle_id)?.circle_name ?? "";
+      return r.region_name?.toLowerCase().includes(q) || circleName.toLowerCase().includes(q);
+    });
+  }, [data, search, circles]);
 
   const close = () => { setOpen(false); setEditId(null); setName(""); setCircleId(""); };
   const openEdit = (item: any) => { setEditId(item.region_id); setName(item.region_name); setCircleId(item.circle_id); setOpen(true); };
@@ -126,13 +153,14 @@ function RegionsSection() {
         <h3 className="text-sm font-medium">Regions</h3>
         <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Region</Button>
       </div>
+      <SearchInput value={search} onChange={setSearch} />
       <div className="border rounded-lg bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Circle</TableHead><TableHead className="w-[80px]">Status</TableHead><TableHead className="w-[60px]" /></TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Loading...</TableCell></TableRow>
-              : !data.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No regions yet.</TableCell></TableRow>
-              : data.map((r: any) => (
+              : !filtered.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">{search ? "No matches found." : "No regions yet."}</TableCell></TableRow>
+              : filtered.map((r: any) => (
                 <TableRow key={r.region_id}>
                   <TableCell className="font-medium">{r.region_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{circles?.find((c: any) => c.circle_id === r.circle_id)?.circle_name ?? "—"}</TableCell>
@@ -178,6 +206,16 @@ function ClustersSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter((c: any) => {
+      const regionName = regions?.find((r: any) => r.region_id === c.region_id)?.region_name ?? "";
+      return c.cluster_name?.toLowerCase().includes(q) || regionName.toLowerCase().includes(q);
+    });
+  }, [data, search, regions]);
 
   const close = () => { setOpen(false); setEditId(null); setName(""); setRegionId(""); };
   const openEdit = (item: any) => { setEditId(item.cluster_id); setName(item.cluster_name); setRegionId(item.region_id); setOpen(true); };
@@ -241,13 +279,14 @@ function ClustersSection() {
           <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Cluster</Button>
         </div>
       </div>
+      <SearchInput value={search} onChange={setSearch} />
       <div className="border rounded-lg bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Region</TableHead><TableHead className="w-[80px]">Status</TableHead><TableHead className="w-[60px]" /></TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Loading...</TableCell></TableRow>
-              : !data.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No clusters yet.</TableCell></TableRow>
-              : data.map((c: any) => (
+              : !filtered.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">{search ? "No matches found." : "No clusters yet."}</TableCell></TableRow>
+              : filtered.map((c: any) => (
                 <TableRow key={c.cluster_id}>
                   <TableCell className="font-medium">{c.cluster_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{regions?.find((r: any) => r.region_id === c.region_id)?.region_name ?? "—"}</TableCell>
@@ -293,6 +332,16 @@ function TerritoriesSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter((t: any) => {
+      const clusterName = clusters?.find((c: any) => c.cluster_id === t.cluster_id)?.cluster_name ?? "";
+      return t.territory_name?.toLowerCase().includes(q) || clusterName.toLowerCase().includes(q);
+    });
+  }, [data, search, clusters]);
 
   const close = () => { setOpen(false); setEditId(null); setName(""); setClusterId(""); };
   const openEdit = (item: any) => { setEditId(item.territory_id); setName(item.territory_name); setClusterId(item.cluster_id); setOpen(true); };
@@ -356,13 +405,14 @@ function TerritoriesSection() {
           <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Territory</Button>
         </div>
       </div>
+      <SearchInput value={search} onChange={setSearch} />
       <div className="border rounded-lg bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Cluster</TableHead><TableHead className="w-[80px]">Status</TableHead><TableHead className="w-[60px]" /></TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Loading...</TableCell></TableRow>
-              : !data.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No territories yet.</TableCell></TableRow>
-              : data.map((t: any) => (
+              : !filtered.length ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">{search ? "No matches found." : "No territories yet."}</TableCell></TableRow>
+              : filtered.map((t: any) => (
                 <TableRow key={t.territory_id}>
                   <TableCell className="font-medium">{t.territory_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{clusters?.find((c: any) => c.cluster_id === t.cluster_id)?.cluster_name ?? "—"}</TableCell>
