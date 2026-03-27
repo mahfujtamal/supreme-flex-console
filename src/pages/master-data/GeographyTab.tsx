@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,15 +174,72 @@ function ClustersSection() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [regionId, setRegionId] = useState("");
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
   const close = () => { setOpen(false); setEditId(null); setName(""); setRegionId(""); };
   const openEdit = (item: any) => { setEditId(item.cluster_id); setName(item.cluster_name); setRegionId(item.region_id); setOpen(true); };
+
+  const downloadTemplate = () => {
+    const csv = "cluster_name,region_name\nCluster A,Region X\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "clusters_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("CSV must have a header and at least one data row.");
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const nameIdx = header.indexOf("cluster_name");
+      const regIdx = header.indexOf("region_name");
+      if (nameIdx < 0 || regIdx < 0) throw new Error("CSV must have columns: cluster_name, region_name");
+      const regMap = new Map((regions ?? []).map((r: any) => [r.region_name.toLowerCase(), r.region_id]));
+      const rows: any[] = [];
+      const errors: string[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim());
+        const cName = cols[nameIdx];
+        const rName = cols[regIdx];
+        if (!cName) { errors.push(`Row ${i + 1}: missing cluster_name`); continue; }
+        const rId = regMap.get(rName?.toLowerCase());
+        if (!rId) { errors.push(`Row ${i + 1}: region "${rName}" not found`); continue; }
+        rows.push({ cluster_name: cName, region_id: rId });
+      }
+      if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.join("\n"));
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await (supabase as any).from("clusters").insert(rows.slice(i, i + BATCH));
+        if (error) throw error;
+      }
+      qc.invalidateQueries({ queryKey: ["clusters"] });
+      toast({ title: `${rows.length} clusters uploaded`, description: errors.length ? `${errors.length} rows skipped` : undefined });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-medium">Clusters</h3>
-        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Cluster</Button>
+        <div className="flex gap-2">
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkUpload} />
+          <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1" />Template</Button>
+          <Button variant="outline" size="sm" disabled={bulkUploading} onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1" />{bulkUploading ? "Uploading..." : "Bulk Upload"}</Button>
+          <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Cluster</Button>
+        </div>
       </div>
       <div className="border rounded-lg bg-card">
         <Table>
@@ -232,15 +289,72 @@ function TerritoriesSection() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [clusterId, setClusterId] = useState("");
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
   const close = () => { setOpen(false); setEditId(null); setName(""); setClusterId(""); };
   const openEdit = (item: any) => { setEditId(item.territory_id); setName(item.territory_name); setClusterId(item.cluster_id); setOpen(true); };
+
+  const downloadTemplate = () => {
+    const csv = "territory_name,cluster_name\nTerritory A,Cluster X\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "territories_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("CSV must have a header and at least one data row.");
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const nameIdx = header.indexOf("territory_name");
+      const clusIdx = header.indexOf("cluster_name");
+      if (nameIdx < 0 || clusIdx < 0) throw new Error("CSV must have columns: territory_name, cluster_name");
+      const clusMap = new Map((clusters ?? []).map((c: any) => [c.cluster_name.toLowerCase(), c.cluster_id]));
+      const rows: any[] = [];
+      const errors: string[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim());
+        const tName = cols[nameIdx];
+        const cName = cols[clusIdx];
+        if (!tName) { errors.push(`Row ${i + 1}: missing territory_name`); continue; }
+        const cId = clusMap.get(cName?.toLowerCase());
+        if (!cId) { errors.push(`Row ${i + 1}: cluster "${cName}" not found`); continue; }
+        rows.push({ territory_name: tName, cluster_id: cId });
+      }
+      if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.join("\n"));
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await (supabase as any).from("territories").insert(rows.slice(i, i + BATCH));
+        if (error) throw error;
+      }
+      qc.invalidateQueries({ queryKey: ["territories"] });
+      toast({ title: `${rows.length} territories uploaded`, description: errors.length ? `${errors.length} rows skipped` : undefined });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-medium">Territories</h3>
-        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Territory</Button>
+        <div className="flex gap-2">
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkUpload} />
+          <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1" />Template</Button>
+          <Button variant="outline" size="sm" disabled={bulkUploading} onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1" />{bulkUploading ? "Uploading..." : "Bulk Upload"}</Button>
+          <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Territory</Button>
+        </div>
       </div>
       <div className="border rounded-lg bg-card">
         <Table>
