@@ -265,6 +265,13 @@ export default function SubChannelsTab() {
                 {deliveryOwnership === "FOLLOW_CHANNEL" ? "Inherits delivery model from parent channel" : deliveryOwnership === "SELF_DELIVERY" ? "Orders dispatched to this sub-channel's own agents" : "Orders dispatched via DH round-robin"}
               </p>
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="is_direct_delivery">Direct Delivery?</Label>
+                <p className="text-xs text-muted-foreground">Allows a Hub Manager at sub-channel level</p>
+              </div>
+              <Switch id="is_direct_delivery" checked={isDirectDelivery} onCheckedChange={setIsDirectDelivery} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
