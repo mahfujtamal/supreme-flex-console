@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
-type AssignmentType = "dh" | "sub_channel" | "channel";
+type AssignmentType = "dh" | "sub_channel" | "b2b";
 
 export default function HubManagersTab() {
   const [page, setPage] = useState(0);
@@ -78,7 +78,7 @@ export default function HubManagersTab() {
         name: name.trim(),
         email: email.trim(),
         msisdn: msisdn.trim(),
-        channel_id: assignmentType === "channel" ? channelId : null,
+        channel_id: null,
         sub_channel_id: assignmentType === "sub_channel" ? subChannelId : null,
         dh_id: assignmentType === "dh" ? dhId : null,
       };
@@ -107,7 +107,7 @@ export default function HubManagersTab() {
     setEditId(item.hub_manager_id); setName(item.name); setEmail(item.email); setMsisdn(item.msisdn);
     if (item.dh_id) { setAssignmentType("dh"); setDhId(item.dh_id); setChannelId(""); setSubChannelId(""); }
     else if (item.sub_channel_id) { setAssignmentType("sub_channel"); setSubChannelId(item.sub_channel_id); setChannelId(""); setDhId(""); }
-    else { setAssignmentType("channel"); setChannelId(item.channel_id ?? ""); setSubChannelId(""); setDhId(""); }
+    else { setAssignmentType("b2b"); setChannelId(""); setSubChannelId(""); setDhId(""); }
     setOpen(true);
   };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
@@ -115,7 +115,7 @@ export default function HubManagersTab() {
   const canSave = name.trim() && email.trim() && msisdn.trim() && (
     assignmentType === "dh" ? dhId :
     assignmentType === "sub_channel" ? subChannelId :
-    channelId
+    true
   );
 
   const getAssignmentLabel = (hm: any) => {
@@ -125,8 +125,8 @@ export default function HubManagersTab() {
     if (hm.sub_channels?.sub_channel_name) {
       return <Badge variant="default" className="text-xs">Sub-Ch: {hm.sub_channels.sub_channel_name}</Badge>;
     }
-    if (hm.channels?.channel_name) {
-      return <Badge variant="secondary" className="text-xs">B2B: {hm.channels.channel_name}</Badge>;
+    if (!hm.dh_id && !hm.sub_channel_id) {
+      return <Badge variant="secondary" className="text-xs">B2B Central</Badge>;
     }
     return <span className="text-muted-foreground text-sm">—</span>;
   };
@@ -212,7 +212,7 @@ export default function HubManagersTab() {
                 <SelectContent>
                   <SelectItem value="dh">Distribution House</SelectItem>
                   <SelectItem value="sub_channel">Sub-Channel (Direct Delivery)</SelectItem>
-                  <SelectItem value="channel">Channel (B2B Central)</SelectItem>
+                  <SelectItem value="b2b">B2B Central (assigns to KAMs)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -231,16 +231,8 @@ export default function HubManagersTab() {
                 </Select>
               </div>
             )}
-            {assignmentType === "channel" && (
-              <div className="space-y-2">
-                <Label>Channel</Label>
-                <Select value={channelId} onValueChange={setChannelId}>
-                  <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
-                  <SelectContent>
-                    {channels?.map((c: any) => <SelectItem key={c.channel_id} value={c.channel_id}>{c.channel_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            {assignmentType === "b2b" && (
+              <p className="text-sm text-muted-foreground">This hub manager will directly assign assets to KAMs.</p>
             )}
             {assignmentType === "sub_channel" && (
               <div className="space-y-2">
