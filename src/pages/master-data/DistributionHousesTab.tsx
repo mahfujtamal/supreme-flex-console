@@ -31,6 +31,7 @@ export default function DistributionHousesTab() {
   const [editSnapshot, setEditSnapshot] = useState<any>(null);
   const [dhCode, setDhCode] = useState("");
   const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [districtId, setDistrictId] = useState("");
   const [areaId, setAreaId] = useState("");
   // Geography cascading
@@ -70,7 +71,7 @@ export default function DistributionHousesTab() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload: any = { dh_code: dhCode.trim(), name: name.trim(), district_id: districtId || null, area_id: areaId || null, territory_id: territoryId || null };
+      const payload: any = { dh_code: dhCode.trim(), name: name.trim(), phone_number: phoneNumber.trim() || null, district_id: districtId || null, area_id: areaId || null, territory_id: territoryId || null };
       if (editId) {
         const { error } = await supabase.from("distribution_houses").update(payload).eq("dh_id", editId);
         if (error) throw error;
@@ -119,8 +120,8 @@ export default function DistributionHousesTab() {
     setCsvErrors(errors); setCsvRows(rows);
   };
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setEditSnapshot(null); setDhCode(""); setName(""); setDistrictId(""); setAreaId(""); setCircleId(""); setRegionId(""); setClusterId(""); setTerritoryId(""); };
-  const openEdit = (item: any) => { setEditId(item.dh_id); setEditSnapshot({ dh_code: item.dh_code, name: item.name, district_id: item.district_id, area_id: item.area_id, territory_id: item.territory_id }); setDhCode(item.dh_code); setName(item.name); setDistrictId(item.district_id ?? ""); setAreaId(item.area_id ?? ""); setTerritoryId(item.territory_id ?? ""); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setEditSnapshot(null); setDhCode(""); setName(""); setPhoneNumber(""); setDistrictId(""); setAreaId(""); setCircleId(""); setRegionId(""); setClusterId(""); setTerritoryId(""); };
+  const openEdit = (item: any) => { setEditId(item.dh_id); setEditSnapshot({ dh_code: item.dh_code, name: item.name, phone_number: item.phone_number, district_id: item.district_id, area_id: item.area_id, territory_id: item.territory_id }); setDhCode(item.dh_code); setName(item.name); setPhoneNumber(item.phone_number ?? ""); setDistrictId(item.district_id ?? ""); setAreaId(item.area_id ?? ""); setTerritoryId(item.territory_id ?? ""); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
   const canSave = dhCode.trim() && name.trim();
 
@@ -143,6 +144,7 @@ export default function DistributionHousesTab() {
             <TableRow>
               <TableHead>DH Code</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Phone</TableHead>
               <TableHead>District</TableHead>
               <TableHead>Area</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
@@ -152,13 +154,14 @@ export default function DistributionHousesTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No distribution houses found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No distribution houses found.</TableCell></TableRow>
             ) : data.items.map((d: any) => (
               <TableRow key={d.dh_id}>
                 <TableCell className="font-mono text-sm">{d.dh_code}</TableCell>
                 <TableCell className="font-medium">{d.name}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{d.phone_number ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{d.districts?.district_name ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{d.areas?.area_name ?? "—"}</TableCell>
                 <TableCell>
@@ -195,6 +198,7 @@ export default function DistributionHousesTab() {
           <div className="space-y-4 py-2">
             <div className="space-y-2"><Label>DH Code</Label><Input value={dhCode} onChange={(e) => setDhCode(e.target.value)} placeholder="e.g. DH-CTG-001" /></div>
             <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chittagong Hub" /></div>
+            <div className="space-y-2"><Label>Phone Number</Label><Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="e.g. 01XXXXXXXXX" /></div>
             <div className="space-y-2"><Label>District</Label>
               <Select value={districtId} onValueChange={v => { setDistrictId(v); setAreaId(""); }}>
                 <SelectTrigger><SelectValue placeholder="Select district" /></SelectTrigger>
