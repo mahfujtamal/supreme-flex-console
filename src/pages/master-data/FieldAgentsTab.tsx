@@ -108,7 +108,7 @@ export default function FieldAgentsTab() {
     const missing = reqCols.filter(c => !header.includes(c));
     if (missing.length) { setCsvErrors([`Missing columns: ${missing.join(", ")}`]); return; }
 
-    const { data: allDhs } = await supabase.from("distribution_houses").select("dh_id, dh_code");
+    const { data: allDhs } = await supabase.from("distribution_houses").select("dh_id, dh_code").eq("status", "ACTIVE" as any);
     const dhMap = new Map((allDhs ?? []).map(d => [d.dh_code.toLowerCase(), d.dh_id]));
 
     const errors: string[] = [];
