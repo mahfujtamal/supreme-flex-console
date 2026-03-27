@@ -41,18 +41,36 @@ export default function AreasTab() {
   const { data: districts } = useQuery({
     queryKey: ["districts_lookup"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("districts").select("district_id, district_name").eq("status", true).order("district_name");
-      if (error) throw error;
-      return data;
+      const all: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("districts").select("district_id, district_name").eq("status", true).order("district_name").range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+      return all;
     },
   });
 
   const { data: zones } = useQuery({
     queryKey: ["zones_lookup"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("network_zones").select("network_zone_id, network_zone_name").eq("status", true).order("network_zone_name");
-      if (error) throw error;
-      return data;
+      const all: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase.from("network_zones").select("network_zone_id, network_zone_name").eq("status", true).order("network_zone_name").range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+      return all;
     },
   });
 
