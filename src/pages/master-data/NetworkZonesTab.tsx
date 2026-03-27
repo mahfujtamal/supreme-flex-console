@@ -191,40 +191,39 @@ export default function NetworkZonesTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Zone Name</TableHead>
-              <TableHead className="text-center">4G RSRP</TableHead>
-              <TableHead className="text-center">5G RSRP</TableHead>
+              {RF_FIELDS.map(f => (
+                <TableHead key={f.key} className="text-center text-xs">{f.label}</TableHead>
+              ))}
               <TableHead className="w-[80px]">Status</TableHead>
-              <TableHead className="w-[130px]">Created</TableHead>
+              <TableHead className="w-[110px]">Created</TableHead>
               <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No zones found.</TableCell></TableRow>
-            ) : data.items.map((z: any) => {
-              const rsrp4g = z["4g_rsrp"];
-              const rsrp5g = z["5g_rsrp"];
-              return (
-                <TableRow key={z.network_zone_id}>
-                  <TableCell className="font-medium">{z.network_zone_name}</TableCell>
-                  <TableCell className="text-center">
-                    {rsrp4g !== null && rsrp4g !== undefined ? (
-                      <span className={`font-mono text-sm ${rsrp4g < -115 ? "text-destructive font-semibold" : ""}`}>{rsrp4g} dBm</span>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {rsrp5g !== null && rsrp5g !== undefined ? (
-                      <span className={`font-mono text-sm ${rsrp5g < -110 ? "text-destructive font-semibold" : ""}`}>{rsrp5g} dBm</span>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={z.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: z.network_zone_id, status: z.status })}>
-                      {z.status ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{format(new Date(z.created_at), "dd MMM yyyy")}</TableCell>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No zones found.</TableCell></TableRow>
+            ) : data.items.map((z: any) => (
+              <TableRow key={z.network_zone_id}>
+                <TableCell className="font-medium">{z.network_zone_name}</TableCell>
+                {RF_FIELDS.map(f => {
+                  const v = z[f.key];
+                  const below = v !== null && v !== undefined && v < f.threshold;
+                  return (
+                    <TableCell key={f.key} className="text-center">
+                      {v !== null && v !== undefined ? (
+                        <span className={`font-mono text-xs ${below ? "text-destructive font-semibold" : ""}`}>{v}</span>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
+                  );
+                })}
+                <TableCell>
+                  <Badge variant={z.status ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: z.network_zone_id, status: z.status })}>
+                    {z.status ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{format(new Date(z.created_at), "dd MMM yyyy")}</TableCell>
                   <TableCell>
                     <div className="flex gap-0.5">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(z)} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
