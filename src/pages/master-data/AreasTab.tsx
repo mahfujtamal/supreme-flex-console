@@ -100,6 +100,68 @@ export default function AreasTab() {
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
   const canSave = name.trim() && districtId && zoneId;
 
+  const downloadTemplate = () => {
+    const csv = "area_name,district_name,network_zone_name,is_4g_area,is_5g_area\nGulshan,Dhaka,Zone A,true,false\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "areas_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row.");
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const nameIdx = header.indexOf("area_name");
+      const distIdx = header.indexOf("district_name");
+      const zoneIdx = header.indexOf("network_zone_name");
+      const g4Idx = header.indexOf("is_4g_area");
+      const g5Idx = header.indexOf("is_5g_area");
+      if (nameIdx < 0 || distIdx < 0 || zoneIdx < 0) throw new Error("CSV must have columns: area_name, district_name, network_zone_name");
+
+      // Build lookup maps
+      const distMap = new Map((districts ?? []).map(d => [d.district_name.toLowerCase(), d.district_id]));
+      const zoneMap = new Map((zones ?? []).map(z => [z.network_zone_name.toLowerCase(), z.network_zone_id]));
+
+      const rows: any[] = [];
+      const errors: string[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim());
+        const areaName = cols[nameIdx];
+        const dName = cols[distIdx];
+        const zName = cols[zoneIdx];
+        if (!areaName) { errors.push(`Row ${i + 1}: missing area_name`); continue; }
+        const dId = distMap.get(dName?.toLowerCase());
+        if (!dId) { errors.push(`Row ${i + 1}: district "${dName}" not found`); continue; }
+        const zId = zoneMap.get(zName?.toLowerCase());
+        if (!zId) { errors.push(`Row ${i + 1}: zone "${zName}" not found`); continue; }
+        const is4 = g4Idx >= 0 ? cols[g4Idx]?.toLowerCase() === "true" : false;
+        const is5 = g5Idx >= 0 ? cols[g5Idx]?.toLowerCase() === "true" : false;
+        rows.push({ area_name: areaName, district_id: dId, network_zone_id: zId, is_4g_area: is4, is_5g_area: is5 });
+      }
+
+      if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.join("\n"));
+
+      const { error } = await supabase.from("areas").insert(rows);
+      if (error) throw error;
+
+      qc.invalidateQueries({ queryKey: ["areas"] });
+      toast({ title: `${rows.length} areas uploaded`, description: errors.length ? `${errors.length} rows skipped` : undefined });
+      if (errors.length) console.warn("Bulk upload warnings:", errors);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
