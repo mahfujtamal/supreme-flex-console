@@ -33,6 +33,8 @@ export default function AreasTab() {
   const [zoneId, setZoneId] = useState("");
   const [is4g, setIs4g] = useState(false);
   const [is5g, setIs5g] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
