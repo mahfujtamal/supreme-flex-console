@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Search, Pencil, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,26 @@ const PAGE_SIZE = 10;
 
 type AssignmentType = "dh" | "sub_channel" | "b2b";
 
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { result.push(current); current = ""; }
+      else current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 export default function HubManagersTab() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -34,6 +54,8 @@ export default function HubManagersTab() {
   const [channelId, setChannelId] = useState("");
   const [subChannelId, setSubChannelId] = useState("");
   const [dhId, setDhId] = useState("");
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -102,6 +124,94 @@ export default function HubManagersTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hub_managers"] }),
   });
 
+  const downloadTemplate = () => {
+    const csv = "name,email,msisdn,assignment_type,assignment_name\nRafiq Ahmed,rafiq@gpfi.com,01712345678,dh,DH-001\nKarim Ali,karim@gpfi.com,01798765432,sub_channel,Robi Direct\nSaleha Begum,saleha@gpfi.com,01611223344,b2b,\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "hub_manager_bulk_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("CSV must have a header and at least one data row.");
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
+      const nameIdx = header.indexOf("name");
+      const emailIdx = header.indexOf("email");
+      const msisdnIdx = header.indexOf("msisdn");
+      const typeIdx = header.indexOf("assignment_type");
+      const assignIdx = header.indexOf("assignment_name");
+      if (nameIdx < 0 || emailIdx < 0 || msisdnIdx < 0 || typeIdx < 0) {
+        throw new Error("CSV must have columns: name, email, msisdn, assignment_type");
+      }
+
+      // Build lookup maps
+      const { data: allDHs } = await supabase.from("distribution_houses").select("dh_id, name, dh_code").eq("status", "ACTIVE" as any);
+      const dhMap = new Map<string, string>();
+      for (const dh of allDHs ?? []) {
+        dhMap.set(dh.name.toLowerCase(), dh.dh_id);
+        dhMap.set(dh.dh_code.toLowerCase(), dh.dh_id);
+      }
+
+      const { data: allSC } = await supabase.from("sub_channels").select("sub_channel_id, sub_channel_name").eq("status", true).eq("is_direct_delivery", true);
+      const scMap = new Map<string, string>();
+      for (const sc of allSC ?? []) {
+        scMap.set(sc.sub_channel_name.toLowerCase(), sc.sub_channel_id);
+      }
+
+      const rows: any[] = [];
+      const errors: string[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        const rName = cols[nameIdx]?.trim();
+        const rEmail = cols[emailIdx]?.trim();
+        const rMsisdn = cols[msisdnIdx]?.trim();
+        const rType = cols[typeIdx]?.trim().toLowerCase();
+        const rAssign = assignIdx >= 0 ? cols[assignIdx]?.trim() : "";
+
+        if (!rName || !rEmail || !rMsisdn) { errors.push(`Row ${i + 1}: missing name, email, or msisdn`); continue; }
+        if (!["dh", "sub_channel", "b2b"].includes(rType)) { errors.push(`Row ${i + 1}: invalid assignment_type "${rType}" (use dh, sub_channel, or b2b)`); continue; }
+
+        const payload: any = { name: rName, email: rEmail, msisdn: rMsisdn, channel_id: null, sub_channel_id: null, dh_id: null };
+
+        if (rType === "dh") {
+          const dhIdFound = dhMap.get(rAssign.toLowerCase());
+          if (!dhIdFound) { errors.push(`Row ${i + 1}: DH "${rAssign}" not found (use DH name or code)`); continue; }
+          payload.dh_id = dhIdFound;
+        } else if (rType === "sub_channel") {
+          const scIdFound = scMap.get(rAssign.toLowerCase());
+          if (!scIdFound) { errors.push(`Row ${i + 1}: direct-delivery sub-channel "${rAssign}" not found`); continue; }
+          payload.sub_channel_id = scIdFound;
+        }
+        // b2b: no assignment needed
+
+        rows.push(payload);
+      }
+
+      if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.slice(0, 10).join("\n"));
+
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await supabase.from("hub_managers").insert(rows.slice(i, i + BATCH));
+        if (error) throw error;
+      }
+
+      qc.invalidateQueries({ queryKey: ["hub_managers"] });
+      toast({ title: `${rows.length} Hub Managers uploaded`, description: errors.length ? `${errors.length} warnings` : undefined });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setEmail(""); setMsisdn(""); setChannelId(""); setSubChannelId(""); setDhId(""); setAssignmentType("dh"); };
   const openEdit = (item: any) => {
     setEditId(item.hub_manager_id); setName(item.name); setEmail(item.email); setMsisdn(item.msisdn);
@@ -138,7 +248,12 @@ export default function HubManagersTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search hub managers..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} className="pl-9 h-9" />
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Add Hub Manager</Button>
+        <div className="flex gap-2">
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkUpload} />
+          <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1" />Template</Button>
+          <Button variant="outline" size="sm" disabled={bulkUploading} onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" />{bulkUploading ? "Uploading..." : "Bulk Upload"}</Button>
+          <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Add Hub Manager</Button>
+        </div>
       </div>
 
       <div className="border rounded-lg bg-card">
