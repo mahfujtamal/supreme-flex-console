@@ -138,9 +138,9 @@ export default function DistributionHousesTab() {
       if (codeIdx < 0 || nameIdx < 0 || terrIdx < 0) throw new Error("CSV must have columns: dh_code, name, territory_name");
 
       // Build lookup maps
-      const { data: allTerr } = await (supabase as any).from("territories").select("territory_id, territory_name");
+      const { data: allTerr } = await (supabase as any).from("territories").select("territory_id, territory_name").eq("status", true);
       const terrMap = new Map((allTerr ?? []).map((t: any) => [t.territory_name.toLowerCase(), t.territory_id]));
-      const allAreasData: any[] = []; let aFrom = 0; while (true) { const { data: pg } = await supabase.from("areas").select("area_id, area_name").range(aFrom, aFrom + 999); if (!pg || pg.length === 0) break; allAreasData.push(...pg); if (pg.length < 1000) break; aFrom += 1000; }
+      const allAreasData: any[] = []; let aFrom = 0; while (true) { const { data: pg } = await supabase.from("areas").select("area_id, area_name").eq("status", true).range(aFrom, aFrom + 999); if (!pg || pg.length === 0) break; allAreasData.push(...pg); if (pg.length < 1000) break; aFrom += 1000; }
       const areaMap = new Map(allAreasData.map((a: any) => [a.area_name.toLowerCase(), a.area_id]));
 
       const dhRows: any[] = [];
