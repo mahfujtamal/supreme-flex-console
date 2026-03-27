@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
+import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -38,6 +38,7 @@ export default function SubChannelsTab() {
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState("");
   const [deliveryOwnership, setDeliveryOwnership] = useState("FOLLOW_CHANNEL");
+  const [isDirectDelivery, setIsDirectDelivery] = useState(false);
   const [kamPopoverOpen, setKamPopoverOpen] = useState(false);
   const [selectedKamId, setSelectedKamId] = useState("");
   const [staffSubChannel, setStaffSubChannel] = useState<{ id: string; name: string } | null>(null);
@@ -89,7 +90,7 @@ export default function SubChannelsTab() {
       const displayName = isB2B
         ? `${kams?.find((k) => k.kam_id === selectedKamId)?.name ?? ""} (${selectedKamId})`
         : name;
-      const payload = { sub_channel_name: displayName, channel_id: channelId, delivery_ownership: deliveryOwnership } as any;
+      const payload = { sub_channel_name: displayName, channel_id: channelId, delivery_ownership: deliveryOwnership, is_direct_delivery: isDirectDelivery } as any;
       if (editId) {
         const { error } = await supabase.from("sub_channels").update(payload).eq("sub_channel_id", editId);
         if (error) throw error;
@@ -110,8 +111,8 @@ export default function SubChannelsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sub_channels"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setDeliveryOwnership("FOLLOW_CHANNEL"); };
-  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setDeliveryOwnership(item.delivery_ownership ?? "FOLLOW_CHANNEL"); setOpen(true); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setChannelId(""); setSelectedKamId(""); setDeliveryOwnership("FOLLOW_CHANNEL"); setIsDirectDelivery(false); };
+  const openEdit = (item: any) => { setEditId(item.sub_channel_id); setName(item.sub_channel_name); setChannelId(item.channel_id); setSelectedKamId(""); setDeliveryOwnership(item.delivery_ownership ?? "FOLLOW_CHANNEL"); setIsDirectDelivery(item.is_direct_delivery ?? false); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
   return (
@@ -143,6 +144,7 @@ export default function SubChannelsTab() {
               <TableHead>Sub-Channel Name</TableHead>
               <TableHead>Parent Channel</TableHead>
               <TableHead className="w-[160px]">Delivery Ownership</TableHead>
+              <TableHead className="w-[120px]">Direct Delivery</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[160px]">Created</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
@@ -150,9 +152,9 @@ export default function SubChannelsTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : !data?.items?.length ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No sub-channels found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No sub-channels found.</TableCell></TableRow>
             ) : data.items.map((sc: any) => (
               <TableRow key={sc.sub_channel_id}>
                 <TableCell className="font-medium">{sc.sub_channel_name}</TableCell>
@@ -160,6 +162,11 @@ export default function SubChannelsTab() {
                 <TableCell>
                   <Badge variant={sc.delivery_ownership === "FOLLOW_CHANNEL" ? "outline" : "default"} className="text-xs">
                     {sc.delivery_ownership === "SELF_DELIVERY" ? "Self-Delivery" : sc.delivery_ownership === "DH_DELIVERY" ? "DH Delivery" : "Follow Channel"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={sc.is_direct_delivery ? "default" : "outline"} className="text-xs">
+                    {sc.is_direct_delivery ? "Yes" : "No"}
                   </Badge>
                 </TableCell>
                 <TableCell>
