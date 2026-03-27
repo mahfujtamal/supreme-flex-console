@@ -1088,6 +1088,12 @@ export type Database = {
       }
       network_zones: {
         Row: {
+          "4g_rsrp": number | null
+          "4g_rsrq": number | null
+          "4g_snr": number | null
+          "5g_rsrp": number | null
+          "5g_rsrq": number | null
+          "5g_snr": number | null
           created_at: string
           network_zone_id: string
           network_zone_name: string
@@ -1095,6 +1101,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          "4g_rsrp"?: number | null
+          "4g_rsrq"?: number | null
+          "4g_snr"?: number | null
+          "5g_rsrp"?: number | null
+          "5g_rsrq"?: number | null
+          "5g_snr"?: number | null
           created_at?: string
           network_zone_id?: string
           network_zone_name: string
@@ -1102,6 +1114,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          "4g_rsrp"?: number | null
+          "4g_rsrq"?: number | null
+          "4g_snr"?: number | null
+          "5g_rsrp"?: number | null
+          "5g_rsrq"?: number | null
+          "5g_snr"?: number | null
           created_at?: string
           network_zone_id?: string
           network_zone_name?: string
