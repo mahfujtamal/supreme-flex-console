@@ -19,12 +19,17 @@ export default function AuditTrailDialog({ open, onOpenChange, tableName, record
   const { data: logs, isLoading } = useQuery({
     queryKey: ["system_audit_logs", tableName, recordId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("system_audit_logs")
         .select("*")
         .eq("table_name", tableName)
         .eq("record_id", recordId)
         .order("changed_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: open && !!recordId,
+  });
       if (error) throw error;
       return data;
     },
