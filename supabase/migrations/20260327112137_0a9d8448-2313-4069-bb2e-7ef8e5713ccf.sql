@@ -1,0 +1,1 @@
+DELETE FROM public.districts WHERE district_id = '38c9a453-892f-4610-8c70-0358d6cb15f0';
