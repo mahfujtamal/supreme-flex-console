@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
-type AssignmentType = "dh" | "sub_channel" | "channel";
+type AssignmentType = "dh" | "sub_channel" | "b2b";
 
 export default function HubManagersTab() {
   const [page, setPage] = useState(0);
@@ -107,7 +107,7 @@ export default function HubManagersTab() {
     setEditId(item.hub_manager_id); setName(item.name); setEmail(item.email); setMsisdn(item.msisdn);
     if (item.dh_id) { setAssignmentType("dh"); setDhId(item.dh_id); setChannelId(""); setSubChannelId(""); }
     else if (item.sub_channel_id) { setAssignmentType("sub_channel"); setSubChannelId(item.sub_channel_id); setChannelId(""); setDhId(""); }
-    else { setAssignmentType("channel"); setChannelId(item.channel_id ?? ""); setSubChannelId(""); setDhId(""); }
+    else { setAssignmentType("b2b"); setChannelId(""); setSubChannelId(""); setDhId(""); }
     setOpen(true);
   };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
@@ -125,8 +125,8 @@ export default function HubManagersTab() {
     if (hm.sub_channels?.sub_channel_name) {
       return <Badge variant="default" className="text-xs">Sub-Ch: {hm.sub_channels.sub_channel_name}</Badge>;
     }
-    if (!hm.distribution_houses && !hm.sub_channels?.sub_channel_name) {
-      if (hm.channel_id || assignmentType === "b2b") return <Badge variant="secondary" className="text-xs">B2B Central</Badge>;
+    if (!hm.dh_id && !hm.sub_channel_id) {
+      return <Badge variant="secondary" className="text-xs">B2B Central</Badge>;
     }
     return <span className="text-muted-foreground text-sm">—</span>;
   };
