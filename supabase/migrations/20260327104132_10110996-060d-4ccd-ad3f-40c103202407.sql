@@ -1,0 +1,1 @@
+ALTER TABLE public.distribution_houses ADD COLUMN phone_number text DEFAULT NULL;

@@ -817,6 +817,7 @@ export type Database = {
           district_id: string | null
           last_assigned_at: string | null
           name: string
+          phone_number: string | null
           status: Database["public"]["Enums"]["dh_status"]
           territory_id: string | null
           updated_at: string
@@ -829,6 +830,7 @@ export type Database = {
           district_id?: string | null
           last_assigned_at?: string | null
           name: string
+          phone_number?: string | null
           status?: Database["public"]["Enums"]["dh_status"]
           territory_id?: string | null
           updated_at?: string
@@ -841,6 +843,7 @@ export type Database = {
           district_id?: string | null
           last_assigned_at?: string | null
           name?: string
+          phone_number?: string | null
           status?: Database["public"]["Enums"]["dh_status"]
           territory_id?: string | null
           updated_at?: string
