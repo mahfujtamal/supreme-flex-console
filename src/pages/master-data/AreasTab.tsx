@@ -186,7 +186,9 @@ export default function AreasTab() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled><Upload className="h-4 w-4 mr-1.5" />Bulk Upload</Button>
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkUpload} />
+          <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1.5" />Template</Button>
+          <Button variant="outline" size="sm" disabled={bulkUploading} onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" />{bulkUploading ? "Uploading..." : "Bulk Upload"}</Button>
           <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Add Area</Button>
         </div>
       </div>
