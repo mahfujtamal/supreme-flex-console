@@ -22,6 +22,7 @@ export default function MasterData() {
 
       <Tabs defaultValue="zones" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="geography">Geography</TabsTrigger>
           <TabsTrigger value="zones">Network Zones</TabsTrigger>
           <TabsTrigger value="districts">Districts</TabsTrigger>
           <TabsTrigger value="areas">Areas</TabsTrigger>
@@ -33,6 +34,7 @@ export default function MasterData() {
           <TabsTrigger value="kams">KAMs</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="geography"><GeographyTab /></TabsContent>
         <TabsContent value="zones"><NetworkZonesTab /></TabsContent>
         <TabsContent value="districts"><DistrictsTab /></TabsContent>
         <TabsContent value="areas"><AreasTab /></TabsContent>
