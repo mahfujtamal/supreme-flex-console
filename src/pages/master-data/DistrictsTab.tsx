@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus, Search, Upload, Pencil } from "lucide-react";
+import { Plus, Search, Upload, Pencil, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,8 @@ export default function DistrictsTab() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -63,6 +65,56 @@ export default function DistrictsTab() {
   const openEdit = (item: any) => { setEditId(item.district_id); setName(item.district_name); setOpen(true); };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
 
+  const downloadTemplate = () => {
+    const csv = "district_name\nDhaka\nChittagong\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "districts_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row.");
+      const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const nameIdx = header.indexOf("district_name");
+      if (nameIdx < 0) throw new Error("CSV must have a 'district_name' column.");
+
+      const rows: { district_name: string }[] = [];
+      const errors: string[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim());
+        const districtName = cols[nameIdx];
+        if (!districtName) { errors.push(`Row ${i + 1}: missing district_name`); continue; }
+        rows.push({ district_name: districtName });
+      }
+
+      if (rows.length === 0) throw new Error("No valid rows found.\n" + errors.join("\n"));
+
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const { error } = await supabase.from("districts").insert(batch);
+        if (error) throw new Error(`Batch ${Math.floor(i / BATCH) + 1} failed: ${error.message}`);
+      }
+
+      qc.invalidateQueries({ queryKey: ["districts"] });
+      toast({ title: `${rows.length} districts uploaded`, description: errors.length ? `${errors.length} rows skipped` : undefined });
+      if (errors.length) console.warn("Bulk upload warnings:", errors);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBulkUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -71,7 +123,9 @@ export default function DistrictsTab() {
           <Input placeholder="Search districts..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled><Upload className="h-4 w-4 mr-1.5" />Bulk Upload</Button>
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkUpload} />
+          <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="h-4 w-4 mr-1.5" />Template</Button>
+          <Button variant="outline" size="sm" disabled={bulkUploading} onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" />{bulkUploading ? "Uploading..." : "Bulk Upload"}</Button>
           <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Add District</Button>
         </div>
       </div>
