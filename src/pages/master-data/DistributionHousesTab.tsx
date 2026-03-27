@@ -355,7 +355,7 @@ export default function DistributionHousesTab() {
               <p className="text-sm font-medium mb-3">Area Assignments (Multiple)</p>
               <MultiSelectDropdown
                 options={areaOptions}
-                selectedValues={selectedAreaIds}
+                selected={selectedAreaIds}
                 onChange={setSelectedAreaIds}
                 placeholder="Select areas..."
               />
