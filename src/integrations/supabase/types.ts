@@ -602,6 +602,65 @@ export type Database = {
         }
         Relationships: []
       }
+      circles: {
+        Row: {
+          circle_id: string
+          circle_name: string
+          created_at: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          circle_id?: string
+          circle_name: string
+          created_at?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          circle_id?: string
+          circle_name?: string
+          created_at?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      clusters: {
+        Row: {
+          cluster_id: string
+          cluster_name: string
+          created_at: string
+          region_id: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          cluster_id?: string
+          cluster_name: string
+          created_at?: string
+          region_id: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          cluster_id?: string
+          cluster_name?: string
+          created_at?: string
+          region_id?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clusters_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["region_id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           campaign_id: string
@@ -759,6 +818,7 @@ export type Database = {
           last_assigned_at: string | null
           name: string
           status: Database["public"]["Enums"]["dh_status"]
+          territory_id: string | null
           updated_at: string
         }
         Insert: {
@@ -770,6 +830,7 @@ export type Database = {
           last_assigned_at?: string | null
           name: string
           status?: Database["public"]["Enums"]["dh_status"]
+          territory_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -781,6 +842,7 @@ export type Database = {
           last_assigned_at?: string | null
           name?: string
           status?: Database["public"]["Enums"]["dh_status"]
+          territory_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -797,6 +859,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "districts"
             referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "distribution_houses_territory_id_fkey"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "territories"
+            referencedColumns: ["territory_id"]
           },
         ]
       }
@@ -1633,6 +1702,41 @@ export type Database = {
           },
         ]
       }
+      regions: {
+        Row: {
+          circle_id: string
+          created_at: string
+          region_id: string
+          region_name: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          circle_id: string
+          created_at?: string
+          region_id?: string
+          region_name: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          circle_id?: string
+          created_at?: string
+          region_id?: string
+          region_name?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regions_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "circles"
+            referencedColumns: ["circle_id"]
+          },
+        ]
+      }
       role_master: {
         Row: {
           created_at: string
@@ -1816,6 +1920,71 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["channel_id"]
+          },
+        ]
+      }
+      system_audit_logs: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          log_id: string
+          new_value: Json | null
+          old_value: Json | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          log_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          log_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      territories: {
+        Row: {
+          cluster_id: string
+          created_at: string
+          status: boolean
+          territory_id: string
+          territory_name: string
+          updated_at: string
+        }
+        Insert: {
+          cluster_id: string
+          created_at?: string
+          status?: boolean
+          territory_id?: string
+          territory_name: string
+          updated_at?: string
+        }
+        Update: {
+          cluster_id?: string
+          created_at?: string
+          status?: boolean
+          territory_id?: string
+          territory_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "territories_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "clusters"
+            referencedColumns: ["cluster_id"]
           },
         ]
       }
