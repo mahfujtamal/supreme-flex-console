@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -21,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
+type AssignmentType = "dh" | "sub_channel" | "channel";
+
 export default function HubManagersTab() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -29,9 +30,10 @@ export default function HubManagersTab() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [msisdn, setMsisdn] = useState("");
-  const [assignmentType, setAssignmentType] = useState<"channel" | "sub_channel">("channel");
+  const [assignmentType, setAssignmentType] = useState<AssignmentType>("dh");
   const [channelId, setChannelId] = useState("");
   const [subChannelId, setSubChannelId] = useState("");
+  const [dhId, setDhId] = useState("");
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -51,10 +53,18 @@ export default function HubManagersTab() {
     },
   });
 
+  const { data: distributionHouses } = useQuery({
+    queryKey: ["dhs_lookup_hm"],
+    queryFn: async () => {
+      const { data } = await supabase.from("distribution_houses").select("dh_id, name, dh_code").eq("status", "ACTIVE" as any).order("name");
+      return data ?? [];
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["hub_managers", page, search],
     queryFn: async () => {
-      let q = supabase.from("hub_managers").select("*, channels(channel_name), sub_channels(sub_channel_name)", { count: "exact" }).order("created_at", { ascending: false });
+      let q = supabase.from("hub_managers").select("*, channels(channel_name), sub_channels(sub_channel_name), distribution_houses(name, dh_code)", { count: "exact" }).order("created_at", { ascending: false });
       if (search) q = q.or(`name.ilike.%${search}%,email.ilike.%${search}%,msisdn.ilike.%${search}%`);
       const { data, error, count } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (error) throw error;
@@ -70,6 +80,7 @@ export default function HubManagersTab() {
         msisdn: msisdn.trim(),
         channel_id: assignmentType === "channel" ? channelId : null,
         sub_channel_id: assignmentType === "sub_channel" ? subChannelId : null,
+        dh_id: assignmentType === "dh" ? dhId : null,
       };
       if (editId) {
         const { error } = await supabase.from("hub_managers").update(payload).eq("hub_manager_id", editId);
@@ -91,15 +102,34 @@ export default function HubManagersTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hub_managers"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setEmail(""); setMsisdn(""); setChannelId(""); setSubChannelId(""); setAssignmentType("channel"); };
+  const closeDialog = () => { setOpen(false); setEditId(null); setName(""); setEmail(""); setMsisdn(""); setChannelId(""); setSubChannelId(""); setDhId(""); setAssignmentType("dh"); };
   const openEdit = (item: any) => {
     setEditId(item.hub_manager_id); setName(item.name); setEmail(item.email); setMsisdn(item.msisdn);
-    if (item.sub_channel_id) { setAssignmentType("sub_channel"); setSubChannelId(item.sub_channel_id); setChannelId(""); }
-    else { setAssignmentType("channel"); setChannelId(item.channel_id ?? ""); setSubChannelId(""); }
+    if (item.dh_id) { setAssignmentType("dh"); setDhId(item.dh_id); setChannelId(""); setSubChannelId(""); }
+    else if (item.sub_channel_id) { setAssignmentType("sub_channel"); setSubChannelId(item.sub_channel_id); setChannelId(""); setDhId(""); }
+    else { setAssignmentType("channel"); setChannelId(item.channel_id ?? ""); setSubChannelId(""); setDhId(""); }
     setOpen(true);
   };
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE);
-  const canSave = name.trim() && email.trim() && msisdn.trim() && (assignmentType === "channel" ? channelId : subChannelId);
+
+  const canSave = name.trim() && email.trim() && msisdn.trim() && (
+    assignmentType === "dh" ? dhId :
+    assignmentType === "sub_channel" ? subChannelId :
+    channelId
+  );
+
+  const getAssignmentLabel = (hm: any) => {
+    if (hm.distribution_houses?.name) {
+      return <Badge variant="outline" className="text-xs">DH: {hm.distribution_houses.name} ({hm.distribution_houses.dh_code})</Badge>;
+    }
+    if (hm.sub_channels?.sub_channel_name) {
+      return <Badge variant="default" className="text-xs">Sub-Ch: {hm.sub_channels.sub_channel_name}</Badge>;
+    }
+    if (hm.channels?.channel_name) {
+      return <Badge variant="secondary" className="text-xs">B2B: {hm.channels.channel_name}</Badge>;
+    }
+    return <span className="text-muted-foreground text-sm">—</span>;
+  };
 
   return (
     <div className="space-y-4">
@@ -134,13 +164,7 @@ export default function HubManagersTab() {
                 <TableCell className="font-medium">{hm.name}</TableCell>
                 <TableCell className="text-sm">{hm.email}</TableCell>
                 <TableCell className="text-sm">{hm.msisdn}</TableCell>
-                <TableCell>
-                  {hm.channels?.channel_name ? (
-                    <Badge variant="outline" className="text-xs">Channel: {hm.channels.channel_name}</Badge>
-                  ) : hm.sub_channels?.sub_channel_name ? (
-                    <Badge variant="default" className="text-xs">Sub: {hm.sub_channels.sub_channel_name}</Badge>
-                  ) : <span className="text-muted-foreground text-sm">—</span>}
-                </TableCell>
+                <TableCell>{getAssignmentLabel(hm)}</TableCell>
                 <TableCell>
                   <Badge variant={hm.status === "ACTIVE" ? "default" : "secondary"} className="cursor-pointer" onClick={() => toggleStatus.mutate({ id: hm.hub_manager_id, status: hm.status })}>
                     {hm.status}
@@ -183,15 +207,31 @@ export default function HubManagersTab() {
             </div>
             <div className="space-y-2">
               <Label>Assignment Level</Label>
-              <Select value={assignmentType} onValueChange={(v: "channel" | "sub_channel") => { setAssignmentType(v); setChannelId(""); setSubChannelId(""); }}>
+              <Select value={assignmentType} onValueChange={(v: AssignmentType) => { setAssignmentType(v); setChannelId(""); setSubChannelId(""); setDhId(""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="channel">Channel Level (B2B / DH)</SelectItem>
-                  <SelectItem value="sub_channel">Sub-Channel Level (Direct Delivery)</SelectItem>
+                  <SelectItem value="dh">Distribution House</SelectItem>
+                  <SelectItem value="sub_channel">Sub-Channel (Direct Delivery)</SelectItem>
+                  <SelectItem value="channel">Channel (B2B Central)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {assignmentType === "channel" ? (
+            {assignmentType === "dh" && (
+              <div className="space-y-2">
+                <Label>Distribution House</Label>
+                <Select value={dhId} onValueChange={setDhId}>
+                  <SelectTrigger><SelectValue placeholder="Select DH" /></SelectTrigger>
+                  <SelectContent>
+                    {!distributionHouses?.length ? (
+                      <SelectItem value="__none" disabled>No active DHs</SelectItem>
+                    ) : distributionHouses.map((dh: any) => (
+                      <SelectItem key={dh.dh_id} value={dh.dh_id}>{dh.name} ({dh.dh_code})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {assignmentType === "channel" && (
               <div className="space-y-2">
                 <Label>Channel</Label>
                 <Select value={channelId} onValueChange={setChannelId}>
@@ -201,7 +241,8 @@ export default function HubManagersTab() {
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
+            )}
+            {assignmentType === "sub_channel" && (
               <div className="space-y-2">
                 <Label>Direct-Delivery Sub-Channel</Label>
                 <Select value={subChannelId} onValueChange={setSubChannelId}>
