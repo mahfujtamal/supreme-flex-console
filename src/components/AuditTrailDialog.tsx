@@ -30,11 +30,6 @@ export default function AuditTrailDialog({ open, onOpenChange, tableName, record
     },
     enabled: open && !!recordId,
   });
-      if (error) throw error;
-      return data;
-    },
-    enabled: open && !!recordId,
-  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
