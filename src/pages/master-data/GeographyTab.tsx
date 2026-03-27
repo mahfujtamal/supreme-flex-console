@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
-function useCrud(table: string, idCol: string, nameCol: string) {
+function useGeoTable(table: string, idCol: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const queryKey = [table];
@@ -26,9 +26,9 @@ function useCrud(table: string, idCol: string, nameCol: string) {
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from(table).select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -36,13 +36,14 @@ function useCrud(table: string, idCol: string, nameCol: string) {
     mutationFn: async (payload: any) => {
       const id = payload[idCol];
       const isEdit = !!payload._edit;
-      delete payload._edit;
+      const p = { ...payload };
+      delete p._edit;
       if (isEdit) {
-        const { error } = await supabase.from(table).update(payload).eq(idCol, id);
+        const { error } = await (supabase as any).from(table).update(p).eq(idCol, id);
         if (error) throw error;
       } else {
-        delete payload[idCol];
-        const { error } = await supabase.from(table).insert(payload);
+        delete p[idCol];
+        const { error } = await (supabase as any).from(table).insert(p);
         if (error) throw error;
       }
     },
@@ -52,7 +53,7 @@ function useCrud(table: string, idCol: string, nameCol: string) {
 
   const toggleStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: boolean }) => {
-      const { error } = await supabase.from(table).update({ status: !status }).eq(idCol, id);
+      const { error } = await (supabase as any).from(table).update({ status: !status }).eq(idCol, id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey }),
@@ -62,7 +63,7 @@ function useCrud(table: string, idCol: string, nameCol: string) {
 }
 
 function CirclesSection() {
-  const { data, isLoading, save, toggleStatus } = useCrud("circles", "circle_id", "circle_name");
+  const { data, isLoading, save, toggleStatus } = useGeoTable("circles", "circle_id");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -109,8 +110,8 @@ function CirclesSection() {
 }
 
 function RegionsSection() {
-  const { data, isLoading, save, toggleStatus } = useCrud("regions", "region_id", "region_name");
-  const { data: circles } = useQuery({ queryKey: ["circles"], queryFn: async () => { const { data } = await supabase.from("circles").select("circle_id, circle_name").eq("status", true); return data ?? []; } });
+  const { data, isLoading, save, toggleStatus } = useGeoTable("regions", "region_id");
+  const { data: circles } = useQuery({ queryKey: ["circles_lookup"], queryFn: async () => { const { data } = await (supabase as any).from("circles").select("circle_id, circle_name").eq("status", true); return (data ?? []) as any[]; } });
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -167,8 +168,8 @@ function RegionsSection() {
 }
 
 function ClustersSection() {
-  const { data, isLoading, save, toggleStatus } = useCrud("clusters", "cluster_id", "cluster_name");
-  const { data: regions } = useQuery({ queryKey: ["regions"], queryFn: async () => { const { data } = await supabase.from("regions").select("region_id, region_name").eq("status", true); return data ?? []; } });
+  const { data, isLoading, save, toggleStatus } = useGeoTable("clusters", "cluster_id");
+  const { data: regions } = useQuery({ queryKey: ["regions_lookup"], queryFn: async () => { const { data } = await (supabase as any).from("regions").select("region_id, region_name").eq("status", true); return (data ?? []) as any[]; } });
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -225,8 +226,8 @@ function ClustersSection() {
 }
 
 function TerritoriesSection() {
-  const { data, isLoading, save, toggleStatus } = useCrud("territories", "territory_id", "territory_name");
-  const { data: clusters } = useQuery({ queryKey: ["clusters"], queryFn: async () => { const { data } = await supabase.from("clusters").select("cluster_id, cluster_name").eq("status", true); return data ?? []; } });
+  const { data, isLoading, save, toggleStatus } = useGeoTable("territories", "territory_id");
+  const { data: clusters } = useQuery({ queryKey: ["clusters_lookup"], queryFn: async () => { const { data } = await (supabase as any).from("clusters").select("cluster_id, cluster_name").eq("status", true); return (data ?? []) as any[]; } });
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");

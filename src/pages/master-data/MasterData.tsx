@@ -8,6 +8,7 @@ import DistributionHousesTab from "./DistributionHousesTab";
 import FieldAgentsTab from "./FieldAgentsTab";
 import KamsTab from "./KamsTab";
 import HubManagersTab from "./HubManagersTab";
+import GeographyTab from "./GeographyTab";
 
 export default function MasterData() {
   return (
