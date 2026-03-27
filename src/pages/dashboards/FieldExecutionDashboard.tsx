@@ -2,82 +2,65 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Package, ScanLine, CheckCircle2, AlertCircle } from "lucide-react";
+import { Package, ScanLine, CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { formatBDT } from "@/lib/currency";
+import ScanToFulfillDialog from "./ScanToFulfillDialog";
 
 export default function FieldExecutionDashboard() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [scanOpen, setScanOpen] = useState(false);
-  const [serialInput, setSerialInput] = useState("");
+  const [fulfillOrderId, setFulfillOrderId] = useState<string | null>(null);
+
+  // Assigned orders awaiting fulfillment
+  const { data: assignedOrders } = useQuery({
+    queryKey: ["field_assigned_orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("orders")
+        .select("*, order_items(item_id, products(product_name, product_category))")
+        .in("order_status", ["ASSIGNED", "CONTACTED", "OUT_FOR_DELIVERY", "NETWORK_TEST"] as any[])
+        .order("created_at", { ascending: false }).limit(50);
+      return data ?? [];
+    },
+  });
 
   // Sales stock assigned to field staff
   const { data: salesStock } = useQuery({
     queryKey: ["field_sales_stock"],
     queryFn: async () => {
-      const { data } = await supabase.from("inventory_master").select("*, products(product_name, product_category)")
-        .eq("status", "WITH_FIELD_STAFF" as any).order("created_at", { ascending: false }).limit(50);
+      const { data } = await supabase.from("inventory_master")
+        .select("*, products(product_name, product_category)")
+        .eq("status", "WITH_FIELD_STAFF" as any)
+        .order("created_at", { ascending: false }).limit(50);
       return data ?? [];
     },
   });
 
-  // Pending incoming transfers for field staff
+  // Pending incoming transfers
   const { data: pendingIncoming } = useQuery({
     queryKey: ["field_pending_incoming"],
     queryFn: async () => {
-      const { data } = await supabase.from("stock_transfers").select("*, inventory_master(serial_number, products(product_name))")
+      const { data } = await supabase.from("stock_transfers")
+        .select("*, inventory_master(serial_number, products(product_name))")
         .in("to_entity_type", ["KAM", "AGENT"])
-        .eq("transfer_status", "PENDING" as any).order("requested_at", { ascending: false });
+        .eq("transfer_status", "PENDING" as any)
+        .order("requested_at", { ascending: false });
       return data ?? [];
     },
-  });
-
-  // Scan to fulfill - look up inventory by serial and mark as DELIVERED + EARNED
-  const scanFulfill = useMutation({
-    mutationFn: async () => {
-      const { data: inv, error: findErr } = await supabase.from("inventory_master")
-        .select("inventory_id, status")
-        .eq("serial_number", serialInput.trim())
-        .eq("status", "WITH_FIELD_STAFF" as any)
-        .maybeSingle();
-      if (findErr) throw findErr;
-      if (!inv) throw new Error(`No item found with serial "${serialInput}" in your sales stock`);
-
-      const { error } = await supabase.from("inventory_master")
-        .update({ status: "DELIVERED" } as any)
-        .eq("inventory_id", inv.inventory_id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["field_sales_stock"] });
-      toast({ title: "Fulfillment confirmed!", description: `Serial ${serialInput} marked as DELIVERED` });
-      setSerialInput("");
-      setScanOpen(false);
-    },
-    onError: (e: Error) => toast({ title: "Scan Failed", description: e.message, variant: "destructive" }),
   });
 
   const acceptTransfer = useMutation({
     mutationFn: async (transferId: string) => {
       const transfer = pendingIncoming?.find((t: any) => t.transfer_id === transferId);
       if (!transfer) throw new Error("Transfer not found");
-
       const { error } = await supabase.from("stock_transfers")
         .update({ transfer_status: "ACCEPTED" as any, responded_at: new Date().toISOString() })
         .eq("transfer_id", transferId);
       if (error) throw error;
-
       await supabase.from("inventory_master")
         .update({ status: "WITH_FIELD_STAFF" as any, stock_type: "SALES_STOCK" as any } as any)
         .eq("inventory_id", transfer.inventory_id);
@@ -95,18 +78,23 @@ export default function FieldExecutionDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Field Execution Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Your sales stock and scan-to-fulfill tool</p>
+          <p className="text-sm text-muted-foreground">Your orders, sales stock, and scan-to-fulfill tool</p>
         </div>
-        <Button onClick={() => setScanOpen(true)}>
-          <ScanLine className="h-4 w-4 mr-1.5" /> Scan to Fulfill
-        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* KPIs */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
+            <ClipboardList className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent><p className="text-2xl font-bold">{assignedOrders?.length ?? 0}</p></CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Sales Stock</CardTitle>
-            <Package className="h-4 w-4 text-blue-500" />
+            <Package className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent><p className="text-2xl font-bold">{salesStock?.length ?? 0}</p></CardContent>
         </Card>
@@ -116,6 +104,13 @@ export default function FieldExecutionDashboard() {
             <AlertCircle className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent><p className="text-2xl font-bold">{pendingIncoming?.length ?? 0}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Installed Today</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent><p className="text-2xl font-bold">—</p></CardContent>
         </Card>
       </div>
 
@@ -152,6 +147,46 @@ export default function FieldExecutionDashboard() {
         </Card>
       )}
 
+      {/* Assigned Orders — Scan to Fulfill */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><ScanLine className="h-4 w-4" /> Assigned Orders — Scan to Fulfill</CardTitle>
+          <CardDescription>Open an order to assign assets, change products, and submit fulfillment</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead className="w-[120px]">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {!assignedOrders?.length ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No pending orders assigned to you.</TableCell></TableRow>
+              ) : assignedOrders.map((o: any) => (
+                <TableRow key={o.order_id}>
+                  <TableCell className="font-medium">{o.customer_name}</TableCell>
+                  <TableCell className="font-mono text-xs">{o.contact_msisdn}</TableCell>
+                  <TableCell><Badge variant="outline">{o.customer_type}</Badge></TableCell>
+                  <TableCell><Badge variant="secondary" className="text-xs">{o.order_status}</Badge></TableCell>
+                  <TableCell className="font-semibold">{formatBDT(Number(o.final_total_bdt))}</TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => setFulfillOrderId(o.order_id)} className="gap-1">
+                      <ScanLine className="h-3.5 w-3.5" /> Fulfill
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       {/* Sales stock */}
       <Card>
         <CardHeader>
@@ -184,27 +219,14 @@ export default function FieldExecutionDashboard() {
         </CardContent>
       </Card>
 
-      {/* Scan to Fulfill Dialog */}
-      <Dialog open={scanOpen} onOpenChange={setScanOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ScanLine className="h-5 w-5" /> Scan to Fulfill</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">Enter the serial number or IMEI of the device being installed at the customer site.</p>
-            <div className="space-y-2">
-              <Label>Serial / IMEI</Label>
-              <Input value={serialInput} onChange={(e) => setSerialInput(e.target.value)} placeholder="Scan or type serial number..." autoFocus />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setScanOpen(false)}>Cancel</Button>
-            <Button onClick={() => scanFulfill.mutate()} disabled={!serialInput.trim() || scanFulfill.isPending}>
-              {scanFulfill.isPending ? "Processing..." : "Confirm Fulfillment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Scan-to-Fulfill Dialog */}
+      {fulfillOrderId && (
+        <ScanToFulfillDialog
+          orderId={fulfillOrderId}
+          open={!!fulfillOrderId}
+          onOpenChange={(open) => { if (!open) setFulfillOrderId(null); }}
+        />
+      )}
     </div>
   );
 }
