@@ -357,6 +357,21 @@ export default function StockTransfersPage() {
                 </Select>
               </div>
             )}
+            {toEntityType === "DD_RIDER" && (
+              <div className="space-y-2">
+                <Label>DD Rider (Sub-Channel User)</Label>
+                <Select value={toEntityId} onValueChange={setToEntityId}>
+                  <SelectTrigger><SelectValue placeholder="Select DD Rider" /></SelectTrigger>
+                  <SelectContent>
+                    {ddRiders?.map((r: any) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.user_name} — {r.sub_channels?.sub_channel_name} ({r.employee_id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Notes (optional)</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Transfer notes..." rows={2} />
