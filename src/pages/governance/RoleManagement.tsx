@@ -114,8 +114,9 @@ export default function RoleManagement() {
             <TableRow>
               <TableHead className="w-[200px]">Role Name</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead className="w-[120px]">Users</TableHead>
-              <TableHead className="w-[180px]">Created At</TableHead>
+              <TableHead>Permissions</TableHead>
+              <TableHead className="w-[100px]">Users</TableHead>
+              <TableHead className="w-[160px]">Created At</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
