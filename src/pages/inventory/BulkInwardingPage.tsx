@@ -33,6 +33,15 @@ export default function BulkInwardingPage() {
     },
   });
 
+  const { data: stagingCount } = useQuery({
+    queryKey: ["gpfi_staging_count"],
+    queryFn: async () => {
+      const { count } = await supabase.from("inventory_master").select("inventory_id", { count: "exact", head: true })
+        .eq("status", "IN_GPFI_STAGING" as any);
+      return count ?? 0;
+    },
+  });
+
   const { data: recentStock } = useQuery({
     queryKey: ["recent_gpfi_stock"],
     queryFn: async () => {
