@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Check, X, Send, Package, ArrowRight } from "lucide-react";
+import { Check, X, Send, Package, ArrowRight, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 /*
@@ -40,6 +43,7 @@ export default function StockTransfersPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
+  const [hmPopoverOpen, setHmPopoverOpen] = useState(false);
 
   // From state
   const [fromEntityType, setFromEntityType] = useState<FromType>("GPFI_MANAGER");
@@ -297,16 +301,39 @@ export default function StockTransfersPage() {
             {fromEntityType === "HUB_MANAGER" && (
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Select Hub Manager</Label>
-                <Select value={fromEntityId} onValueChange={(v) => { setFromEntityId(v); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); }}>
-                  <SelectTrigger className="w-[260px] h-9"><SelectValue placeholder="Pick hub manager..." /></SelectTrigger>
-                  <SelectContent>
-                    {hubManagers?.map((hm: any) => (
-                      <SelectItem key={hm.hub_manager_id} value={hm.hub_manager_id}>
-                        {hm.name} — {(hm as any).channels?.channel_name ?? "No channel"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={hmPopoverOpen} onOpenChange={setHmPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-[280px] h-9 justify-between font-normal">
+                      {fromEntityId
+                        ? (() => { const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId); return hm ? `${hm.name} — ${(hm as any).channels?.channel_name ?? ""}` : "Select..."; })()
+                        : "Search hub manager..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[320px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search by name or channel..." />
+                      <CommandList>
+                        <CommandEmpty>No hub managers found.</CommandEmpty>
+                        <CommandGroup>
+                          {hubManagers?.map((hm: any) => (
+                            <CommandItem
+                              key={hm.hub_manager_id}
+                              value={`${hm.name} ${(hm as any).channels?.channel_name ?? ""}`}
+                              onSelect={() => { setFromEntityId(hm.hub_manager_id); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); setHmPopoverOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", fromEntityId === hm.hub_manager_id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{hm.name}</span>
+                                <span className="text-xs text-muted-foreground">{(hm as any).channels?.channel_name ?? "No channel"}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
             {fromEntityType !== "GPFI_MANAGER" && fromEntityId && (
