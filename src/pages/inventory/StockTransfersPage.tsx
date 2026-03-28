@@ -112,8 +112,6 @@ export default function StockTransfersPage() {
         q = q.in("status", ["IN_GPFI_STAGING", "IN_WAREHOUSE"] as any);
       } else if (fromEntityType === "HUB_MANAGER" && fromEntityId) {
         q = q.eq("allocated_entity_id", fromEntityId).eq("status", "WITH_HUB_MANAGER" as any);
-      } else if (fromEntityType === "SUB_CHANNEL_USER" && fromEntityId) {
-        q = q.eq("allocated_entity_id", fromEntityId).eq("status", "WITH_FIELD_STAFF" as any);
       } else {
         return [];
       }
