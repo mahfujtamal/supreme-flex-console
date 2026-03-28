@@ -56,6 +56,22 @@ export default function RoleManagement() {
     },
   });
 
+  const { data: rolePermissions } = useQuery({
+    queryKey: ["role_permissions_map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("role_permission")
+        .select("role_id, permission_master(permission_name, module)");
+      if (error) throw error;
+      const map: Record<string, { permission_name: string; module: string }[]> = {};
+      data.forEach((rp: any) => {
+        if (!map[rp.role_id]) map[rp.role_id] = [];
+        if (rp.permission_master) map[rp.role_id].push(rp.permission_master);
+      });
+      return map;
+    },
+  });
+
   const createRole = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
