@@ -120,6 +120,18 @@ export default function BulkInwardingPage() {
           <CardDescription>CSV columns: <code>product_name, item_type (CPE/SIM/ADDON), serial_number, imei, msisdn</code></CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Stock Purpose</Label>
+            <Select value={stockPurpose} onValueChange={(v) => setStockPurpose(v as "SALES_STOCK" | "SWAP_BUFFER_STOCK")}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALES_STOCK">Acquisition Stock (Sales)</SelectItem>
+                <SelectItem value="SWAP_BUFFER_STOCK">Warranty / Swap Buffer Stock</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Input type="file" accept=".csv" onChange={handleFileUpload} />
           {csvErrors.length > 0 && (
             <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-md space-y-1">
