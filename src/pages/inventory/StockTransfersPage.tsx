@@ -301,16 +301,39 @@ export default function StockTransfersPage() {
             {fromEntityType === "HUB_MANAGER" && (
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Select Hub Manager</Label>
-                <Select value={fromEntityId} onValueChange={(v) => { setFromEntityId(v); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); }}>
-                  <SelectTrigger className="w-[260px] h-9"><SelectValue placeholder="Pick hub manager..." /></SelectTrigger>
-                  <SelectContent>
-                    {hubManagers?.map((hm: any) => (
-                      <SelectItem key={hm.hub_manager_id} value={hm.hub_manager_id}>
-                        {hm.name} — {(hm as any).channels?.channel_name ?? "No channel"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={hmPopoverOpen} onOpenChange={setHmPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-[280px] h-9 justify-between font-normal">
+                      {fromEntityId
+                        ? (() => { const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId); return hm ? `${hm.name} — ${(hm as any).channels?.channel_name ?? ""}` : "Select..."; })()
+                        : "Search hub manager..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[320px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search by name or channel..." />
+                      <CommandList>
+                        <CommandEmpty>No hub managers found.</CommandEmpty>
+                        <CommandGroup>
+                          {hubManagers?.map((hm: any) => (
+                            <CommandItem
+                              key={hm.hub_manager_id}
+                              value={`${hm.name} ${(hm as any).channels?.channel_name ?? ""}`}
+                              onSelect={() => { setFromEntityId(hm.hub_manager_id); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); setHmPopoverOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", fromEntityId === hm.hub_manager_id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{hm.name}</span>
+                                <span className="text-xs text-muted-foreground">{(hm as any).channels?.channel_name ?? "No channel"}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
             {fromEntityType !== "GPFI_MANAGER" && fromEntityId && (
