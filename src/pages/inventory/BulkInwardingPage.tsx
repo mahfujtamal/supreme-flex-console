@@ -75,7 +75,7 @@ export default function BulkInwardingPage() {
         imei: row.imei || null,
         msisdn: row.msisdn || null,
         status: "IN_GPFI_STAGING",
-        stock_type: "GPFI_STAGING",
+        stock_type: stockPurpose,
       });
     }
     setCsvErrors(errors);
