@@ -258,9 +258,9 @@ export default function StockTransfersPage() {
       return kams?.filter((k: any) => k.hub_manager_id === fromEntityId) ?? [];
     }
     if (toEntityType === "DD_RIDER") {
-      // Filter riders in same sub-channel as the from user
-      const fromUser = subChannelUsers?.find((u: any) => u.id === fromEntityId);
-      if (fromUser) return ddRiders?.filter((r: any) => r.sub_channel_id === fromUser.sub_channel_id) ?? [];
+      // Filter riders in same sub-channel as the hub manager
+      const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId);
+      if (hm?.sub_channel_id) return ddRiders?.filter((r: any) => r.sub_channel_id === hm.sub_channel_id) ?? [];
       return ddRiders ?? [];
     }
     return [];
