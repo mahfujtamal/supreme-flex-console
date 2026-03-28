@@ -92,11 +92,6 @@ export default function StockTransfersPage() {
     },
   });
 
-  // Split sub-channel users into managers vs riders
-  const scManagers = useMemo(
-    () => subChannelUsers?.filter((u: any) => u.role === "Manager" || u.role === "Admin") ?? [],
-    [subChannelUsers]
-  );
   const ddRiders = useMemo(
     () => subChannelUsers?.filter((u: any) => u.role === "Agent" || u.role === "Rider") ?? [],
     [subChannelUsers]
