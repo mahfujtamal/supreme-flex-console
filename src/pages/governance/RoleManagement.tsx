@@ -123,41 +123,53 @@ export default function RoleManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell>
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell>
               </TableRow>
             ) : !data?.roles?.length ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   No roles found. Create one to get started.
                 </TableCell>
               </TableRow>
             ) : (
-              data.roles.map((role) => (
-                <TableRow key={role.role_id}>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-medium">
-                      {role.role_name}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {role.role_description || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {roleCounts?.[role.role_id] ?? 0}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(role.created_at), "dd MMM yyyy, HH:mm")}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedRole({ role_id: role.role_id, role_name: role.role_name })}
-                      title="View assigned users"
-                    >
+              data.roles.map((role) => {
+                const perms = rolePermissions?.[role.role_id] ?? [];
+                const modules = [...new Set(perms.map(p => p.module))];
+                return (
+                  <TableRow key={role.role_id}>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-medium">
+                        {role.role_name}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {role.role_description || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {modules.length ? modules.map(m => (
+                          <Badge key={m} variant="outline" className="text-[10px] px-1.5 py-0">
+                            {m} ({perms.filter(p => p.module === m).length})
+                          </Badge>
+                        )) : <span className="text-xs text-muted-foreground">None</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="gap-1">
+                        <Users className="h-3 w-3" />
+                        {roleCounts?.[role.role_id] ?? 0}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(role.created_at), "dd MMM yyyy, HH:mm")}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSelectedRole({ role_id: role.role_id, role_name: role.role_name })}
+                        title="View assigned users"
+                      >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </TableCell>
