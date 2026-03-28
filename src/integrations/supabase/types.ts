@@ -2097,7 +2097,9 @@ export type Database = {
           created_at: string
           email: string
           employee_id: string | null
+          password_hash: string
           role_status: boolean | null
+          staff_type: string | null
           user_id: string
           user_name: string
         }
@@ -2105,7 +2107,9 @@ export type Database = {
           created_at?: string
           email: string
           employee_id?: string | null
+          password_hash?: string
           role_status?: boolean | null
+          staff_type?: string | null
           user_id?: string
           user_name: string
         }
@@ -2113,7 +2117,9 @@ export type Database = {
           created_at?: string
           email?: string
           employee_id?: string | null
+          password_hash?: string
           role_status?: boolean | null
+          staff_type?: string | null
           user_id?: string
           user_name?: string
         }
