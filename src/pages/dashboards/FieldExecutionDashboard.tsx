@@ -46,7 +46,7 @@ export default function FieldExecutionDashboard() {
     queryFn: async () => {
       const { data } = await supabase.from("stock_transfers")
         .select("*, inventory_master(serial_number, products(product_name))")
-        .in("to_entity_type", ["KAM", "AGENT"])
+        .in("to_entity_type", ["KAM", "AGENT", "DD_RIDER"])
         .eq("transfer_status", "PENDING" as any)
         .order("requested_at", { ascending: false });
       return data ?? [];
@@ -62,7 +62,11 @@ export default function FieldExecutionDashboard() {
         .eq("transfer_id", transferId);
       if (error) throw error;
       await supabase.from("inventory_master")
-        .update({ status: "WITH_FIELD_STAFF" as any, stock_type: "SALES_STOCK" as any } as any)
+        .update({
+          status: "WITH_FIELD_STAFF" as any,
+          stock_type: "SALES_STOCK" as any,
+          allocated_agent_id: transfer.to_entity_id,
+        } as any)
         .eq("inventory_id", transfer.inventory_id);
     },
     onSuccess: () => {
