@@ -180,7 +180,7 @@ export default function StockTransfersPage() {
                     <TableHead>Product</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Serial</TableHead>
-                    <TableHead>MAC</TableHead>
+                    <TableHead>IMEI</TableHead>
                     <TableHead>Added</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -196,7 +196,7 @@ export default function StockTransfersPage() {
                       <TableCell className="font-medium">{(item as any).products?.product_name ?? "—"}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{item.item_type}</Badge></TableCell>
                       <TableCell className="font-mono text-xs">{item.serial_number ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{item.mac_address ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{item.imei ?? "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{format(new Date(item.created_at), "dd MMM yyyy")}</TableCell>
                     </TableRow>
                   ))}

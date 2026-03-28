@@ -546,7 +546,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
             customer_id: anchor.customer_id,
             product_id: item.product_id,
             serial_number: inv.serial_number || `INST-${Date.now()}-${item.item_id.slice(0, 4)}`,
-            mac_address: inv.mac_address || null,
+            imei: inv.imei || null,
             asset_type: assetType as any,
             installation_date: now.toISOString(),
             warranty_start_date: now.toISOString(),
@@ -568,7 +568,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
               customer_id: anchor.customer_id,
               product_id: item.product_id,
               serial_number: inv.serial_number || `ADDON-${Date.now()}`,
-              mac_address: inv.mac_address || null,
+              imei: inv.imei || null,
               asset_type: "PHYSICAL_ADDON" as any,
               installation_date: now.toISOString(),
               warranty_start_date: now.toISOString(),
@@ -689,7 +689,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
         customer_id: currentAsset.customer_id,
         product_id: newInv.product_id,
         serial_number: newInv.serial_number || `RPL-${Date.now()}`,
-        mac_address: newInv.mac_address || null,
+        imei: newInv.imei || null,
         asset_type: "CPE" as any,
         installation_date: installDate.toISOString(),
         warranty_start_date: installDate.toISOString(),
@@ -1140,7 +1140,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                                       <SelectContent>
                                         {matchingInv.map((inv: any) => (
                                           <SelectItem key={inv.inventory_id} value={inv.inventory_id}>
-                                            {inv.serial_number ?? inv.mac_address ?? inv.msisdn ?? "N/A"} ({inv.status.replace(/_/g, " ")})
+                                            {inv.serial_number ?? inv.imei ?? inv.msisdn ?? "N/A"} ({inv.status.replace(/_/g, " ")})
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -1245,7 +1245,7 @@ const ManageOrderDialog = ({ orderId, open, onOpenChange }: Props) => {
                             {!cpeInventory.length ? (
                               <SelectItem value="__none" disabled>No CPE available</SelectItem>
                             ) : cpeInventory.map((inv: any) => (
-                              <SelectItem key={inv.inventory_id} value={inv.inventory_id}>{inv.serial_number ?? inv.mac_address ?? "N/A"} — {inv.products?.product_name}</SelectItem>
+                              <SelectItem key={inv.inventory_id} value={inv.inventory_id}>{inv.serial_number ?? inv.imei ?? "N/A"} — {inv.products?.product_name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

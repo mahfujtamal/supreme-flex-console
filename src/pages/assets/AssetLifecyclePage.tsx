@@ -190,7 +190,7 @@ export default function AssetLifecyclePage() {
                       {a.serial_number}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
-                      {a.mac_address || "—"}
+                      {a.imei || "—"}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
                       {a._gpfi_msisdn || "—"}

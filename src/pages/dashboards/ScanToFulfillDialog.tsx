@@ -207,7 +207,7 @@ export default function ScanToFulfillDialog({ orderId, open, onOpenChange }: Pro
           customer_id: anchor.customer_id,
           product_id: productId,
           serial_number: inv.serial_number || `INST-${Date.now()}`,
-          mac_address: inv.mac_address || null,
+          imei: inv.imei || null,
           asset_type: assetType as any,
           installation_date: now.toISOString(),
           warranty_start_date: now.toISOString(),
@@ -445,7 +445,7 @@ export default function ScanToFulfillDialog({ orderId, open, onOpenChange }: Pro
                         <SelectContent>
                           {filteredCpeStock.map((s: any) => (
                             <SelectItem key={s.inventory_id} value={s.inventory_id}>
-                              {s.serial_number || s.mac_address || "N/A"} — {s.products?.product_name}
+                              {s.serial_number || s.imei || "N/A"} — {s.products?.product_name}
                             </SelectItem>
                           ))}
                         </SelectContent>

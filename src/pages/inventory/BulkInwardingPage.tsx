@@ -71,7 +71,7 @@ export default function BulkInwardingPage() {
         product_id: productId,
         item_type: row.item_type.toUpperCase(),
         serial_number: row.serial_number || null,
-        mac_address: row.mac_address || null,
+        imei: row.imei || null,
         msisdn: row.msisdn || null,
         status: "IN_GPFI_STAGING",
         stock_type: "GPFI_STAGING",
@@ -116,7 +116,7 @@ export default function BulkInwardingPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" /> Upload Stock CSV</CardTitle>
-          <CardDescription>CSV columns: <code>product_name, item_type (CPE/SIM/ADDON), serial_number, mac_address, msisdn</code></CardDescription>
+          <CardDescription>CSV columns: <code>product_name, item_type (CPE/SIM/ADDON), serial_number, imei, msisdn</code></CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input type="file" accept=".csv" onChange={handleFileUpload} />
@@ -148,7 +148,7 @@ export default function BulkInwardingPage() {
                 <TableHead>Product</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Serial</TableHead>
-                <TableHead>MAC</TableHead>
+                <TableHead>IMEI</TableHead>
                 <TableHead>MSISDN</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Added</TableHead>
@@ -162,7 +162,7 @@ export default function BulkInwardingPage() {
                   <TableCell className="font-medium">{(item as any).products?.product_name ?? "—"}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{item.item_type}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{item.serial_number ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.mac_address ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.imei ?? "—"}</TableCell>
                   <TableCell className="text-sm">{item.msisdn ?? "—"}</TableCell>
                   <TableCell><Badge variant="default" className="text-xs">{item.status}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(item.created_at), "dd MMM yyyy")}</TableCell>

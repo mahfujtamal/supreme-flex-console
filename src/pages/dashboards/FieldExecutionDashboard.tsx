@@ -200,7 +200,7 @@ export default function FieldExecutionDashboard() {
                 <TableHead>Product</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Serial</TableHead>
-                <TableHead>MAC</TableHead>
+                <TableHead>IMEI</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -211,7 +211,7 @@ export default function FieldExecutionDashboard() {
                   <TableCell className="font-medium">{(item as any).products?.product_name ?? "—"}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{item.item_type}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{item.serial_number ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.mac_address ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.imei ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
