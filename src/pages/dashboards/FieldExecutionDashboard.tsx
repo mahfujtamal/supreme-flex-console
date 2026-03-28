@@ -46,7 +46,7 @@ export default function FieldExecutionDashboard() {
     queryFn: async () => {
       const { data } = await supabase.from("stock_transfers")
         .select("*, inventory_master(serial_number, products(product_name))")
-        .in("to_entity_type", ["KAM", "AGENT"])
+        .in("to_entity_type", ["KAM", "AGENT", "DD_RIDER"])
         .eq("transfer_status", "PENDING" as any)
         .order("requested_at", { ascending: false });
       return data ?? [];
