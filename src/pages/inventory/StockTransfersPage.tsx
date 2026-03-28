@@ -144,17 +144,15 @@ export default function StockTransfersPage() {
   // ─── Allowed "To" options based on "From" ───
   const toOptions = useMemo(() => {
     if (fromEntityType === "GPFI_MANAGER") {
-      return [{ value: "HUB_MANAGER", label: "Hub Manager (DH / B2B / Sub-Channel)" }];
+      return [{ value: "HUB_MANAGER", label: "Hub Manager" }];
     }
     if (fromEntityType === "HUB_MANAGER") {
-      // Determine context from selected hub manager
       const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId);
       const channelName = (hm as any)?.channels?.channel_name?.toUpperCase() ?? "";
       if (channelName === "B2B") return [{ value: "KAM", label: "KAM" }];
+      // DD sub-channel hub managers send to DD Riders
+      if (hm?.sub_channel_id) return [{ value: "DD_RIDER", label: "DD Rider" }];
       return [{ value: "AGENT", label: "DH Agent (Field Agent)" }];
-    }
-    if (fromEntityType === "SUB_CHANNEL_USER") {
-      return [{ value: "DD_RIDER", label: "DD Rider" }];
     }
     return [];
   }, [fromEntityType, fromEntityId, hubManagers]);
