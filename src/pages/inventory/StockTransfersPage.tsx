@@ -318,21 +318,6 @@ export default function StockTransfersPage() {
                 </Select>
               </div>
             )}
-            {fromEntityType === "SUB_CHANNEL_USER" && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Select Sub-Channel Manager</Label>
-                <Select value={fromEntityId} onValueChange={(v) => { setFromEntityId(v); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); }}>
-                  <SelectTrigger className="w-[280px] h-9"><SelectValue placeholder="Pick SC manager..." /></SelectTrigger>
-                  <SelectContent>
-                    {scManagers?.map((u: any) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.user_name} — {u.sub_channels?.sub_channel_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             {fromEntityType !== "GPFI_MANAGER" && fromEntityId && (
               <div className="flex items-center gap-1.5 ml-auto">
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
