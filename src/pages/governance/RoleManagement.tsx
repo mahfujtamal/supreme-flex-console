@@ -174,7 +174,8 @@ export default function RoleManagement() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
