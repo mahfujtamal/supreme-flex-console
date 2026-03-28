@@ -87,6 +87,19 @@ export default function StockTransfersPage() {
     },
   });
 
+  // Sub-Channel Users (DD Riders) — only from direct-delivery sub-channels
+  const { data: ddRiders } = useQuery({
+    queryKey: ["dd_riders_lookup"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sub_channel_users")
+        .select("id, user_name, employee_id, msisdn, sub_channels(sub_channel_name, is_direct_delivery)")
+        .eq("status", "ACTIVE");
+      // Filter to only those belonging to direct-delivery sub-channels
+      return (data ?? []).filter((u: any) => u.sub_channels?.is_direct_delivery === true);
+    },
+  });
+
   const initiateTransfer = useMutation({
     mutationFn: async () => {
       const transfers = selectedInventoryIds.map(invId => ({
@@ -123,10 +136,14 @@ export default function StockTransfersPage() {
       if (action === "ACCEPTED") {
         const transfer = pendingTransfers?.find((t: any) => t.transfer_id === transferId);
         if (transfer) {
-          const newStatus = transfer.to_entity_type === "HUB_MANAGER" ? "WITH_HUB_MANAGER" : "WITH_FIELD_STAFF";
-          const newStockType = transfer.to_entity_type === "HUB_MANAGER" ? "SWAP_BUFFER_STOCK" : "SALES_STOCK";
+          const newStatus = transfer.to_entity_type === "HUB_MANAGER" ? "WITH_HUB_MANAGER" 
+            : transfer.to_entity_type === "DD_RIDER" ? "WITH_FIELD_STAFF" 
+            : "WITH_FIELD_STAFF";
+          const newStockType = transfer.to_entity_type === "HUB_MANAGER" ? "SWAP_BUFFER_STOCK" 
+            : transfer.to_entity_type === "DD_RIDER" ? "SALES_STOCK"
+            : "SALES_STOCK";
           await supabase.from("inventory_master")
-            .update({ status: newStatus as any, stock_type: newStockType as any } as any)
+            .update({ status: newStatus as any, stock_type: newStockType as any, allocated_agent_id: transfer.to_entity_id } as any)
             .eq("inventory_id", transfer.inventory_id);
         }
       }
@@ -303,6 +320,7 @@ export default function StockTransfersPage() {
                   <SelectItem value="HUB_MANAGER">Hub Manager</SelectItem>
                   <SelectItem value="KAM">KAM</SelectItem>
                   <SelectItem value="AGENT">Field Agent</SelectItem>
+                  <SelectItem value="DD_RIDER">DD Rider (Sub-Channel)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -335,6 +353,21 @@ export default function StockTransfersPage() {
                   <SelectTrigger><SelectValue placeholder="Select agent" /></SelectTrigger>
                   <SelectContent>
                     {agents?.map((a: any) => <SelectItem key={a.agent_id} value={a.agent_id}>{a.agent_name} ({a.agent_id})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {toEntityType === "DD_RIDER" && (
+              <div className="space-y-2">
+                <Label>DD Rider (Sub-Channel User)</Label>
+                <Select value={toEntityId} onValueChange={setToEntityId}>
+                  <SelectTrigger><SelectValue placeholder="Select DD Rider" /></SelectTrigger>
+                  <SelectContent>
+                    {ddRiders?.map((r: any) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.user_name} — {r.sub_channels?.sub_channel_name} ({r.employee_id})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
