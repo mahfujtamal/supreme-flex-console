@@ -29,12 +29,11 @@ import { useToast } from "@/hooks/use-toast";
     - Sub-Channel User → DD Rider
 */
 
-type FromType = "GPFI_MANAGER" | "HUB_MANAGER" | "SUB_CHANNEL_USER";
+type FromType = "GPFI_MANAGER" | "HUB_MANAGER";
 
 const FROM_OPTIONS: { value: FromType; label: string }[] = [
   { value: "GPFI_MANAGER", label: "GPFI Sales Manager" },
-  { value: "HUB_MANAGER", label: "Hub Manager (DH / B2B)" },
-  { value: "SUB_CHANNEL_USER", label: "Sub-Channel Manager (DD)" },
+  { value: "HUB_MANAGER", label: "Hub Manager" },
 ];
 
 export default function StockTransfersPage() {
