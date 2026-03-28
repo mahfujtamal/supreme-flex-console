@@ -118,7 +118,7 @@ export default function BulkInwardingPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">In GPFI Staging</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{recentStock?.length ?? 0}</p>
+            <p className="text-2xl font-bold">{stagingCount ?? 0}</p>
           </CardContent>
         </Card>
       </div>
