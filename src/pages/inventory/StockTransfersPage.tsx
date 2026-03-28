@@ -87,6 +87,19 @@ export default function StockTransfersPage() {
     },
   });
 
+  // Sub-Channel Users (DD Riders) — only from direct-delivery sub-channels
+  const { data: ddRiders } = useQuery({
+    queryKey: ["dd_riders_lookup"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sub_channel_users")
+        .select("id, user_name, employee_id, msisdn, sub_channels(sub_channel_name, is_direct_delivery)")
+        .eq("status", "ACTIVE");
+      // Filter to only those belonging to direct-delivery sub-channels
+      return (data ?? []).filter((u: any) => u.sub_channels?.is_direct_delivery === true);
+    },
+  });
+
   const initiateTransfer = useMutation({
     mutationFn: async () => {
       const transfers = selectedInventoryIds.map(invId => ({
