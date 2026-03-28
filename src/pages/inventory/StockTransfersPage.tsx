@@ -43,6 +43,7 @@ export default function StockTransfersPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
+  const [hmPopoverOpen, setHmPopoverOpen] = useState(false);
 
   // From state
   const [fromEntityType, setFromEntityType] = useState<FromType>("GPFI_MANAGER");
