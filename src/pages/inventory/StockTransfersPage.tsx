@@ -193,13 +193,18 @@ export default function StockTransfersPage() {
           const isHubTarget = transfer.to_entity_type === "HUB_MANAGER";
           const newStatus = isHubTarget ? "WITH_HUB_MANAGER" : "WITH_FIELD_STAFF";
           const newStockType = isHubTarget ? "SWAP_BUFFER_STOCK" : "SALES_STOCK";
+          const updatePayload: Record<string, any> = {
+            status: newStatus,
+            stock_type: newStockType,
+          };
+          if (isHubTarget) {
+            updatePayload.allocated_entity_id = transfer.to_entity_id;
+            updatePayload.allocated_agent_id = null;
+          } else {
+            updatePayload.allocated_agent_id = transfer.to_entity_id;
+          }
           await supabase.from("inventory_master")
-            .update({
-              status: newStatus as any,
-              stock_type: newStockType as any,
-              allocated_entity_id: isHubTarget ? transfer.to_entity_id : undefined,
-              allocated_agent_id: isHubTarget ? undefined : transfer.to_entity_id,
-            } as any)
+            .update(updatePayload as any)
             .eq("inventory_id", transfer.inventory_id);
         }
       }
