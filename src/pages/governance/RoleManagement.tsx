@@ -2,28 +2,20 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { Plus, Users, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import RoleUsersDialog from "./RoleUsersDialog";
 
 const PAGE_SIZE = 10;
 
@@ -32,6 +24,7 @@ export default function RoleManagement() {
   const [open, setOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
+  const [selectedRole, setSelectedRole] = useState<{ role_id: string; role_name: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -47,6 +40,19 @@ export default function RoleManagement() {
         .range(from, to);
       if (error) throw error;
       return { roles: data, count: count ?? 0 };
+    },
+  });
+
+  const { data: roleCounts } = useQuery({
+    queryKey: ["role_user_counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_role").select("role_id");
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      data.forEach((r) => {
+        counts[r.role_id] = (counts[r.role_id] || 0) + 1;
+      });
+      return counts;
     },
   });
 
@@ -77,7 +83,7 @@ export default function RoleManagement() {
         <div>
           <h1 className="text-xl font-semibold">Role Management</h1>
           <p className="text-sm text-muted-foreground">
-            Manage roles and their descriptions
+            Manage roles, descriptions, and assigned users
           </p>
         </div>
         <Button size="sm" onClick={() => setOpen(true)}>
@@ -92,19 +98,19 @@ export default function RoleManagement() {
             <TableRow>
               <TableHead className="w-[200px]">Role Name</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead className="w-[120px]">Users</TableHead>
               <TableHead className="w-[180px]">Created At</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                  Loading...
-                </TableCell>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading...</TableCell>
               </TableRow>
             ) : !data?.roles?.length ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   No roles found. Create one to get started.
                 </TableCell>
               </TableRow>
@@ -119,8 +125,24 @@ export default function RoleManagement() {
                   <TableCell className="text-sm text-muted-foreground">
                     {role.role_description || "—"}
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="gap-1">
+                      <Users className="h-3 w-3" />
+                      {roleCounts?.[role.role_id] ?? 0}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(role.created_at), "dd MMM yyyy, HH:mm")}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedRole({ role_id: role.role_id, role_name: role.role_name })}
+                      title="View assigned users"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -134,22 +156,8 @@ export default function RoleManagement() {
               Page {page + 1} of {totalPages} · {data?.count} total
             </span>
             <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>Next</Button>
             </div>
           </div>
         )}
@@ -163,37 +171,30 @@ export default function RoleManagement() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="role-name">Role Name</Label>
-              <Input
-                id="role-name"
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-                placeholder="e.g. Campaign Manager"
-              />
+              <Input id="role-name" value={roleName} onChange={(e) => setRoleName(e.target.value)} placeholder="e.g. Campaign Manager" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role-desc">Description</Label>
-              <Textarea
-                id="role-desc"
-                value={roleDesc}
-                onChange={(e) => setRoleDesc(e.target.value)}
-                placeholder="Describe the role's responsibilities..."
-                rows={3}
-              />
+              <Textarea id="role-desc" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} placeholder="Describe the role's responsibilities..." rows={3} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => createRole.mutate()}
-              disabled={!roleName.trim() || createRole.isPending}
-            >
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => createRole.mutate()} disabled={!roleName.trim() || createRole.isPending}>
               {createRole.isPending ? "Creating..." : "Create Role"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selectedRole && (
+        <RoleUsersDialog
+          roleId={selectedRole.role_id}
+          roleName={selectedRole.role_name}
+          open={!!selectedRole}
+          onOpenChange={(open) => { if (!open) setSelectedRole(null); }}
+        />
+      )}
     </div>
   );
 }
