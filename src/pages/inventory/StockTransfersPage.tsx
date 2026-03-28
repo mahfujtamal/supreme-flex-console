@@ -29,12 +29,11 @@ import { useToast } from "@/hooks/use-toast";
     - Sub-Channel User → DD Rider
 */
 
-type FromType = "GPFI_MANAGER" | "HUB_MANAGER" | "SUB_CHANNEL_USER";
+type FromType = "GPFI_MANAGER" | "HUB_MANAGER";
 
 const FROM_OPTIONS: { value: FromType; label: string }[] = [
   { value: "GPFI_MANAGER", label: "GPFI Sales Manager" },
-  { value: "HUB_MANAGER", label: "Hub Manager (DH / B2B)" },
-  { value: "SUB_CHANNEL_USER", label: "Sub-Channel Manager (DD)" },
+  { value: "HUB_MANAGER", label: "Hub Manager" },
 ];
 
 export default function StockTransfersPage() {
@@ -93,11 +92,6 @@ export default function StockTransfersPage() {
     },
   });
 
-  // Split sub-channel users into managers vs riders
-  const scManagers = useMemo(
-    () => subChannelUsers?.filter((u: any) => u.role === "Manager" || u.role === "Admin") ?? [],
-    [subChannelUsers]
-  );
   const ddRiders = useMemo(
     () => subChannelUsers?.filter((u: any) => u.role === "Agent" || u.role === "Rider") ?? [],
     [subChannelUsers]
@@ -113,8 +107,6 @@ export default function StockTransfersPage() {
         q = q.in("status", ["IN_GPFI_STAGING", "IN_WAREHOUSE"] as any);
       } else if (fromEntityType === "HUB_MANAGER" && fromEntityId) {
         q = q.eq("allocated_entity_id", fromEntityId).eq("status", "WITH_HUB_MANAGER" as any);
-      } else if (fromEntityType === "SUB_CHANNEL_USER" && fromEntityId) {
-        q = q.eq("allocated_entity_id", fromEntityId).eq("status", "WITH_FIELD_STAFF" as any);
       } else {
         return [];
       }
@@ -147,17 +139,15 @@ export default function StockTransfersPage() {
   // ─── Allowed "To" options based on "From" ───
   const toOptions = useMemo(() => {
     if (fromEntityType === "GPFI_MANAGER") {
-      return [{ value: "HUB_MANAGER", label: "Hub Manager (DH / B2B / Sub-Channel)" }];
+      return [{ value: "HUB_MANAGER", label: "Hub Manager" }];
     }
     if (fromEntityType === "HUB_MANAGER") {
-      // Determine context from selected hub manager
       const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId);
       const channelName = (hm as any)?.channels?.channel_name?.toUpperCase() ?? "";
       if (channelName === "B2B") return [{ value: "KAM", label: "KAM" }];
+      // DD sub-channel hub managers send to DD Riders
+      if (hm?.sub_channel_id) return [{ value: "DD_RIDER", label: "DD Rider" }];
       return [{ value: "AGENT", label: "DH Agent (Field Agent)" }];
-    }
-    if (fromEntityType === "SUB_CHANNEL_USER") {
-      return [{ value: "DD_RIDER", label: "DD Rider" }];
     }
     return [];
   }, [fromEntityType, fromEntityId, hubManagers]);
@@ -239,10 +229,6 @@ export default function StockTransfersPage() {
       const hm = hubManagers?.find((h: any) => h.hub_manager_id === id);
       return hm ? `Hub: ${hm.name}` : `Hub Manager`;
     }
-    if (type === "SUB_CHANNEL_USER") {
-      const sc = subChannelUsers?.find((u: any) => u.id === id);
-      return sc ? `SC: ${sc.user_name}` : "Sub-Channel User";
-    }
     if (type === "KAM") {
       const k = kams?.find((k: any) => k.kam_id === id);
       return k ? `KAM: ${k.name}` : "KAM";
@@ -272,9 +258,9 @@ export default function StockTransfersPage() {
       return kams?.filter((k: any) => k.hub_manager_id === fromEntityId) ?? [];
     }
     if (toEntityType === "DD_RIDER") {
-      // Filter riders in same sub-channel as the from user
-      const fromUser = subChannelUsers?.find((u: any) => u.id === fromEntityId);
-      if (fromUser) return ddRiders?.filter((r: any) => r.sub_channel_id === fromUser.sub_channel_id) ?? [];
+      // Filter riders in same sub-channel as the hub manager
+      const hm = hubManagers?.find((h: any) => h.hub_manager_id === fromEntityId);
+      if (hm?.sub_channel_id) return ddRiders?.filter((r: any) => r.sub_channel_id === hm.sub_channel_id) ?? [];
       return ddRiders ?? [];
     }
     return [];
@@ -317,21 +303,6 @@ export default function StockTransfersPage() {
                     {hubManagers?.map((hm: any) => (
                       <SelectItem key={hm.hub_manager_id} value={hm.hub_manager_id}>
                         {hm.name} — {(hm as any).channels?.channel_name ?? "No channel"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {fromEntityType === "SUB_CHANNEL_USER" && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Select Sub-Channel Manager</Label>
-                <Select value={fromEntityId} onValueChange={(v) => { setFromEntityId(v); setSelectedInventoryIds([]); setToEntityType(""); setToEntityId(""); }}>
-                  <SelectTrigger className="w-[280px] h-9"><SelectValue placeholder="Pick SC manager..." /></SelectTrigger>
-                  <SelectContent>
-                    {scManagers?.map((u: any) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.user_name} — {u.sub_channels?.sub_channel_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
