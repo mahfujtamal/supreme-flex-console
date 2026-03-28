@@ -136,10 +136,14 @@ export default function StockTransfersPage() {
       if (action === "ACCEPTED") {
         const transfer = pendingTransfers?.find((t: any) => t.transfer_id === transferId);
         if (transfer) {
-          const newStatus = transfer.to_entity_type === "HUB_MANAGER" ? "WITH_HUB_MANAGER" : "WITH_FIELD_STAFF";
-          const newStockType = transfer.to_entity_type === "HUB_MANAGER" ? "SWAP_BUFFER_STOCK" : "SALES_STOCK";
+          const newStatus = transfer.to_entity_type === "HUB_MANAGER" ? "WITH_HUB_MANAGER" 
+            : transfer.to_entity_type === "DD_RIDER" ? "WITH_FIELD_STAFF" 
+            : "WITH_FIELD_STAFF";
+          const newStockType = transfer.to_entity_type === "HUB_MANAGER" ? "SWAP_BUFFER_STOCK" 
+            : transfer.to_entity_type === "DD_RIDER" ? "SALES_STOCK"
+            : "SALES_STOCK";
           await supabase.from("inventory_master")
-            .update({ status: newStatus as any, stock_type: newStockType as any } as any)
+            .update({ status: newStatus as any, stock_type: newStockType as any, allocated_agent_id: transfer.to_entity_id } as any)
             .eq("inventory_id", transfer.inventory_id);
         }
       }
