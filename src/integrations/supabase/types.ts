@@ -716,8 +716,8 @@ export type Database = {
           asset_type: Database["public"]["Enums"]["asset_type"]
           created_at: string
           customer_id: string
+          imei: string | null
           installation_date: string
-          mac_address: string | null
           product_id: string
           serial_number: string
           updated_at: string
@@ -731,8 +731,8 @@ export type Database = {
           asset_type: Database["public"]["Enums"]["asset_type"]
           created_at?: string
           customer_id: string
+          imei?: string | null
           installation_date?: string
-          mac_address?: string | null
           product_id: string
           serial_number: string
           updated_at?: string
@@ -746,8 +746,8 @@ export type Database = {
           asset_type?: Database["public"]["Enums"]["asset_type"]
           created_at?: string
           customer_id?: string
+          imei?: string | null
           installation_date?: string
-          mac_address?: string | null
           product_id?: string
           serial_number?: string
           updated_at?: string
@@ -1029,9 +1029,9 @@ export type Database = {
           allocated_agent_id: string | null
           allocated_entity_id: string | null
           created_at: string
+          imei: string | null
           inventory_id: string
           item_type: Database["public"]["Enums"]["inventory_item_type"]
-          mac_address: string | null
           msisdn: string | null
           product_id: string
           serial_number: string | null
@@ -1043,9 +1043,9 @@ export type Database = {
           allocated_agent_id?: string | null
           allocated_entity_id?: string | null
           created_at?: string
+          imei?: string | null
           inventory_id?: string
           item_type: Database["public"]["Enums"]["inventory_item_type"]
-          mac_address?: string | null
           msisdn?: string | null
           product_id: string
           serial_number?: string | null
@@ -1057,9 +1057,9 @@ export type Database = {
           allocated_agent_id?: string | null
           allocated_entity_id?: string | null
           created_at?: string
+          imei?: string | null
           inventory_id?: string
           item_type?: Database["public"]["Enums"]["inventory_item_type"]
-          mac_address?: string | null
           msisdn?: string | null
           product_id?: string
           serial_number?: string | null

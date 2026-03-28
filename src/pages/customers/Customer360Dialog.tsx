@@ -171,7 +171,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
           customer_id: customerId,
           product_id: newInv.product_id,
           serial_number: newInv.serial_number || `RPL-${Date.now()}`,
-          mac_address: newInv.mac_address || null,
+          imei: newInv.imei || null,
           asset_type: oldAsset.asset_type,
           installation_date: installDate.toISOString(),
           warranty_start_date: installDate.toISOString(),
@@ -402,7 +402,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                         <TableHeader>
                           <TableRow>
                             <TableHead>Serial Number</TableHead>
-                            <TableHead>MAC Address</TableHead>
+                            <TableHead>IMEI</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead>Installation</TableHead>
@@ -420,7 +420,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                             return (
                               <TableRow key={a.asset_id}>
                                 <TableCell className="font-mono text-sm font-medium">{a.serial_number}</TableCell>
-                                <TableCell className="font-mono text-xs">{a.mac_address || "—"}</TableCell>
+                                <TableCell className="font-mono text-xs">{a.imei || "—"}</TableCell>
                                 <TableCell><Badge variant="outline" className="text-xs">{a.asset_type}</Badge></TableCell>
                                 <TableCell className="text-sm">{a.products?.product_name || "—"}</TableCell>
                                 <TableCell className="text-sm">{format(new Date(a.installation_date), "dd MMM yyyy")}</TableCell>
@@ -589,7 +589,7 @@ export function Customer360Dialog({ customerId, open, onOpenChange }: Customer36
                     <SelectItem value="__none" disabled>No CPE available</SelectItem>
                   ) : availableCpeInventory.map((inv: any) => (
                     <SelectItem key={inv.inventory_id} value={inv.inventory_id}>
-                      {inv.serial_number ?? inv.mac_address ?? "N/A"} — {inv.products?.product_name}
+                      {inv.serial_number ?? inv.imei ?? "N/A"} — {inv.products?.product_name}
                     </SelectItem>
                   ))}
                 </SelectContent>

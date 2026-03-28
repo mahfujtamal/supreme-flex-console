@@ -125,7 +125,7 @@ const InventoryTab = () => {
               <TableHead>Product</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Serial #</TableHead>
-              <TableHead>MAC Address</TableHead>
+              <TableHead>IMEI</TableHead>
               <TableHead>MSISDN</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Allocated Entity</TableHead>
@@ -144,7 +144,7 @@ const InventoryTab = () => {
                 <TableCell className="font-medium">{(item as any).products?.product_name ?? "—"}</TableCell>
                 <TableCell><Badge variant="outline">{item.item_type}</Badge></TableCell>
                 <TableCell className="font-mono text-xs">{item.serial_number ?? "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{item.mac_address ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{item.imei ?? "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{item.msisdn ?? "—"}</TableCell>
                 <TableCell>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[item.status] ?? ""}`}>
@@ -165,7 +165,7 @@ const InventoryTab = () => {
           <DialogHeader>
             <DialogTitle>Bulk Import Inventory (CSV)</DialogTitle>
             <DialogDescription>
-              Upload a CSV with columns: product_id, item_type, serial_number, mac_address, msisdn, status, allocated_entity_id
+              Upload a CSV with columns: product_id, item_type, serial_number, imei, msisdn, status, allocated_entity_id
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
