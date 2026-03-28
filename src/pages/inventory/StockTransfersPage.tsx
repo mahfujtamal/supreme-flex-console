@@ -229,10 +229,6 @@ export default function StockTransfersPage() {
       const hm = hubManagers?.find((h: any) => h.hub_manager_id === id);
       return hm ? `Hub: ${hm.name}` : `Hub Manager`;
     }
-    if (type === "SUB_CHANNEL_USER") {
-      const sc = subChannelUsers?.find((u: any) => u.id === id);
-      return sc ? `SC: ${sc.user_name}` : "Sub-Channel User";
-    }
     if (type === "KAM") {
       const k = kams?.find((k: any) => k.kam_id === id);
       return k ? `KAM: ${k.name}` : "KAM";
