@@ -21,6 +21,7 @@ export default function BulkInwardingPage() {
   const qc = useQueryClient();
   const [csvRows, setCsvRows] = useState<any[]>([]);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [stockPurpose, setStockPurpose] = useState<"SALES_STOCK" | "SWAP_BUFFER_STOCK">("SALES_STOCK");
 
   const { data: products } = useQuery({
     queryKey: ["products_physical"],
