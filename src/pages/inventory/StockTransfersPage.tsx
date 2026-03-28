@@ -320,6 +320,7 @@ export default function StockTransfersPage() {
                   <SelectItem value="HUB_MANAGER">Hub Manager</SelectItem>
                   <SelectItem value="KAM">KAM</SelectItem>
                   <SelectItem value="AGENT">Field Agent</SelectItem>
+                  <SelectItem value="DD_RIDER">DD Rider (Sub-Channel)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
