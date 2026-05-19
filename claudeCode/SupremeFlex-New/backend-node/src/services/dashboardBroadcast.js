@@ -3,10 +3,9 @@ import { pool } from './db.js';
 export async function broadcastDashboard() {
   const [[gpfi]]  = await pool.query(`
     SELECT
-      SUM(status = 'IN_GPFI_STAGING')  AS staging,
-      SUM(status = 'WITH_HUB_MANAGER') AS hub_manager,
+      SUM(status = 'IN_GPFI_STAGING') AS staging,
       SUM(status = 'WITH_FIELD_STAFF') AS field_staff,
-      SUM(status = 'DELIVERED')         AS delivered
+      SUM(status = 'DELIVERED')        AS delivered
     FROM inventory_master
   `);
 

@@ -8,6 +8,11 @@ import stockTransferRouter  from './routes/stockTransfers.js';
 import dashboardRouter      from './routes/dashboard.js';
 import { broadcastDashboard } from './services/dashboardBroadcast.js';
 
+if (!process.env.JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET is not set — refusing to start');
+  process.exit(1);
+}
+
 const app  = express();
 const port = process.env.PORT || 8001;
 

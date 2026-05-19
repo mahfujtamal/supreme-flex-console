@@ -7,44 +7,53 @@ const router = Router();
 router.use(authMiddleware);
 
 const ENTITY_STATUS_MAP = {
-  HUB_MANAGER: 'WITH_HUB_MANAGER',
-  FIELD_STAFF:  'WITH_FIELD_STAFF',
-  DH:           'ALLOCATED_TO_DH',
-  KAM:          'ALLOCATED_TO_KAM',
+  FIELD_STAFF: 'WITH_FIELD_STAFF',
+  DH:          'ALLOCATED_TO_DH',
+  KAM:         'ALLOCATED_TO_KAM',
 };
 
 // GET /api/stock-transfers
 router.get('/', async (req, res) => {
-  const { entity_id, status, page = 0, per_page = 20 } = req.query;
-  const offset = Number(page) * Number(per_page);
-  let sql = 'SELECT * FROM stock_transfers WHERE 1=1';
-  const params = [];
+  try {
+    const { entity_id, status, page = 0, per_page = 20 } = req.query;
+    const offset = Number(page) * Number(per_page);
+    let sql = 'SELECT * FROM stock_transfers WHERE 1=1';
+    const params = [];
 
-  if (entity_id) {
-    sql += ' AND (from_entity_id = ? OR to_entity_id = ?)';
-    params.push(entity_id, entity_id);
+    if (entity_id) {
+      sql += ' AND (from_entity_id = ? OR to_entity_id = ?)';
+      params.push(entity_id, entity_id);
+    }
+    if (status) { sql += ' AND transfer_status = ?'; params.push(status); }
+
+    sql += ' ORDER BY requested_at DESC LIMIT ? OFFSET ?';
+    params.push(Number(per_page), offset);
+
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('[stockTransfers] GET /', err);
+    res.status(500).json({ message: 'Internal server error' });
   }
-  if (status) { sql += ' AND transfer_status = ?'; params.push(status); }
-
-  sql += ' ORDER BY requested_at DESC LIMIT ? OFFSET ?';
-  params.push(Number(per_page), offset);
-
-  const [rows] = await pool.query(sql, params);
-  res.json(rows);
 });
 
 // POST /api/stock-transfers
 router.post('/', async (req, res) => {
-  const { inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes } = req.body;
-  const id = uuid();
-  await pool.query(
-    `INSERT INTO stock_transfers
-     (transfer_id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes, transfer_status, requested_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW(), NOW(), NOW())`,
-    [id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes]
-  );
-  const [[row]] = await pool.query('SELECT * FROM stock_transfers WHERE transfer_id = ?', [id]);
-  res.status(201).json(row);
+  try {
+    const { inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes } = req.body;
+    const id = uuid();
+    await pool.query(
+      `INSERT INTO stock_transfers
+       (transfer_id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes, transfer_status, requested_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW(), NOW(), NOW())`,
+      [id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes]
+    );
+    const [[row]] = await pool.query('SELECT * FROM stock_transfers WHERE transfer_id = ?', [id]);
+    res.status(201).json(row);
+  } catch (err) {
+    console.error('[stockTransfers] POST /', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // PATCH /api/stock-transfers/:id/respond
