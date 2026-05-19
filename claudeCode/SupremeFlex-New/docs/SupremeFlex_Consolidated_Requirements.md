@@ -138,16 +138,16 @@ Each service implements a PHP interface. Mock returns fixture data. Real makes H
 ## 8. Current Codebase State
 
 ### Done
-- DB: 39 tables, 32 triggers, 3 stored procedures; `otp_codes` table (migration 004)
-- PHP: 50+ routes, all controllers scaffolded, JwtMiddleware complete; OTP auth endpoints (`/auth/otp/request`, `/auth/otp/verify`)
-- Node.js: 8 endpoints with real logic + transactions; WebSocket every 10s
+- DB: 39 tables, 32 triggers, 3 stored procedures; `otp_codes` table (migration 004); `audit_logs.action_type` ENUM extended with `BULK_UPDATE`, `BULK_DELETE` (migration 006)
+- PHP: 50+ routes, all controllers scaffolded, JwtMiddleware complete; OTP auth endpoints; `BaseApiController` with soft-delete `destroy()` + `bulkStore()` / `bulkUpdate()` / `bulkDestroy()` (audit-logged, X-Dev-Mode guard on delete); bulk routes registered for 21 admin resources
+- PHP Services (E0): 4 mock API services with interfaces + mock impls + real stubs + `AppServiceProvider` DI binding; toggled via `GPSHOP_MOCK`, `LOCATION_CHANGE_API_MOCK`, `REAL_IP_API_MOCK`, `CUSTOMER_LIFECYCLE_MOCK` (all default `true`)
+- Node.js: 8 endpoints with real logic + transactions; WebSocket every 10s; JWT_SECRET startup guard; try-catch on all route handlers; `HUB_MANAGER` references removed from stock transfers and dashboard
 - Frontend: AppSidebar, AppHeader (real username + logout), JWT auto-attach in api.ts; `/login` page; `AuthContext`; `(app)` route group with auth guard
 
 ### Needs Implementation
 - All 16 frontend pages are JSON dump stubs — no real UI, forms, or tables
-- Bulk operation endpoints and UI
-- GPWEB-3730 features (5 feature sets)
-- Hub Manager removal migration
+- GPWEB-3730 features (5 feature sets) — PHP controllers E1–E10, Node E5 setup-complete, frontend pages G1–G8
+- Hub Manager removal migration (D0) + delivery routing migration (D4)
 
 ### Known Bugs
 | ID | Status | Bug | File |
@@ -155,8 +155,8 @@ Each service implements a PHP interface. Mock returns fixture data. Real makes H
 | BUG-1 | ✅ Fixed | `allocated_entity_id` mismatch in dashboard | dashboard.js |
 | BUG-2 | TODO | Race condition in StockTransferController | StockTransferController.php |
 | BUG-3 | TODO | Audit attribution hardcoded | AuditLogController.php |
-| BUG-4 | TODO | JWT_SECRET not validated at startup | index.js |
-| BUG-5 | TODO | No try-catch on Node route handlers | fieldExecution.js etc. |
+| BUG-4 | ✅ Fixed | JWT_SECRET not validated at startup | index.js |
+| BUG-5 | ✅ Fixed | No try-catch on Node route handlers | fieldExecution.js, stockTransfers.js, dashboard.js |
 
 ---
 

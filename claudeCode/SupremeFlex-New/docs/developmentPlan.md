@@ -37,8 +37,8 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | Step | Status | What | Files |
 |------|--------|------|-------|
 | A1 | ✅ Done | Fix allocated_entity_id mismatch | dashboard.js |
-| A2 | TODO | Node.js try-catch on all route handlers | fieldExecution.js, stockTransfers.js, dashboard.js, dashboardBroadcast.js |
-| A3 | TODO | JWT_SECRET startup guard | backend-node/src/index.js |
+| A2 | ✅ Done | Node.js try-catch on all route handlers | fieldExecution.js, stockTransfers.js, dashboard.js, dashboardBroadcast.js |
+| A3 | ✅ Done | JWT_SECRET startup guard | backend-node/src/index.js |
 | A4 | TODO | StockTransferController race condition (SELECT FOR UPDATE) | StockTransferController.php |
 | A5 | TODO | Fix audit attribution (always auth()->id()) | AuditLogController.php |
 | A6 | ✅ Done | AppHeader: real username + logout button (OTP auth) | frontend/components/layout/AppHeader.tsx |
@@ -109,7 +109,7 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 
 | Step | What | Files |
 |------|------|-------|
-| E0 | 4 Mock API services (GpShop, LocationChangeApi, RealIpApi, CustomerLifecycle) | app/Services/ |
+| E0 | ✅ Done | 4 Mock API services (GpShop, LocationChangeApi, RealIpApi, CustomerLifecycle) — interfaces + mock impls + real stubs + AppServiceProvider + config/mock_services.php | app/Services/, app/Providers/, config/, bootstrap/providers.php |
 | E1 | SmsService + config/sms.php | app/Services/SmsService.php |
 | E2 | SystemConfigController | SystemConfigController.php |
 | E3 | InternalController + InternalKeyMiddleware | InternalController.php |
@@ -120,8 +120,8 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | E8 | LocationChangeController (LocationChangeApiService) | LocationChangeController.php |
 | E9 | RealIpController + RealIpService + AutoUnassignRealIp | RealIpController.php |
 | E10 | Extend CustomerController::view360() | existing |
-| E11 | BaseApiController: bulkStore(), bulkUpdate(), bulkDestroy() | BaseApiController.php |
-| E12 | Update routes/api.php | existing |
+| E11 | ✅ Done | BaseApiController: bulkStore(), bulkUpdate(), bulkDestroy() — soft-delete on destroy(); audit log writes; X-Dev-Mode guard on bulkDestroy | BaseApiController.php |
+| E12 | ✅ Done | Update routes/api.php — bulk routes (POST/PATCH/DELETE /{resource}/bulk) for 21 admin resources | routes/api.php |
 
 ---
 

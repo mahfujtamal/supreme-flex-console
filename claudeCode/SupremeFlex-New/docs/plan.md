@@ -84,13 +84,15 @@ B2C resolution order (sub-channel override → sub-channel default → channel o
 ### Bulk Operations
 `BaseApiController` adds `bulkStore()`, `bulkUpdate()`, `bulkDestroy()` (destroy: `X-Dev-Mode: true` required). All bulk ops audit-logged.
 
-### Mock API Strategy
-| Service | Class | Env Flag |
-|---------|-------|----------|
-| GPShop | `GpShopService` | `GPSHOP_MOCK` |
-| Location Change | `LocationChangeApiService` | `LOCATION_CHANGE_API_MOCK` |
-| Real IP | `RealIpApiService` | `REAL_IP_API_MOCK` |
-| Customer Lifecycle | `CustomerLifecycleService` | `CUSTOMER_LIFECYCLE_MOCK` |
+### Mock API Strategy ✅ E0 Done
+| Service | Interface | Mock (default) | Real stub | Env Flag |
+|---------|-----------|---------------|-----------|----------|
+| GPShop | `GpShopServiceInterface` | `GpShopService` | `GpShopApiService` | `GPSHOP_MOCK` |
+| Location Change | `LocationChangeApiServiceInterface` | `LocationChangeApiService` | `LocationChangeApiRealService` | `LOCATION_CHANGE_API_MOCK` |
+| Real IP | `RealIpApiServiceInterface` | `RealIpApiService` | `RealIpApiRealService` | `REAL_IP_API_MOCK` |
+| Customer Lifecycle | `CustomerLifecycleServiceInterface` | `CustomerLifecycleService` | `CustomerLifecycleApiService` | `CUSTOMER_LIFECYCLE_MOCK` |
+
+All defaults `true`. Real stubs throw `RuntimeException`. `AppServiceProvider` binds via `config/mock_services.php`. Registered in `bootstrap/providers.php`.
 
 ---
 
