@@ -109,4 +109,34 @@ Route::middleware('auth.jwt')->group(function () {
     // Referral RPCs
     Route::post('referrals/check-reward',   [ReferralRewardController::class, 'checkReward']);
     Route::post('referrals/force-approve',  [ReferralRewardController::class, 'forceApprove']);
+
+    // Bulk Operations — POST /{resource}/bulk · PATCH /{resource}/bulk · DELETE /{resource}/bulk (dev-only)
+    // Excluded: customers/invoices (B2C flows), inventory (has bulkInward), stock-transfers (custom flow), audit-logs, dashboards
+    foreach ([
+        'network-zones'       => NetworkZoneController::class,
+        'districts'           => DistrictController::class,
+        'areas'               => AreaController::class,
+        'channels'            => ChannelController::class,
+        'sub-channels'        => SubChannelController::class,
+        'distribution-houses' => DistributionHouseController::class,
+        'hub-managers'        => HubManagerController::class,
+        'field-agents'        => FieldAgentController::class,
+        'kams'                => KamController::class,
+        'products'            => ProductController::class,
+        'price-versions'      => PriceVersionController::class,
+        'price-components'    => PriceComponentController::class,
+        'addon-compatibility' => AddonCompatibilityController::class,
+        'campaigns'           => CampaignController::class,
+        'coupons'             => CouponController::class,
+        'referral-programs'   => ReferralProgramController::class,
+        'targeting-rules'     => TargetingRuleController::class,
+        'product-rules'       => ProductRuleController::class,
+        'assets'              => AssetController::class,
+        'admin-users'         => AdminUserController::class,
+        'admin-roles'         => AdminRoleController::class,
+    ] as $resource => $controller) {
+        Route::post("{$resource}/bulk",   [$controller, 'bulkStore']);
+        Route::patch("{$resource}/bulk",  [$controller, 'bulkUpdate']);
+        Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+    }
 });

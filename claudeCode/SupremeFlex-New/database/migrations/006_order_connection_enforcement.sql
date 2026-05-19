@@ -40,3 +40,10 @@ ALTER TABLE `transaction_ledger`
     FOREIGN KEY (`active_service_id`) REFERENCES `active_services` (`service_id`) ON DELETE RESTRICT,
   ADD CONSTRAINT `fk_tl_invoice`
     FOREIGN KEY (`invoice_id`)        REFERENCES `onetime_invoices`(`invoice_id`) ON DELETE SET NULL;
+
+-- ── audit_logs: extend action_type ENUM to cover all bulk op variants ────────
+ALTER TABLE `audit_logs`
+  MODIFY `action_type` ENUM(
+    'CREATE','UPDATE','DELETE','STATUS_CHANGE',
+    'BULK_IMPORT','BULK_UPDATE','BULK_DELETE'
+  ) NOT NULL;

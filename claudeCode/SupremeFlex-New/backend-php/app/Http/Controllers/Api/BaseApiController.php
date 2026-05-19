@@ -68,10 +68,94 @@ abstract class BaseApiController extends Controller
         return response()->json(DB::table($this->table)->where($this->primaryKey, $id)->first());
     }
 
+    // Soft-delete: set status = INACTIVE. Hard deletes are never permitted on master data.
     public function destroy(string $id)
     {
-        $deleted = DB::table($this->table)->where($this->primaryKey, $id)->delete();
-        if (!$deleted) return response()->json(['message' => 'Not found'], 404);
+        $exists = DB::table($this->table)->where($this->primaryKey, $id)->exists();
+        if (!$exists) return response()->json(['message' => 'Not found'], 404);
+
+        DB::table($this->table)
+            ->where($this->primaryKey, $id)
+            ->update(['status' => 'INACTIVE', 'updated_at' => now()]);
+
         return response()->json(null, 204);
+    }
+
+    // ── Bulk operations ──────────────────────────────────────────────────────
+
+    public function bulkStore(Request $request)
+    {
+        $request->validate(['items' => 'required|array|min:1|max:100']);
+
+        $pk   = $this->primaryKey;
+        $rows = collect($request->items)->map(function ($item) use ($pk) {
+            $data               = collect($item)->only($this->fillable)->all();
+            $data[$pk]          = (string) Str::uuid();
+            $data['created_at'] = now();
+            $data['updated_at'] = now();
+            return $data;
+        })->all();
+
+        DB::transaction(function () use ($rows, $request) {
+            DB::table($this->table)->insert($rows);
+            $this->writeAuditLog('BULK_IMPORT', count($rows), null, $request);
+        });
+
+        return response()->json(['inserted' => count($rows)], 201);
+    }
+
+    public function bulkUpdate(Request $request)
+    {
+        $pk = $this->primaryKey;
+        $request->validate([
+            'items'        => 'required|array|min:1|max:100',
+            "items.*.$pk"  => 'required|string',
+        ]);
+
+        DB::transaction(function () use ($request, $pk) {
+            foreach ($request->items as $item) {
+                $data               = collect($item)->only($this->fillable)->all();
+                $data['updated_at'] = now();
+                DB::table($this->table)->where($pk, $item[$pk])->update($data);
+            }
+            $this->writeAuditLog('BULK_UPDATE', count($request->items), null, $request);
+        });
+
+        return response()->json(['updated' => count($request->items)]);
+    }
+
+    // Bulk delete is dev-mode only — caller must send X-Dev-Mode: true header.
+    public function bulkDestroy(Request $request)
+    {
+        if ($request->header('X-Dev-Mode') !== 'true') {
+            return response()->json(['message' => 'Bulk delete requires X-Dev-Mode: true header'], 403);
+        }
+
+        $request->validate(['ids' => 'required|array|min:1|max:100']);
+
+        DB::transaction(function () use ($request) {
+            DB::table($this->table)
+                ->whereIn($this->primaryKey, $request->ids)
+                ->update(['status' => 'INACTIVE', 'updated_at' => now()]);
+            $this->writeAuditLog('BULK_DELETE', count($request->ids), $request->ids, $request);
+        });
+
+        return response()->json(['deactivated' => count($request->ids)]);
+    }
+
+    private function writeAuditLog(string $actionType, int $count, ?array $ids, Request $request): void
+    {
+        $authUser = $request->get('auth_user');
+        DB::table('audit_logs')->insert([
+            'log_id'           => (string) Str::uuid(),
+            'target_table'     => $this->table,
+            'target_record_id' => null,
+            'action_type'      => $actionType,
+            'admin_id'         => $authUser['sub'] ?? null,
+            'ip_address'       => $request->ip(),
+            'previous_state'   => null,
+            'new_state'        => json_encode(['count' => $count, 'ids' => $ids]),
+            'created_at'       => now(),
+        ]);
     }
 }
