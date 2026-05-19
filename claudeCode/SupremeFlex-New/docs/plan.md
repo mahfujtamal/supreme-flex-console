@@ -32,7 +32,7 @@
 | FE-3 | Frontend | Pagination has no upper bound | Compute totalPages from data.total |
 | FE-4 | Frontend | No error state on any query | Destructure isError; render error card |
 | FE-5 | Frontend | No debounce on search | useDebounce hook (B4) |
-| FE-7 | Frontend | No 401 interceptor | Add response interceptor (B5) |
+| FE-7 | Frontend | No 401 interceptor | Add response interceptor (B5) — logout on 401 now works via AuthContext; axios interceptor TODO |
 
 ---
 
@@ -100,9 +100,11 @@ B2C resolution order (sub-channel override → sub-channel default → channel o
 ## Execution Order
 
 ```
+✅ Done  (OTP Auth — migration 004, login page, AuthContext, auth guard)
+    ↓
 Phase 0  (Groundwork — mock services, SMS, system_config, internal bridge)
     ↓
-Phase 1  (DB Migrations D0–D4)
+Phase 1  (DB Migrations D0–D4 → now files 005–009)
     ↓
 Phase 2  (PHP Backend)  ←parallel→  Phase 3  (Node.js Backend)
     ↓
@@ -123,6 +125,7 @@ Four classes, each with a PHP interface + mock implementation:
 ### P0-2: SMS Service
 - `backend-php/app/Services/SmsService.php` — `send(msisdn, template, vars)`: calls HTTP gateway; on failure logs to system_audit_logs, never throws
 - `backend-php/config/sms.php` — templates: ACCESSORY_SETUP, LOCATION_CHANGE, CPE_SETUP
+- **Note:** OTP delivery for login currently logs to Laravel log and returns code in response on `APP_ENV=local`. Wire to `SmsService` when integrating a real SMS gateway.
 
 ### P0-3: System Config Table
 ```sql

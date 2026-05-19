@@ -7,12 +7,13 @@
 
 | Layer | Status | Detail |
 |-------|--------|--------|
-| Database schema | ✅ Done | 39 tables, 32 triggers, 3 stored procedures (migrations 001–003) |
+| Database schema | ✅ Done | 39 tables, 32 triggers, 3 stored procedures (migrations 001–003); OTP table (migration 004) |
 | PHP routes | ✅ Done | 50+ endpoints in routes/api.php |
 | PHP controllers | ✅ Done | All controllers scaffolded (BaseApiController + all domain controllers) |
 | Node.js routes | ✅ Done | fieldExecution, stockTransfers, dashboard — all with real logic |
 | WebSocket | ✅ Done | ws://localhost:8001/ws/dashboard — 10s push |
-| Frontend layout | ✅ Done | AppSidebar, AppHeader, ThemeProvider, JWT auto-attach |
+| OTP Auth | ✅ Done | Mobile number → 6-digit OTP → JWT; `otp_codes` table; `/login` page; `AuthContext`; `(app)` route group with auth guard |
+| Frontend layout | ✅ Done | AppSidebar, AppHeader (real username + logout), ThemeProvider, JWT auto-attach; authenticated shell in `app/(app)/layout.tsx` |
 | A1 bug fix | ✅ Done | allocated_entity_id mismatch fixed (commit 6b6715d) |
 
 ### Needs Building
@@ -40,7 +41,7 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | A3 | TODO | JWT_SECRET startup guard | backend-node/src/index.js |
 | A4 | TODO | StockTransferController race condition (SELECT FOR UPDATE) | StockTransferController.php |
 | A5 | TODO | Fix audit attribution (always auth()->id()) | AuditLogController.php |
-| A6 | TODO | Fix AppHeader branding "Fixed Internet" → "FWA" | frontend/components/layout/AppHeader.tsx |
+| A6 | ✅ Done | AppHeader: real username + logout button (OTP auth) | frontend/components/layout/AppHeader.tsx |
 
 ---
 
@@ -53,7 +54,7 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | B3 | `ConfirmDialog` — reusable confirmation modal | components/ui/ConfirmDialog.tsx |
 | B4 | `useDebounce` hook | hooks/useDebounce.ts |
 | B5 | Fix `lib/api.ts` — 401 interceptor (auto-logout), timeout | lib/api.ts |
-| B6 | Fix `AppHeader` — real username + logout dropdown | components/layout/AppHeader.tsx |
+| B6 | ✅ Done | Fix `AppHeader` — real username + logout (done via OTP auth) | components/layout/AppHeader.tsx |
 | B7 | TypeScript strict mode + fix type errors | tsconfig.json + page stubs |
 | B8 | `ConnectionSelector` — connection picker for order flows | components/ui/ConnectionSelector.tsx |
 | B9 | `DevPanel` — dev-mode lifecycle toggle overlay | components/ui/DevPanel.tsx |
@@ -94,11 +95,12 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 
 | Step | File | What |
 |------|------|------|
-| D0 | `004_remove_hub_manager.sql` | DROP hub_managers; ALTER field_agents DROP hub_manager_id; ALTER kams DROP hub_manager_id; ADD manager_admin_id to channels/sub_channels/distribution_houses; MODIFY inventory_master status ENUM; MODIFY stock_transfers entity_type ENUM |
-| D1 | `005_gpweb3730_new_tables.sql` | system_config; ALTER existing tables; NEW: addon_order_history, cpe_order_history, ott_order_history, location_change_history, real_ip_assignments, tac_area_mapping |
-| D2 | `006_gpweb3730_triggers.sql` | BEFORE UPDATE triggers for 5 new tables |
-| D3 | `007_add_indexes.sql` | Missing FK/status indexes on existing tables |
-| D4 | `008_delivery_routing.sql` | ALTER channels/sub_channels/distribution_houses/kams (delivery + pull mode); NEW: order_delivery_overrides |
+| ~~004~~ | ✅ Done | `004_otp_auth.sql` — OTP auth: `contact_number` on `user_account`; `otp_codes` table |
+| D0 | `005_remove_hub_manager.sql` | DROP hub_managers; ALTER field_agents DROP hub_manager_id; ALTER kams DROP hub_manager_id; ADD manager_admin_id to channels/sub_channels/distribution_houses; MODIFY inventory_master status ENUM; MODIFY stock_transfers entity_type ENUM |
+| D1 | `006_gpweb3730_new_tables.sql` | system_config; ALTER existing tables; NEW: addon_order_history, cpe_order_history, ott_order_history, location_change_history, real_ip_assignments, tac_area_mapping |
+| D2 | `007_gpweb3730_triggers.sql` | BEFORE UPDATE triggers for 5 new tables |
+| D3 | `008_add_indexes.sql` | Missing FK/status indexes on existing tables |
+| D4 | `009_delivery_routing.sql` | ALTER channels/sub_channels/distribution_houses/kams (delivery + pull mode); NEW: order_delivery_overrides |
 
 ---
 

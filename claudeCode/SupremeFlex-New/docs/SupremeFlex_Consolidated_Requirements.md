@@ -9,6 +9,7 @@ SupremeFlex is an internal back-office (BO) CRM and operations platform for the 
 
 - **Customer types:** B2C (individual) and B2B (business)
 - **Stack:** Next.js :3000 → PHP/Laravel :8000 (auth, CRUD, campaigns, invoicing) + Node.js :8001 (field ops, stock transfers, WS dashboard) → MySQL :3306
+- **Authentication:** OTP-based. Users log in with mobile number → 6-digit OTP → JWT. No email/password login.
 - **CMS layer:** Drupal :8080 (configurable texts, reporting views)
 
 ---
@@ -134,10 +135,10 @@ Each service implements a PHP interface. Mock returns fixture data. Real makes H
 ## 8. Current Codebase State
 
 ### Done
-- DB: 39 tables, 32 triggers, 3 stored procedures
-- PHP: 50+ routes, all controllers scaffolded, JwtMiddleware complete
+- DB: 39 tables, 32 triggers, 3 stored procedures; `otp_codes` table (migration 004)
+- PHP: 50+ routes, all controllers scaffolded, JwtMiddleware complete; OTP auth endpoints (`/auth/otp/request`, `/auth/otp/verify`)
 - Node.js: 8 endpoints with real logic + transactions; WebSocket every 10s
-- Frontend: AppSidebar, AppHeader, JWT auto-attach in api.ts
+- Frontend: AppSidebar, AppHeader (real username + logout), JWT auto-attach in api.ts; `/login` page; `AuthContext`; `(app)` route group with auth guard
 
 ### Needs Implementation
 - All 16 frontend pages are JSON dump stubs — no real UI, forms, or tables
@@ -163,7 +164,7 @@ Each service implements a PHP interface. Mock returns fixture data. Real makes H
 3. Never hard-delete master data — use `status ENUM('ACTIVE','INACTIVE')`.
 4. Price changes: new row in `product_price_versions`. Never overwrite.
 5. Campaign targeting in `campaign_targeting_rules`. No geo/channel logic in app code.
-6. JWT auth via `auth.jwt` on PHP. Node trusts the same token.
+6. JWT auth via `auth.jwt` on PHP. Node trusts the same token. Login is OTP-based — no email/password login exists.
 7. `referral_reward_ledger` transitions owned by stored procedure only.
 8. All bulk ops write to `audit_logs`.
 9. Node DB queries via `services/db.js` only.

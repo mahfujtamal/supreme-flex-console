@@ -26,7 +26,9 @@ Browser (Next.js :3000)
 
 WebSocket endpoint: `ws://localhost:8001/ws/dashboard` — server-push only, 10-second intervals. No client messages are handled.
 
-JWT token is stored in `localStorage` as `sf_token`. Both `phpApi` and `nodeApi` instances in `frontend/lib/api.ts` attach it automatically via interceptors.
+**Authentication:** OTP-based login. User enters mobile number → PHP issues 6-digit OTP (logged to Laravel log; returned in response on `APP_ENV=local`) → user submits OTP → JWT issued. No email/password login.
+
+JWT token is stored in `localStorage` as `sf_token`. User object stored as `sf_user`. Both `phpApi` and `nodeApi` instances in `frontend/lib/api.ts` attach the token automatically via interceptors. `AuthContext` (`contexts/AuthContext.tsx`) manages auth state; unauthenticated users are redirected to `/login` by the `(app)` route group layout.
 
 ---
 
@@ -47,6 +49,7 @@ cd frontend && npm run lint           # ESLint via next lint
 mysql -u root -p supremeflex < database/migrations/001_create_all_tables.sql
 mysql -u root -p supremeflex < database/migrations/002_create_triggers.sql
 mysql -u root -p supremeflex < database/migrations/003_create_stored_procedures.sql
+mysql -u root -p supremeflex < database/migrations/004_otp_auth.sql
 ```
 
 **First-time env setup:**
@@ -89,7 +92,7 @@ There is no test suite. Lint (`npm run lint`) is the only automated check on the
 3. Never hard-delete master data — use `status ENUM('ACTIVE','INACTIVE')`.
 4. Price changes go through `product_price_versions` — never overwrite the existing row. Add a new version.
 5. Campaign targeting lives in `campaign_targeting_rules` — never embed geo/channel logic in application code.
-6. All JWT auth via `auth.jwt` middleware on PHP. Node does not have its own auth — it trusts the same token.
+6. All JWT auth via `auth.jwt` middleware on PHP. Node does not have its own auth — it trusts the same token. Login is OTP-based (`POST /api/auth/otp/request` + `POST /api/auth/otp/verify`). No email/password login exists.
 7. `referral_reward_ledger` status transitions are owned by the stored procedure `check_and_release_referral_reward` — never update status directly from application code.
 8. Bulk operations must write to `audit_logs` (action_type = `BULK_IMPORT`).
 9. Node DB queries go through `services/db.js` only — never inline `mysql2` in route handlers.
