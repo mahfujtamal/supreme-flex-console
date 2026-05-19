@@ -49,13 +49,16 @@
 
 Field Agents → DH directly. KAMs are independent.
 
-**Migration D0:**
-- DROP `hub_managers`
-- ALTER `field_agents` DROP `hub_manager_id`
-- ALTER `kams` DROP `hub_manager_id`
-- ALTER `channels`, `sub_channels`, `distribution_houses` ADD `manager_admin_id CHAR(36) NULL FK → admin_users`
+**Design decision:** `manager_admin_id FK → user_account(id)` (NOT `admin_users`). JWT `sub` is `user_account.id`; Node dashboard resolves `WHERE manager_admin_id = req.user.sub`. JWT payload includes `staff_type` for entity-type routing. Frontend `/manager-dashboard` replaces `/hub-manager-dashboard`.
+
+**Migration D0 (`005_remove_hub_manager.sql`):**
+- DROP TRIGGER `trg_hub_managers_updated_at`
+- ALTER `field_agents` DROP FK `fk_fa_hub_manager`, DROP COLUMN `hub_manager_id`
+- ALTER `kams` DROP FK `fk_kams_hub_manager`, DROP COLUMN `hub_manager_id`
+- DROP TABLE `hub_managers`
+- ALTER `channels`, `sub_channels`, `distribution_houses` ADD `manager_admin_id CHAR(36) NULL FK → user_account(id)`
 - MODIFY `inventory_master.status` ENUM: remove `WITH_HUB_MANAGER`
-- MODIFY `stock_transfers.to_entity_type` ENUM: remove `HUB_MANAGER`
+- MODIFY `stock_transfers.to_entity_type` VARCHAR(50) → ENUM('FIELD_STAFF','DH','KAM'): remove `HUB_MANAGER`
 
 ### Multi-Connection Per Customer
 - One customer → many anchors → many active_services

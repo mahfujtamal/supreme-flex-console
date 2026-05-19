@@ -96,7 +96,7 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | Step | File | What |
 |------|------|------|
 | ~~004~~ | ✅ Done | `004_otp_auth.sql` — OTP auth: `contact_number` on `user_account`; `otp_codes` table |
-| D0 | `005_remove_hub_manager.sql` | DROP hub_managers; ALTER field_agents DROP hub_manager_id; ALTER kams DROP hub_manager_id; ADD manager_admin_id to channels/sub_channels/distribution_houses; MODIFY inventory_master status ENUM; MODIFY stock_transfers entity_type ENUM |
+| D0 | `005_remove_hub_manager.sql` | DROP trigger + hub_managers table; DROP hub_manager_id from field_agents + kams; ADD `manager_admin_id CHAR(36) FK → user_account(id)` to channels/sub_channels/distribution_houses; MODIFY inventory_master status ENUM (remove WITH_HUB_MANAGER); MODIFY stock_transfers.to_entity_type → ENUM('FIELD_STAFF','DH','KAM'). Also: add `staff_type` to JWT payload; add `/dashboard/manager` Node endpoint; replace /hub-manager-dashboard with /manager-dashboard |
 | D1 | `006_gpweb3730_new_tables.sql` | system_config; ALTER existing tables; NEW: addon_order_history, cpe_order_history, ott_order_history, location_change_history, real_ip_assignments, tac_area_mapping |
 | D2 | `007_gpweb3730_triggers.sql` | BEFORE UPDATE triggers for 5 new tables |
 | D3 | `008_add_indexes.sql` | Missing FK/status indexes on existing tables |

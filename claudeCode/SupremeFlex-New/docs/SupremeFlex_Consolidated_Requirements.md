@@ -52,13 +52,15 @@ SupremeFlex is an internal back-office (BO) CRM and operations platform for the 
 Per-order overrides stored in `order_delivery_overrides` table.
 
 ### 3.3 Manager Per Entity (Hub Manager removed)
-Each delivery entity has a manager user linked via `manager_admin_id → admin_users`:
+Each delivery entity has a manager user linked via `manager_admin_id CHAR(36) FK → user_account(id)`:
 - **DH Manager** — manages DH stock and its Field Agents
 - **Channel Manager** — manages channel delivery ops
 - **Sub-Channel Manager** — manages sub-channel ops
 - *(Future)* **Online Delivery virtual manager**
 
 Field Agents report directly to their DH (`field_agents.dh_id`). **Hub Manager does not exist.**
+
+**FK target is `user_account(id)`, not `admin_users`** — this allows Node to resolve the manager's entity via `WHERE manager_admin_id = req.user.sub` (JWT sub = user_account.id). The JWT payload includes `staff_type` so endpoints can route by manager type without an extra lookup. The unified `/manager-dashboard` frontend page adapts its display based on `staff_type` ('DH Manager' / 'Channel Manager' / 'Sub-Channel Manager').
 
 ---
 
