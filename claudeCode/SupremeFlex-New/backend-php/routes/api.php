@@ -32,7 +32,8 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReferralRewardController;
 
 // ── Public ──────────────────────────────────────────────────
-Route::post('/auth/login',  [AuthController::class, 'login']);
+Route::post('/auth/otp/request', [AuthController::class, 'requestOtp']);
+Route::post('/auth/otp/verify',  [AuthController::class, 'verifyOtp']);
 
 // ── Protected (JWT) ─────────────────────────────────────────
 Route::middleware('auth.jwt')->group(function () {

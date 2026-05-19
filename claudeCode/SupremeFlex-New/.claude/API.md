@@ -3,7 +3,7 @@
 ## PHP/Laravel (:8000) — JWT protected except login
 
 ### Auth
-`POST /api/auth/login` (public) · `POST /api/auth/logout` · `GET /api/auth/me`
+`POST /api/auth/otp/request` (public) · `POST /api/auth/otp/verify` (public) · `POST /api/auth/logout` · `GET /api/auth/me`
 
 ### Master Data (all apiResource: index/show/store/update/destroy)
 `/api/network-zones` · `/api/districts` · `/api/areas` · `/api/channels` · `/api/sub-channels` · `/api/distribution-houses` · `/api/hub-managers` · `/api/field-agents` · `/api/kams`
