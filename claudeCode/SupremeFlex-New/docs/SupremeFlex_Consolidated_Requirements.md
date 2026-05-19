@@ -45,7 +45,7 @@ SupremeFlex is an internal back-office (BO) CRM and operations platform for the 
 | Priority | Condition | Delivery Agent |
 |----------|-----------|---------------|
 | 1 | Sub-channel per-order override | Sub-channel own delivery |
-| 2 | Sub-channel `default_delivery_mode = OWN` | Sub-channel own delivery |
+| 2 | Sub-channel `delivery_ownership = SELF_DELIVERY` | Sub-channel own delivery |
 | 3 | Channel per-order override | Channel own delivery |
 | 4 | Channel `default_delivery_mode = OWN` | Channel own delivery |
 | 5 | No override | DH (global default) |

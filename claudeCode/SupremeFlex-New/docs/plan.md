@@ -74,12 +74,12 @@ Field Agents → DH directly. KAMs are independent.
 ### B2C/B2B Delivery Routing
 B2C resolution order (sub-channel override → sub-channel default → channel override → channel default → DH).
 
-**Migration D4 adds:**
+**Migration D4 (`010_delivery_routing.sql`) adds:**
 - `channels`: `default_delivery_mode ENUM('DH','OWN') DEFAULT 'DH'`, `inventory_pull_mode ENUM('CREDIT','UPFRONT') DEFAULT 'UPFRONT'`
-- `sub_channels`: same two columns
+- `sub_channels`: `inventory_pull_mode ENUM('CREDIT','UPFRONT') DEFAULT 'UPFRONT'` only — existing `delivery_ownership ENUM('FOLLOW_CHANNEL','SELF_DELIVERY','DH_DELIVERY')` is the authoritative routing column; do NOT add `default_delivery_mode` (dual source of truth)
 - `distribution_houses`: `inventory_pull_mode ENUM('CREDIT','UPFRONT') DEFAULT 'UPFRONT'`
 - `kams`: `inventory_pull_mode ENUM('CREDIT','UPFRONT') DEFAULT 'CREDIT'`
-- NEW: `order_delivery_overrides (override_id PK, order_id FK, entity_type, entity_id, reason, created_by)`
+- NEW: `order_delivery_overrides` (override_id PK, order_id FK → orders, entity_type ENUM('CHANNEL','SUB_CHANNEL'), entity_id CHAR(36), delivery_mode ENUM('OWN','DH') DEFAULT 'OWN', reason TEXT, created_by FK → user_account ON DELETE SET NULL)
 
 ### Bulk Operations
 `BaseApiController` adds `bulkStore()`, `bulkUpdate()`, `bulkDestroy()` (destroy: `X-Dev-Mode: true` required). All bulk ops audit-logged.

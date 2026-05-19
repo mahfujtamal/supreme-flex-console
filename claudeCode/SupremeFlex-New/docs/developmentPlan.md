@@ -101,7 +101,7 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 | D1 | `007_gpweb3730_new_tables.sql` | system_config; ALTER existing tables; NEW: addon_order_history, cpe_order_history, ott_order_history, location_change_history, real_ip_assignments, tac_area_mapping |
 | D2 | `008_gpweb3730_triggers.sql` | BEFORE UPDATE triggers for 5 new tables |
 | D3 | `009_add_indexes.sql` | Missing FK/status indexes on existing tables |
-| D4 | `010_delivery_routing.sql` | ALTER channels/sub_channels/distribution_houses/kams (delivery + pull mode); NEW: order_delivery_overrides |
+| D4 | `010_delivery_routing.sql` | ALTER channels: add `default_delivery_mode` + `inventory_pull_mode`; ALTER sub_channels: add `inventory_pull_mode` only (existing `delivery_ownership` is authoritative); ALTER distribution_houses + kams: add `inventory_pull_mode`; NEW: `order_delivery_overrides` table |
 
 ---
 
