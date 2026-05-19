@@ -22,8 +22,9 @@ SupremeFlex is an internal back-office (BO) CRM and operations platform for the 
 - Every order must reference `anchor_id` + `active_service_id` — never attached to a customer alone
 
 ### 2.2 Invoicing
-- **Individual invoice:** per connection per transaction
-- **Combined summary invoice:** parent invoice covering multiple connections for the same customer (`onetime_invoices.parent_summary_invoice_id` links children to parent)
+- **Individual invoice:** per connection per transaction — child row on `onetime_invoices` with `anchor_id` + `active_service_id` set, `is_summary = 0`
+- **Combined summary invoice:** parent invoice covering multiple connections for the same customer — row with `is_summary = 1`, `anchor_id` + `active_service_id` NULL, children reference it via `parent_summary_invoice_id` FK
+- `onetime_invoices.parent_summary_invoice_id` is a self-referencing FK to `onetime_invoices.invoice_id` (migration 006)
 
 ### 2.3 Customer Lifecycle Status
 - Fetched from external API — **mocked** (`CustomerLifecycleService`, `CUSTOMER_LIFECYCLE_MOCK=true`)

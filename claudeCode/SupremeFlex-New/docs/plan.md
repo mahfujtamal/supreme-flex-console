@@ -51,6 +51,12 @@ Field Agents → DH directly. KAMs are independent.
 
 **Design decision:** `manager_admin_id FK → user_account(id)` (NOT `admin_users`). JWT `sub` is `user_account.id`; Node dashboard resolves `WHERE manager_admin_id = req.user.sub`. JWT payload includes `staff_type` for entity-type routing. Frontend `/manager-dashboard` replaces `/hub-manager-dashboard`.
 
+**Migration D0.5 (`006_order_connection_enforcement.sql`):**
+- ALTER `orders` ADD `anchor_id CHAR(36) NOT NULL FK → anchors`, `active_service_id CHAR(36) NOT NULL FK → active_services`
+- ALTER `onetime_invoices` ADD `is_summary TINYINT DEFAULT 0`, `anchor_id` (nullable), `active_service_id` (nullable), self-ref FK on `parent_summary_invoice_id`
+- ALTER `transaction_ledger` MODIFY `anchor_id` NOT NULL + FK, ADD `active_service_id NOT NULL FK`, ADD `invoice_id` FK
+- Update `InvoiceController.$fillable` to include `anchor_id`, `active_service_id`, `is_summary`
+
 **Migration D0 (`005_remove_hub_manager.sql`):**
 - DROP TRIGGER `trg_hub_managers_updated_at`
 - ALTER `field_agents` DROP FK `fk_fa_hub_manager`, DROP COLUMN `hub_manager_id`
