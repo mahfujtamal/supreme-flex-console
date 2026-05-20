@@ -183,12 +183,13 @@ Phase C — rebuild FKs (after all tables cut over):
   12. SET FOREIGN_KEY_CHECKS=1
   13. Validate: SELECT COUNT(*) FROM child WHERE fk_col NOT IN (SELECT pk FROM parent) = 0
 
-Phase D — stored procedures + triggers:
-  14. DROP + recreate all 32 triggers with BINARY(16) NEW.{pk} references
-  15. DROP + recreate stored procedures:
+Phase D — stored procedures only (triggers verified safe):
+  14. DROP + recreate stored procedures:
       - has_role(p_user_id BINARY(16), p_role_name VARCHAR)
       - check_and_release_referral_reward(p_ledger_id BINARY(16))
       - force_approve_referral_reward(p_ledger_id BINARY(16), p_admin_name VARCHAR)
+  NOTE: All 32 triggers verified — they only SET NEW.updated_at = CURRENT_TIMESTAMP.
+  No PK/FK column references. No trigger rewrite required.
 ```
 
 **Rollback file:** `011_pk_strategy_rollback.sql` — for each table: ADD `{pk}_old CHAR(36)`, populate via `LOWER(INSERT(INSERT(INSERT(INSERT(HEX({pk}),9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-'))`, drop BINARY(16) PK, rename, rebuild FKs. Pre-migration `mysqldump` is the hard fallback.
@@ -251,34 +252,41 @@ export const toString = (buf) => {
 
 #### Packages to add
 
-| Layer | Package | Version pin |
-|---|---|---|
-| PHP | `ramsey/uuid` | `^4.7` |
-| Node | `uuidv7` | `^1.0` |
+| Layer | Package | Version pin | Note |
+|---|---|---|---|
+| PHP | `ramsey/uuid` | `^4.7` | `composer.json` does not exist yet in `backend-php/` — must be created before any PHP dep can be added |
+| Node | `uuidv7` | `^1.0` | Replaces existing `uuid` v10 dep; `uuidv7` publishes native ESM — compatible with `"type": "module"` in `package.json` |
 
 ---
 
 #### Risk flags
 
-| Risk | Mitigation |
-|---|---|
-| Trigger body references PK as CHAR — after cut-over trigger fires on BINARY, implicit cast silently corrupts data | Redrop + recreate all 32 triggers in Phase D before any write after cut-over |
-| SP params typed CHAR(36) — caller passes BINARY, MySQL coerces via HEX, `has_role` returns wrong result | Redrop + recreate SPs with BINARY(16) params in Phase D |
-| `audit_logs` stores `record_id` as VARCHAR (not FK) — existing rows hold CHAR(36) text strings | Add `record_id_bin BINARY(16)` alongside; backfill; new writes use binary; old rows readable via HEX() |
-| Raw string UUID comparison in code (`WHERE id = '...'`) returns 0 rows after cut-over | Grep codebase for literal UUID comparisons before Phase B; block merge until clean |
-| Non-transactional DDL — partial failure leaves schema inconsistent | Take `mysqldump` immediately before Phase B; have rollback SQL ready |
+| Risk | Status | Mitigation |
+|---|---|---|
+| Trigger body references PK as CHAR — after cut-over trigger fires on BINARY, implicit cast silently corrupts | ✅ CLOSED — all 32 triggers verified `updated_at`-only; no PK/FK refs | No trigger rewrite needed |
+| SP params typed CHAR(36) — caller passes BINARY, MySQL coerces via HEX, `has_role` returns wrong result | OPEN | Redrop + recreate SPs with BINARY(16) params in Phase D |
+| `audit_logs.target_record_id CHAR(36)` and `audit_logs.admin_id CHAR(36)` are non-FK string columns — existing rows hold CHAR(36) text strings | OPEN — confirmed column names | Add `target_record_id_bin BINARY(16)` and `admin_id_bin BINARY(16)` alongside; backfill; new writes use binary |
+| `system_audit_logs.record_id CHAR(36)` is non-FK string column | OPEN — confirmed | Add `record_id_bin BINARY(16)` alongside; same pattern |
+| Raw string UUID comparison in PHP controllers — `->where('field', $id)` where `$id` is a route param | OPEN — confirmed ~20 call sites across all controllers | No hardcoded literals found. All need `UuidHelper::toBinary($id)` wrap at impl time; not a planning blocker |
+| `backend-php/composer.json` does not exist | OPEN — **blocks PHP impl start** | Must create `composer.json` with `ramsey/uuid ^4.7` before any PHP code changes |
+| Node `uuid` v10 must be replaced by `uuidv7` — not just added alongside | OPEN | `npm remove uuid && npm install uuidv7` — audit all `uuid` import sites in route handlers |
+| Non-transactional DDL — partial failure leaves schema inconsistent | OPEN | Take `mysqldump` immediately before Phase B; have rollback SQL ready |
 
 ---
 
-#### Pre-migration checklist (planning gate before coding starts)
+#### Pre-migration checklist — verified 2026-05-20
 
-- [ ] Confirm `ramsey/uuid ^4.7` supports `uuid7()` (added in 4.2 — verify)
-- [ ] Confirm `uuidv7` npm package is ESM-compatible (required — no CommonJS `require()`)
-- [ ] Audit all 32 triggers for CHAR(36) references — list them in migration comments
-- [ ] Grep PHP controllers for raw string UUID comparisons
-- [ ] Grep Node `services/db.js` for raw string UUID comparisons
-- [ ] Verify `audit_logs.record_id` and `system_audit_logs.record_id` column types
-- [ ] Confirm composite PK tables have no shadow-column naming conflict
+| # | Item | Result | Action required |
+|---|---|---|---|
+| 1 | `ramsey/uuid ^4.7` supports `uuid7()` | ✅ PASS — uuid7() added in 4.2, ^4.7 is safe | `composer.json` must be created first (see risk flag) |
+| 2 | `uuidv7` npm is ESM-compatible | ✅ PASS — package publishes native ESM; `package.json` already has `"type":"module"` | Replace `uuid` v10 with `uuidv7` at impl start |
+| 3 | Audit 32 triggers for CHAR(36) refs | ✅ PASS — all 32 triggers only `SET NEW.updated_at = CURRENT_TIMESTAMP`; zero PK/FK refs | No trigger rewrite needed; remove Phase D trigger step |
+| 4 | PHP controllers: raw string UUID literals | ✅ PASS — no hardcoded UUID strings. All `->where()` use route/request variables | ~20 call sites need `UuidHelper::toBinary()` wrap at impl time |
+| 5 | Node `services/db.js`: raw string UUID comparisons | ✅ PASS — `db.js` is pool-only (9 lines); no query logic exists | `queryById`/`mapRow` helpers to be written fresh |
+| 6 | `audit_logs` / `system_audit_logs` column types | ⚠️ NOTE — corrected column names: `audit_logs.target_record_id CHAR(36)` + `audit_logs.admin_id CHAR(36)` + `system_audit_logs.record_id CHAR(36)` — all non-FK | Add three `_bin` shadow columns; see risk flags |
+| 7 | Composite PK tables: shadow-column naming conflicts | ✅ PASS — `user_id_bin`, `role_id_bin`, `permission_id_bin`, `dh_id_bin`, `area_id_bin` — no existing cols with these names | No action |
+
+**Checklist outcome:** 5 clear pass, 1 note (column names corrected), 0 hard blocks on the migration itself. One prerequisite blocker: `composer.json` must be created before PHP implementation starts.
 
 ---
 
