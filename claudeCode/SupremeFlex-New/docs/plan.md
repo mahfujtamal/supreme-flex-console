@@ -111,7 +111,10 @@ All defaults `true`. Real stubs throw `RuntimeException`. `AppServiceProvider` b
 ## Execution Order
 
 ```
-✅ Done  (OTP Auth — migration 004, login page, AuthContext, auth guard)
+✅ Done   (OTP Auth — migration 004, login page, AuthContext, auth guard)
+    ↓
+Phase -1 (Foundation Hardening — PKs UUIDv7/BINARY(16), auth hardening,
+          idempotency, tests, prod guards, Drupal kill, DB topology+Redis+queue)
     ↓
 Phase 0  (Groundwork — mock services, SMS, system_config, internal bridge)
     ↓
@@ -120,6 +123,94 @@ Phase 1  (DB Migrations D0–D4 → now files 005–009)
 Phase 2  (PHP Backend)  ←parallel→  Phase 3  (Node.js Backend)
     ↓
 Phase 4  (Frontend)
+```
+
+---
+
+## Phase -1 — Foundation Hardening
+
+**Target scale:** 3–10M GPFI subscribers; up to 20k concurrent internal users; ~50k orders/day at peak. **Must complete before Phase 0** (some items can run in parallel — see sequencing at the end of this section).
+
+### P-1.1 — PK strategy: UUIDv7 / BINARY(16)
+**Problem:** Random UUIDv4 stored as `CHAR(36) DEFAULT (UUID())` causes B-tree page splits, 4–5× index bloat vs BIGINT, and slow joins at multi-million-row scale. Every secondary index carries the 36-byte PK; `transaction_ledger` joins compound the cost.
+
+**Solution:** UUIDv7 (time-ordered) stored as `BINARY(16)`. Generated in application code via `Ramsey\Uuid::uuid7()` (PHP) and the `uuidv7` npm package (Node). New helper layer renders to/from canonical string form for JSON I/O.
+
+**Migration approach:** `011_pk_strategy.sql` ALTERs all 39 tables' PK + FK columns; converts existing rows via `UNHEX(REPLACE(uuid, '-', ''))`. Triggers updated. Because the codebase has only ~50k orders today, this is the cheapest window to do this — every additional row makes it harder.
+
+**Exit criteria:** All migrations 001–004 retrofitted or wrapped; PHP and Node generate UUIDv7 in code; on a 1M-row insert test the page-split rate is <2%.
+
+### P-1.2 — Auth hardening
+**Verified gaps (Explore agent run 2026-05-20):** No OTP rate limit on `requestOtp`; no brute-force lockout on `verifyOtp`; OTP stored as plaintext `CHAR(6)`; OTP returned in HTTP response when `APP_ENV=local` (runtime branch — leakable); JWT in `localStorage`; no refresh token; no revocation mechanism; `has_role` SP defined but never called from PHP; WebSocket `/ws/dashboard` has zero auth check.
+
+**Solution:**
+- **OTP:** Hash before storage (SHA-256 + per-row salt). Rate-limit request 5/hour/msisdn + 20/day/IP. Lockout verify after 5 failed attempts within 15 min. Move dev-mode response to a separate `/api/auth/otp/dev-peek` endpoint registered only when `APP_ENV != production` — eliminate the runtime branch in `verifyOtp`.
+- **JWT:** Access token 15-min TTL + refresh token 7-day TTL. Cookies: httpOnly + Secure + SameSite=Strict. Revocation list in Redis keyed by `jti`. `/auth/logout` actually invalidates the refresh token and adds the access `jti` to the revocation set.
+- **RBAC:** New `PermissionMiddleware` invokes the existing `has_role(user_id, role_name)` stored procedure. Result cached in Redis 300s per user. Applied per-route: `middleware('auth.jwt,can:order.create')`. `auth.jwt` alone is never sufficient.
+- **WebSocket:** JWT delivered via subprotocol on upgrade; unauthenticated upgrades rejected with 401.
+
+**Exit criteria:** Black-box test verifies each gap closed (rate limit returns 429, lockout returns 423, plaintext OTP no longer present in `otp_codes.code`, JWT in cookie not localStorage, refresh-then-revoke works, RBAC denies cross-role access, WS rejects upgrade without token).
+
+### P-1.3 — Idempotency keys on mutating endpoints
+**Why:** Field agents on mobile networks will retry. Without idempotency, retries create duplicate orders, duplicate IP provisioning calls (which trigger GPShop / RealIP external APIs), duplicate stock transfers, duplicate referral redemptions.
+
+**Scope:** POST/PATCH/DELETE on `orders`, `addon_order_history`, `cpe_order_history`, `ott_order_history`, `real_ip_assignments`, `stock_transfers`, `referral_redemptions`.
+
+**Solution:** New `IdempotencyMiddleware.php` (PHP) and `idempotency.js` (Node). Middleware extracts `Idempotency-Key` header, hashes `(key, request_body)`, looks up in Redis. On hit: return cached response. On miss: execute handler, cache `(key, request_hash, response)` for 24 h, return response.
+
+**Exit criteria:** Sending the same `Idempotency-Key` twice with the same body returns identical response and creates only one row. Sending the same key with a different body returns 409 Conflict.
+
+### P-1.4 — Test harness
+**Verified state:** Zero test infrastructure — no `tests/` directory, no `phpunit.xml`, no `*.test.js`, no `test` script in `backend-node/package.json`.
+
+**Solution:**
+- **PHP:** PHPUnit + Laravel test client. Coverage targets — 80% on services, 90% on stored-procedure state transitions (`check_and_release_referral_reward`, `force_approve_referral_reward`), 100% on auth/RBAC middleware.
+- **Node:** Vitest (ES modules) + supertest. 80% on route handlers, 100% on auth middleware.
+- **Contract tests:** every `*_MOCK` service has a contract suite that both the Mock and the Real Stub must satisfy — so flipping the env flag never surprises us.
+- **CI:** `.github/workflows/test.yml` runs lint + tests on every push and on PR.
+
+**Exit criteria:** `composer test`, `npm test` (in `backend-node`), and GH Actions all green. Coverage report published as a workflow artifact.
+
+### P-1.5 — Boot-time production guards
+**Why:** Mocks default to ON. `APP_DEBUG` can leak in prod. Dev-mode OTP-return is a runtime flag. `X-Dev-Mode: true` is a client-trusted header. Bulk-delete route exists in the production binary.
+
+**Solution:**
+- `AppServiceProvider::boot()` throws `RuntimeException` when `APP_ENV=production` AND any of `GPSHOP_MOCK / LOCATION_CHANGE_API_MOCK / REAL_IP_API_MOCK / CUSTOMER_LIFECYCLE_MOCK / APP_DEBUG / OTP_DEV_PEEK_ENABLED` is `true`.
+- Node `index.js` mirrors the same guard.
+- Build pipeline strips dev-only route registrations (bulk-delete controller, dev-OTP-peek endpoint) from the production artifact.
+
+**Exit criteria:** `APP_ENV=production php artisan serve` with `GPSHOP_MOCK=true` exits 1 with a clear error message. Production artifact does not register `/api/auth/otp/dev-peek` or `DELETE /api/{resource}/bulk`.
+
+### P-1.6 — Drupal removal
+**Verified:** `/drupal/` directory exists but is empty; no PHP or Node code references `:8080` or any Drupal API. Drupal is documentation-only.
+
+**Decision:** Kill Drupal from the architecture. The maintenance + CVE-patching cost is not justified for "configurable texts and reporting views."
+- Configurable texts → already covered by the `system_config` table (per P0-3).
+- Reporting → Metabase (or Superset) behind SSO + read replica, deferred to post-launch.
+
+**Exit criteria:** No mention of Drupal in any of the 4 plan docs (`CLAUDE.md`, this file, `docs/developmentPlan.md`, `docs/SupremeFlex_Consolidated_Requirements.md`). Architecture diagram updated. (Already done in this planning round.)
+
+### P-1.7 — DB topology + Redis + queue
+**Target topology:**
+- **MySQL:** 1 primary + 2 read replicas. ProxySQL routes reads to replicas, writes to primary. Binlog enabled. Nightly XtraBackup + retained binlogs. **RTO 15 min, RPO 5 min**, with documented restore drills.
+- **Redis:** sessions, idempotency keys, JWT revocation list, hot-data cache (geography, product catalog, RBAC permissions), Laravel Horizon backing store.
+- **Queue (Laravel Horizon, Redis-backed):** replaces daily Artisan crons (`AutoCancelAddonOrders`, `AutoUnassignRealIp`, SMS retries) with chunked workers, automatic retry, and a Dead Letter Queue. Per-job observability via Horizon dashboard.
+- **Partitioning:** monthly date-range partitions on `audit_logs`, `system_audit_logs`, `transaction_ledger`, `otp_codes`. Per-table retention policy.
+
+**Sequencing:** Topology decisions documented now. Redis + queue in place before first feature code in BLOCK A. Replicas + partitioning deployed before any public traffic.
+
+**Exit criteria:** Read traffic routes to a replica (verified via slow-query log); at least one Artisan command refactored as a queued Horizon job; Redis cache hit-rate >80% on Customer 360 lookup under load test; partition pruning verified on a 10M-row test table.
+
+### Sequencing summary
+```
+P-1.1 ─┐
+P-1.2 ─┤── MUST complete before Phase 0 (D0/D0.5/D1/D2/D3/D4 migrations)
+P-1.5 ─┘
+
+P-1.3 ──── parallel with Phase 0 (middleware drops in cleanly)
+P-1.4 ──── parallel; every feature ships with tests from day one
+P-1.6 ──── documentation-only; can complete in this planning round
+P-1.7 ──── infra parallel; app-side queue refactor before Phase 2 E5–E10
 ```
 
 ---

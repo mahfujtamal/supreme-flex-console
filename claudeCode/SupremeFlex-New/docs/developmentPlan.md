@@ -30,6 +30,34 @@
 **You confirm each step before I proceed to the next.**
 Each step ends with a "How to verify" section. You test → confirm → I proceed.
 
+**Planning-only mode is the default.** No code, migrations, configs, or env edits happen until you explicitly say "start coding". See `CLAUDE.md` → Workflow Mode.
+
+---
+
+## BLOCK 0 — Phase -1 Foundation Hardening
+
+**Why this block exists:** At 3–10M GPFI subscriber target scale, security and scale foundations must precede feature code. Each item below is a one-way door — cheap now, expensive to retrofit later. See `docs/plan.md` Phase -1 for the full decision-grade write-up of each item (problem, solution, exit criteria).
+
+**BLOCK 0 must complete before BLOCK A.** Items P-1.1 (PK strategy) and P-1.2 (auth hardening) constrain everything in Blocks B–H.
+
+| Step | What | Files / Effort |
+|------|------|----------------|
+| P-1.1 | **UUIDv7 / BINARY(16) PK migration** — replace `CHAR(36) DEFAULT (UUID())` across 39 tables; switch app to `Ramsey\Uuid::uuid7()` (PHP) + `uuidv7` npm (Node) | New migration `011_pk_strategy.sql`; touches all controllers and Node query helpers. **L** |
+| P-1.2 | **Auth hardening** — OTP hash (SHA-256 + salt) + rate-limit + lockout; JWT in httpOnly cookies; access (15m) + refresh (7d); revocation list in Redis; `PermissionMiddleware` enforcing `has_role()`; WebSocket auth via subprotocol | `AuthController.php`, new `PermissionMiddleware.php`, `lib/api.ts`, `AuthContext.tsx`, Node `auth.js`, Node WS upgrade. **L** |
+| P-1.3 | **Idempotency-Key middleware** — Redis-backed `(key, request_hash, response)` store, 24h TTL; applied to all mutating endpoints | New `IdempotencyMiddleware.php`, new Node `idempotency.js`. **M** |
+| P-1.4 | **Test harness** — PHPUnit (PHP) + Vitest + supertest (Node) + GitHub Actions CI; coverage targets per layer; contract tests for the 4 mock services | `phpunit.xml`, `backend-php/tests/`, `backend-node/test/`, `.github/workflows/test.yml`. **M** |
+| P-1.5 | **Boot-time production guards** — throw on `APP_ENV=production` + any `*_MOCK=true` / `APP_DEBUG=true` / dev flag; build-step strip of dev-only routes (bulk delete, dev-OTP-peek) | `AppServiceProvider.php`, `backend-node/src/index.js`. **S** |
+| P-1.6 | **Drupal removal decision** — kill from architecture; texts → `system_config`; reporting → Metabase deferred to post-launch | Doc-only changes (Drupal never integrated — `/drupal/` directory is empty). **S** |
+| P-1.7 | **DB topology + Redis + queue** — 1 primary + 2 read replicas with ProxySQL; Redis for cache/session/queue/idempotency/revocation; Laravel Horizon replaces daily Artisan crons; partition `audit_logs` / `transaction_ledger` / `otp_codes` monthly; backup (binlogs + XtraBackup; RTO 15min, RPO 5min) | Infra config (out-of-repo) + app-side read-write split, Horizon config, partition migrations. **L** |
+
+**Exit criteria for BLOCK 0:** see `docs/plan.md` Phase -1 for per-item acceptance tests.
+
+**Internal sequencing within BLOCK 0:**
+- **Must complete before BLOCK A:** P-1.1, P-1.2, P-1.5
+- **Parallel with BLOCK A/B:** P-1.3, P-1.4
+- **Doc-only, anytime:** P-1.6
+- **Infra parallel; app-side queue refactor before E5–E10:** P-1.7
+
 ---
 
 ## BLOCK A — Bug Fixes
@@ -162,7 +190,17 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 
 ## Recommended Starting Point
 
-1. **A2 + A3** — Node error handling + JWT guard (quick, foundational)
-2. **D0** — Hub Manager removal (structural, run before building any UI)
-3. **B1–B4** — DataTable, StatusBadge, ConfirmDialog, useDebounce (unblocks all C steps)
-4. **C1** — Master Data (first real page, validates the full stack)
+**BLOCK 0 (Phase -1) precedes everything below.** Within BLOCK 0:
+
+1. **P-1.1** — UUIDv7 / BINARY(16) PK migration (must precede every other migration; cheapest now while data is small)
+2. **P-1.2** — Auth hardening (must precede any frontend C-block — changes `lib/api.ts` and `AuthContext`)
+3. **P-1.5** — Boot-time production guards (cheap; prevents accidental mock/debug leakage to any non-local environment)
+4. **P-1.3 + P-1.4** — Idempotency middleware + test harness (parallel)
+5. **P-1.6** — Drupal removal (doc-only; complete in planning)
+6. **P-1.7** — DB topology + Redis + queue (infra parallel; app-side queue refactor before E5–E10)
+
+Once BLOCK 0 is green:
+
+7. **D0** — Hub Manager removal (structural; run before building any UI)
+8. **B1–B4** — DataTable, StatusBadge, ConfirmDialog, useDebounce (unblocks all C steps)
+9. **C1** — Master Data (first real page, validates the full stack)
