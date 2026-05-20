@@ -293,15 +293,257 @@ export const toString = (buf) => {
 **Exit criteria:** `SET FOREIGN_KEY_CHECKS=1` completes with zero errors; all FK validation queries return 0; `SHOW CREATE TABLE orders` shows `BINARY(16)` PK and FK columns; `UuidHelper::generate()` and `generateUuid()` produce valid UUIDv7 strings; on a synthetic 1M-row insert into `transaction_ledger` the sequential-write pattern produces <2% page splits (verified via `innodb_buffer_pool_stats`); rollback SQL tested on a copy of the dump and restores without error.
 
 ### P-1.2 — Auth hardening
-**Verified gaps (Explore agent run 2026-05-20):** No OTP rate limit on `requestOtp`; no brute-force lockout on `verifyOtp`; OTP stored as plaintext `CHAR(6)`; OTP returned in HTTP response when `APP_ENV=local` (runtime branch — leakable); JWT in `localStorage`; no refresh token; no revocation mechanism; `has_role` SP defined but never called from PHP; WebSocket `/ws/dashboard` has zero auth check.
 
-**Solution:**
-- **OTP:** Hash before storage (SHA-256 + per-row salt). Rate-limit request 5/hour/msisdn + 20/day/IP. Lockout verify after 5 failed attempts within 15 min. Move dev-mode response to a separate `/api/auth/otp/dev-peek` endpoint registered only when `APP_ENV != production` — eliminate the runtime branch in `verifyOtp`.
-- **JWT:** Access token 15-min TTL + refresh token 7-day TTL. Cookies: httpOnly + Secure + SameSite=Strict. Revocation list in Redis keyed by `jti`. `/auth/logout` actually invalidates the refresh token and adds the access `jti` to the revocation set.
-- **RBAC:** New `PermissionMiddleware` invokes the existing `has_role(user_id, role_name)` stored procedure. Result cached in Redis 300s per user. Applied per-route: `middleware('auth.jwt,can:order.create')`. `auth.jwt` alone is never sufficient.
-- **WebSocket:** JWT delivered via subprotocol on upgrade; unauthenticated upgrades rejected with 401.
+#### Verified gaps (code-verified 2026-05-20)
 
-**Exit criteria:** Black-box test verifies each gap closed (rate limit returns 429, lockout returns 423, plaintext OTP no longer present in `otp_codes.code`, JWT in cookie not localStorage, refresh-then-revoke works, RBAC denies cross-role access, WS rejects upgrade without token).
+| Gap | Location | Detail |
+|---|---|---|
+| OTP plaintext | `otp_codes.code CHAR(6)` | No hash, no salt |
+| No OTP rate limit | `AuthController::requestOtp` | Zero throttle on msisdn or IP |
+| No brute-force lockout | `AuthController::verifyOtp` | No `failed_attempts` counter, no `locked_until` |
+| Dev OTP leak | `AuthController::requestOtp` | Runtime `if (APP_ENV=local)` branch returns code in response body — present in production binary |
+| JWT lifetime too long | `verifyOtp` | `jwt_ttl` defaults to 1440 min (24h); no refresh token |
+| No `jti` in JWT | `verifyOtp` payload | Cannot revoke individual tokens |
+| `staff_type` missing from JWT | `verifyOtp` payload | Node must DB-lookup to determine manager entity type (violates rule 13) |
+| JWT in localStorage | `api.ts` + `AuthContext.tsx` | `localStorage.getItem('sf_token')` — XSS-accessible |
+| Logout is client-only | `AuthController::logout` + `AuthContext::logout` | Returns `{message: 'Logged out'}` but invalidates nothing server-side |
+| `has_role` SP never called | `JwtMiddleware.php` | All routes guarded by `auth.jwt` only — no permission check |
+| No `PermissionMiddleware` | `app/Http/Middleware/` | File does not exist |
+| JwtMiddleware reads header | `JwtMiddleware.php` | Uses `bearerToken()` — breaks after cookie migration |
+| No revocation check | `JwtMiddleware.php` | No Redis `jwt:revoked:{jti}` lookup |
+| WS zero auth | `backend-node/src/index.js` | `wss.on('connection', ...)` accepts every upgrade with no token check |
+
+---
+
+#### DB migration — `012_auth_hardening.sql`
+
+```sql
+ALTER TABLE `otp_codes`
+  CHANGE COLUMN `code` `code_hash` CHAR(64) NOT NULL,
+  ADD COLUMN `salt`            CHAR(32)         NOT NULL AFTER `code_hash`,
+  ADD COLUMN `failed_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN `locked_until`    DATETIME         NULL;
+```
+
+No new tables — refresh tokens live in Redis only.
+
+---
+
+#### Redis key patterns
+
+| Key | TTL | Value | Purpose |
+|---|---|---|---|
+| `otp_rate:msisdn:{contact_number}` | 3600s | integer count | Request rate limit per msisdn (max 5/h) |
+| `otp_rate:ip:{ip}` | 86400s | integer count | Request rate limit per IP (max 20/d) |
+| `jwt:revoked:{jti}` | 900s | `1` | Revoked access token JTIs — TTL matches access token TTL |
+| `jwt:refresh:{token}` | 604800s | `{user_id}` | Valid refresh tokens (opaque 64-char hex) |
+| `rbac:{user_id}:{role_name}` | 300s | `0` or `1` | Cached `has_role` result per user + role |
+
+---
+
+#### JWT payload (new shape)
+
+```json
+{
+  "iss": "supremeflex",
+  "sub": "<user_id>",
+  "jti": "<uuidv7>",
+  "staff_type": "CS_REP|KAM|DH_MANAGER|CHANNEL_MANAGER|SUBCHANNEL_MANAGER|ADMIN",
+  "iat": 1234567890,
+  "exp": 1234568790
+}
+```
+
+Access token TTL: **900s (15 min)**. `staff_type` added — Node reads from payload, no DB lookup needed.
+
+---
+
+#### Cookie spec
+
+| Attribute | `sf_access` (access token) | `sf_refresh` (refresh token) |
+|---|---|---|
+| HttpOnly | true | true |
+| Secure | true (prod) / false (local) | same |
+| SameSite | Strict | Strict |
+| Path | `/` | `/api/auth/refresh` |
+| Max-Age | 900s | 604800s (7d) |
+
+Both set by PHP on `POST /api/auth/otp/verify`; both cleared on `POST /api/auth/logout`.
+
+**Cross-origin note:** PHP (:8000) and Node (:8001) share the `localhost` domain — cookies scoped to `localhost` are sent to both ports. Frontend axios instances must set `withCredentials: true`.
+
+---
+
+#### PHP changes
+
+**`AuthController.php` — rewrite of all 4 methods + 2 new endpoints:**
+
+`requestOtp`:
+1. Redis INCR `otp_rate:msisdn:{contact_number}` — if ≥ 5 return 429; set TTL 3600s on first call
+2. Redis INCR `otp_rate:ip:{request->ip()}` — if ≥ 20 return 429; set TTL 86400s on first call
+3. Generate 6-digit code + 32-char hex salt
+4. Compute `code_hash = hash('sha256', $code . $salt)`
+5. Insert into `otp_codes` with `code_hash`, `salt`, `failed_attempts=0`, `locked_until=NULL`
+6. `Log::info("OTP {$contact_number}: {$code}")` — code never in response body
+
+`verifyOtp`:
+1. Fetch latest unused, unexpired row for `contact_number`
+2. If no row → 401
+3. If `locked_until IS NOT NULL AND locked_until > NOW()` → 423
+4. Compare `hash('sha256', $request->code . $row->salt)` vs `$row->code_hash`
+5. Mismatch: `failed_attempts++`; if ≥ 5 set `locked_until = NOW() + 15min`; return 401
+6. Match: `used=1`, `failed_attempts=0`
+7. Build JWT: `sub`, `jti = UuidHelper::generate()`, `staff_type`, TTL 900s
+8. Generate refresh token: `bin2hex(random_bytes(32))` (64-char hex); store `jwt:refresh:{token} = user_id` in Redis (604800s)
+9. Set `sf_access` + `sf_refresh` httpOnly cookies; return `{user: {...}}` — no token in body
+
+`refreshToken` (new — `POST /api/auth/refresh`):
+1. Read `sf_refresh` cookie
+2. Redis GET `jwt:refresh:{token}` → if missing return 401
+3. Fetch user by `user_id`; build new access JWT with new `jti`
+4. Set new `sf_access` cookie; optionally rotate refresh token
+5. Return `{user: {...}}`
+
+`logout` (rewrite):
+1. Read `jti` from `auth_user` (decoded by JwtMiddleware)
+2. Redis SET `jwt:revoked:{jti}` `1` EX 900
+3. Read `sf_refresh` cookie; Redis DEL `jwt:refresh:{token}`
+4. Clear both cookies (Max-Age=0); return 204
+
+`devPeek` (new — `GET /api/auth/otp/dev-peek?contact_number={n}`):
+- Registered only when `app()->environment() !== 'production'`
+- Returns the `code_hash` + `salt` of the latest unused OTP for debugging (or store plain code temporarily in a `dev_code` column added only in non-prod migrations)
+
+**`JwtMiddleware.php` — rewrite:**
+1. Read from `$request->cookie('sf_access')` instead of `bearerToken()`
+2. Decode + verify signature
+3. Redis GET `jwt:revoked:{decoded->jti}` → if exists return 401
+4. `$request->merge(['auth_user' => [...$decoded, 'jti' => $decoded->jti]])`
+
+**New `PermissionMiddleware.php`:**
+```
+handle($request, $next, $permission):
+  1. $userId = $request->auth_user['sub']
+  2. $cacheKey = "rbac:{$userId}:{$permission}"
+  3. $result = Redis::get($cacheKey)
+  4. if null: CALL has_role($userId, $permission) → cache result 300s
+  5. if result == 0 → return 403
+  6. return $next($request)
+```
+
+**`routes/api.php` — changes:**
+- Add `POST /api/auth/refresh` (public, no middleware)
+- Conditionally register `GET /api/auth/otp/dev-peek` when not production
+- Change all route groups from `auth.jwt` to `auth.jwt,can:{role}` where role matches the resource domain
+- Remove runtime OTP branch (moves to dev-peek endpoint)
+
+---
+
+#### Node changes
+
+**New `src/middleware/auth.js`:**
+```js
+import jwt from 'jsonwebtoken';
+
+export function requireAuth(req, res, next) {
+    const cookie = req.headers.cookie ?? '';
+    const match  = cookie.match(/sf_access=([^;]+)/);
+    if (!match) return res.status(401).json({ message: 'Unauthorized' });
+    try {
+        req.auth = jwt.verify(match[1], process.env.JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ message: 'Token invalid or expired' });
+    }
+}
+```
+
+Apply to all three routers: add `router.use(requireAuth)` at the top of `fieldExecution.js`, `stockTransfers.js`, `dashboard.js`.
+
+**`src/index.js` — WebSocket auth on upgrade:**
+```js
+// Change WebSocketServer to noServer mode
+const wss = new WebSocketServer({ noServer: true });
+
+// Validate JWT before handing off to wss
+server.on('upgrade', (req, socket, head) => {
+    const cookie = req.headers.cookie ?? '';
+    const match  = cookie.match(/sf_access=([^;]+)/);
+    if (!match) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
+    try {
+        jwt.verify(match[1], process.env.JWT_SECRET);
+        wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    } catch {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy();
+    }
+});
+```
+
+---
+
+#### Frontend changes
+
+**`frontend/lib/api.ts`:**
+- Remove `attachToken()` and both `attachToken(phpApi)` / `attachToken(nodeApi)` calls
+- Add `withCredentials: true` to both `axios.create()` configs
+- Add response interceptor on both: on 401 → call `phpApi.post('/auth/refresh')`; on second 401 → `window.location.href = '/login'`
+
+**`frontend/contexts/AuthContext.tsx`:**
+- Remove all `localStorage` token reads/writes (`sf_token` key gone)
+- `login(userObj)` signature — no token param; store user in React state only
+- `logout()` — calls `phpApi.post('/auth/logout')` before clearing state
+- `useEffect` on mount — call `phpApi.get('/auth/me')` to rehydrate user state (replaces localStorage `sf_user` read); handles 401 gracefully (unauthenticated on cold load)
+
+---
+
+#### Files created / modified
+
+| File | Action |
+|---|---|
+| `database/migrations/012_auth_hardening.sql` | New |
+| `app/Http/Controllers/Api/AuthController.php` | Rewrite |
+| `app/Http/Middleware/JwtMiddleware.php` | Rewrite |
+| `app/Http/Middleware/PermissionMiddleware.php` | New |
+| `backend-php/routes/api.php` | Modify |
+| `backend-node/src/middleware/auth.js` | New |
+| `backend-node/src/index.js` | Modify |
+| `backend-node/src/routes/fieldExecution.js` | Modify |
+| `backend-node/src/routes/stockTransfers.js` | Modify |
+| `backend-node/src/routes/dashboard.js` | Modify |
+| `frontend/lib/api.ts` | Modify |
+| `frontend/contexts/AuthContext.tsx` | Modify |
+
+**Dependency note:** Redis in PHP requires `predis/predis` — add when `composer.json` is created (P-1.1 prerequisite). `firebase/jwt-php` already present — no new JWT package needed.
+
+---
+
+#### Pre-implementation checklist — verified 2026-05-20
+
+| # | Item | Status |
+|---|---|---|
+| 1 | `otp_codes` supports hashing | ⚠️ Needs migration 012 |
+| 2 | `has_role` SP exists and correct | ✅ In migration 003; params need BINARY(16) update after P-1.1 |
+| 3 | `PermissionMiddleware` exists | ❌ Must create |
+| 4 | `JwtMiddleware` reads from cookie | ❌ Currently reads `bearerToken()` |
+| 5 | WS upgrade validates JWT | ❌ Zero check today |
+| 6 | `staff_type` in JWT payload | ❌ Missing from current payload |
+| 7 | Frontend uses `withCredentials` | ❌ Uses `Authorization: Bearer` from localStorage |
+| 8 | Logout invalidates server-side | ❌ Client-only today |
+| 9 | Dev OTP in separate endpoint | ❌ Runtime branch in `requestOtp` today |
+| 10 | `predis/predis` in composer.json | ⚠️ Blocked until composer.json created (P-1.1 prerequisite) |
+
+---
+
+**Exit criteria:**
+- `POST /api/auth/otp/request` (6th call/h on same msisdn) → 429
+- `POST /api/auth/otp/verify` (6th wrong attempt in 15 min) → 423
+- `SELECT code FROM otp_codes` returns 64-char hex, not `123456`
+- `POST /api/auth/otp/verify` response has no `token` field; `Set-Cookie: sf_access; HttpOnly` header present
+- `POST /api/auth/refresh` with valid `sf_refresh` cookie → 200 + new `sf_access`
+- `POST /api/auth/logout` → Redis `jwt:revoked:{jti}` key exists; old token → 401
+- `GET /api/network-zones` with valid JWT but insufficient role → 403
+- `ws://localhost:8001/ws/dashboard` upgrade with no cookie → HTTP 401, connection refused
+- `GET /api/auth/otp/dev-peek` returns 404 on `APP_ENV=production`
 
 ### P-1.3 — Idempotency keys on mutating endpoints
 **Why:** Field agents on mobile networks will retry. Without idempotency, retries create duplicate orders, duplicate IP provisioning calls (which trigger GPShop / RealIP external APIs), duplicate stock transfers, duplicate referral redemptions.
