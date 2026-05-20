@@ -550,9 +550,228 @@ server.on('upgrade', (req, socket, head) => {
 
 **Scope:** POST/PATCH/DELETE on `orders`, `addon_order_history`, `cpe_order_history`, `ott_order_history`, `real_ip_assignments`, `stock_transfers`, `referral_redemptions`.
 
-**Solution:** New `IdempotencyMiddleware.php` (PHP) and `idempotency.js` (Node). Middleware extracts `Idempotency-Key` header, hashes `(key, request_body)`, looks up in Redis. On hit: return cached response. On miss: execute handler, cache `(key, request_hash, response)` for 24 h, return response.
+---
 
-**Exit criteria:** Sending the same `Idempotency-Key` twice with the same body returns identical response and creates only one row. Sending the same key with a different body returns 409 Conflict.
+#### Verified state — current gaps
+
+| # | Gap | File(s) | Status |
+|---|-----|---------|--------|
+| 1 | No `Idempotency-Key` enforcement on any route | All PHP controllers, all Node routes | ❌ Missing |
+| 2 | No Redis `idempotency:` key namespace | — | ❌ Missing |
+| 3 | No in-flight lock — concurrent duplicate requests race to create duplicate rows | — | ❌ Missing |
+| 4 | No `Idempotency-Replay: true` response header on cache hits | — | ❌ Missing |
+| 5 | Frontend generates no idempotency key on mutations | `frontend/lib/api.ts` | ❌ Missing |
+| 6 | `POST /api/invoices` triggers order creation but is not guarded | `api.php:79` | ❌ Missing |
+| 7 | Node stock-transfer + field-execution mutations have no dedup protection | `stockTransfers.js:41,60`, `fieldExecution.js:57` | ❌ Missing |
+| 8 | `REDIS_URL` env var absent from both `.env.example` files | `backend-php/.env.example`, `backend-node/.env.example` | ❌ Missing |
+
+---
+
+#### Redis key design
+
+```
+idempotency:{sha256(raw-Idempotency-Key-header)}
+→ JSON { status: "processing"|"complete", request_hash: <sha256-of-body>,
+         status_code: <int>, response_body: <json>, created_at: <unix> }
+```
+
+| State | TTL | Meaning |
+|-------|-----|---------|
+| `processing` | 30 s | In-flight lock — another request is currently executing with this key |
+| `complete` | 86 400 s (24 h) | Cached result — replayed verbatim on subsequent hits |
+
+Hashing the header value keeps the Redis key ASCII-safe regardless of client-supplied content.
+Shared namespace with P-1.2's `jwt:revoked:` and `jwt:refresh:` keys — same Redis instance, different prefixes.
+
+---
+
+#### PHP — `app/Http/Middleware/IdempotencyMiddleware.php`
+
+```
+handle($request, $next):
+  1. $key = $request->header('Idempotency-Key')
+     if (!$key) → return 422 { message: 'Idempotency-Key header required' }
+
+  2. $redisKey = 'idempotency:' . hash('sha256', $key)
+     $bodyHash  = hash('sha256', $request->getContent())
+
+  3. $cached = Redis::get($redisKey)
+     if ($cached):
+       $entry = json_decode($cached, true)
+       if $entry['status'] === 'processing'
+         → return 409 { message: 'Duplicate request in flight — retry after a moment' }
+       if $entry['request_hash'] !== $bodyHash
+         → return 409 { message: 'Idempotency key already used with a different request body' }
+       // HIT — replay cached response
+       → return response()->json($entry['response_body'], $entry['status_code'])
+                          ->header('Idempotency-Replay', 'true')
+
+  4. // MISS — set in-flight lock (30 s TTL)
+     Redis::setex($redisKey, 30, json_encode(['status' => 'processing', 'request_hash' => $bodyHash]))
+
+  5. $response = $next($request)
+
+  6. // Store completed response (24 h TTL)
+     Redis::setex($redisKey, 86400, json_encode([
+       'status'        => 'complete',
+       'request_hash'  => $bodyHash,
+       'status_code'   => $response->getStatusCode(),
+       'response_body' => json_decode($response->getContent(), true),
+       'created_at'    => time(),
+     ]))
+
+  7. return $response
+```
+
+Registration in `app/Http/Kernel.php` `$routeMiddleware`:
+```php
+'idempotency' => \App\Http\Middleware\IdempotencyMiddleware::class,
+```
+
+Applied in `routes/api.php` — a new sub-group inside the existing `auth.jwt` group:
+```php
+Route::middleware('idempotency')->group(function () {
+    Route::post('invoices',                                      [InvoiceController::class, 'store']);
+    Route::apiResource('stock-transfers', StockTransferController::class)->only(['store','update','destroy']);
+    Route::patch('stock-transfers/{id}/respond',                 [StockTransferController::class, 'respond']);
+    Route::apiResource('real-ip-assignments', RealIpAssignmentController::class)->only(['store','update','destroy']);
+    Route::post('referrals/check-reward',                        [ReferralRewardController::class, 'checkReward']);
+    Route::post('referrals/force-approve',                       [ReferralRewardController::class, 'forceApprove']);
+    // addon/cpe/ott order routes registered here when Phase 0 controllers are added
+});
+```
+
+Note: `orders`, `addon_order_history`, `cpe_order_history`, `ott_order_history` controllers do not yet exist in `api.php` — they are created in Phase 0. When added, register them inside this `idempotency` group.
+
+---
+
+#### Node — `src/middleware/idempotency.js`
+
+```js
+import crypto from 'crypto';
+import { redis } from '../services/redis.js';  // shared client — see below
+
+export async function requireIdempotency(req, res, next) {
+    const key = req.headers['idempotency-key'];
+    if (!key) return res.status(422).json({ message: 'Idempotency-Key header required' });
+
+    const redisKey = `idempotency:${crypto.createHash('sha256').update(key).digest('hex')}`;
+    const bodyHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
+
+    const cached = await redis.get(redisKey);
+    if (cached) {
+        const entry = JSON.parse(cached);
+        if (entry.status === 'processing')
+            return res.status(409).json({ message: 'Duplicate request in flight — retry after a moment' });
+        if (entry.requestHash !== bodyHash)
+            return res.status(409).json({ message: 'Idempotency key already used with a different request body' });
+        return res.status(entry.statusCode).set('Idempotency-Replay', 'true').json(entry.responseBody);
+    }
+
+    await redis.setEx(redisKey, 30, JSON.stringify({ status: 'processing', requestHash: bodyHash }));
+
+    const origJson = res.json.bind(res);
+    res.json = async (body) => {
+        await redis.setEx(redisKey, 86400, JSON.stringify({
+            status: 'complete', requestHash: bodyHash,
+            statusCode: res.statusCode, responseBody: body, createdAt: Date.now(),
+        }));
+        return origJson(body);
+    };
+
+    next();
+}
+```
+
+**New `src/services/redis.js`** — shared Redis client (also consumed by P-1.2 JWT revocation):
+```js
+import { createClient } from 'redis';
+
+export const redis = createClient({ url: process.env.REDIS_URL ?? 'redis://localhost:6379' });
+redis.on('error', (err) => { console.error('Redis client error', err); process.exit(1); });
+await redis.connect();
+```
+
+Apply middleware in the two Node routers:
+```js
+// stockTransfers.js
+import { requireIdempotency } from '../middleware/idempotency.js';
+router.post('/',             requireIdempotency, async (req, res) => { ... });
+router.patch('/:id/respond', requireIdempotency, async (req, res) => { ... });
+
+// fieldExecution.js
+router.post('/scan-to-fulfill', requireIdempotency, async (req, res) => { ... });
+```
+
+---
+
+#### Frontend — generating `Idempotency-Key` per action
+
+Keys must be stable on retry (same key every time you retry one action) and unique per distinct action (new key for each new operation).
+
+Pattern: generate a `UUIDv4` when the user initiates the action (form open / button click), reuse it on every retry of that same submission, discard on success.
+
+**New `frontend/lib/idempotency.ts`:**
+```ts
+export function newIdempotencyKey(): string {
+    return crypto.randomUUID();
+}
+```
+
+**Usage at call sites** (not a global interceptor — each mutation needs its own key):
+```ts
+const key = newIdempotencyKey();
+await phpApi.post('/stock-transfers', payload, {
+    headers: { 'Idempotency-Key': key },
+});
+```
+
+---
+
+#### Files created / modified
+
+| File | Action |
+|---|---|
+| `app/Http/Middleware/IdempotencyMiddleware.php` | New |
+| `app/Http/Kernel.php` | Add `'idempotency'` to `$routeMiddleware` |
+| `backend-php/routes/api.php` | New `idempotency` sub-group wrapping 6 existing routes |
+| `backend-php/.env.example` | Add `REDIS_URL=redis://localhost:6379` |
+| `backend-node/src/middleware/idempotency.js` | New |
+| `backend-node/src/services/redis.js` | New (shared with P-1.2 JWT revocation) |
+| `backend-node/src/routes/stockTransfers.js` | Apply `requireIdempotency` to POST + PATCH respond |
+| `backend-node/src/routes/fieldExecution.js` | Apply `requireIdempotency` to POST /scan-to-fulfill |
+| `backend-node/.env.example` | Add `REDIS_URL=redis://localhost:6379` |
+| `frontend/lib/idempotency.ts` | New |
+
+**Dependency note:** PHP Redis requires `predis/predis` (flagged in P-1.2). Node Redis requires `redis` npm package. `src/services/redis.js` should be created alongside P-1.2's auth work since both consume the same Redis connection.
+
+---
+
+#### Pre-implementation checklist
+
+| # | Item | Status |
+|---|---|---|
+| 1 | `predis/predis` in `composer.json` and Redis reachable from PHP | ⚠️ Blocked until `composer.json` created (P-1.1 prerequisite) |
+| 2 | `redis` npm package in `backend-node/package.json` | ⚠️ Needs verification |
+| 3 | `REDIS_URL` added to both `.env.example` files | ❌ Must add |
+| 4 | `src/services/redis.js` shared client created | ❌ Must create (coordinate with P-1.2) |
+| 5 | `IdempotencyMiddleware.php` exists | ❌ Must create |
+| 6 | `'idempotency'` registered in `Kernel.php` `$routeMiddleware` | ❌ Must add |
+| 7 | All 6 PHP routes wrapped in `idempotency` sub-group | ❌ `routes/api.php` unchanged |
+| 8 | `backend-node/src/middleware/idempotency.js` exists | ❌ Must create |
+| 9 | Node mutating routes apply `requireIdempotency` | ❌ No middleware today |
+| 10 | `frontend/lib/idempotency.ts` helper created | ❌ Must create |
+
+---
+
+**Exit criteria:**
+- `POST /api/stock-transfers` with `Idempotency-Key: test-key-1` twice (same body) → second call returns identical body + `Idempotency-Replay: true` header; only one DB row created
+- Same key with different body → 409 `"Idempotency key already used with a different request body"`
+- `POST /api/stock-transfers` with no `Idempotency-Key` header → 422 `"Idempotency-Key header required"`
+- Two simultaneous requests with same key (same body) → one 200 + one 409 `"Duplicate request in flight"`; only one DB row created
+- Redis key for a completed request expires after 24 h → same key accepted as a fresh operation
+- `POST /stock-transfers` on Node: same dedup behaviour as PHP tests above
+- `GET /api/stock-transfers` (read) — middleware not applied; no `Idempotency-Key` required
 
 ### P-1.4 — Test harness
 **Verified state:** Zero test infrastructure — no `tests/` directory, no `phpunit.xml`, no `*.test.js`, no `test` script in `backend-node/package.json`.
