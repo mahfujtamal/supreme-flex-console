@@ -1146,14 +1146,181 @@ jobs:
 - Coverage artifacts uploaded and downloadable from GH Actions run
 
 ### P-1.5 — Boot-time production guards
-**Why:** Mocks default to ON. `APP_DEBUG` can leak in prod. Dev-mode OTP-return is a runtime flag. `X-Dev-Mode: true` is a client-trusted header. Bulk-delete route exists in the production binary.
 
-**Solution:**
-- `AppServiceProvider::boot()` throws `RuntimeException` when `APP_ENV=production` AND any of `GPSHOP_MOCK / LOCATION_CHANGE_API_MOCK / REAL_IP_API_MOCK / CUSTOMER_LIFECYCLE_MOCK / APP_DEBUG / OTP_DEV_PEEK_ENABLED` is `true`.
-- Node `index.js` mirrors the same guard.
-- Build pipeline strips dev-only route registrations (bulk-delete controller, dev-OTP-peek endpoint) from the production artifact.
+---
 
-**Exit criteria:** `APP_ENV=production php artisan serve` with `GPSHOP_MOCK=true` exits 1 with a clear error message. Production artifact does not register `/api/auth/otp/dev-peek` or `DELETE /api/{resource}/bulk`.
+#### Verified state — current gaps
+
+| # | Gap | File(s) | Status |
+|---|-----|---------|--------|
+| 1 | `AppServiceProvider` has no `boot()` method — zero production guard in PHP | `AppServiceProvider.php` | ❌ Missing |
+| 2 | All 4 mock flags default to `true` in `mock_services.php` — active in prod if env vars omitted | `config/mock_services.php` | ❌ Dangerous default |
+| 3 | `APP_DEBUG` not checked at startup — can expose stack traces in production | `AppServiceProvider.php` | ❌ Missing |
+| 4 | `OTP_DEV_PEEK_ENABLED` flag not defined anywhere — when P-1.2 creates the endpoint, there's nothing to guard it at boot | `AppServiceProvider.php`, `.env.example` | ❌ Missing |
+| 5 | `Route::delete("{resource}/bulk")` registered unconditionally — bulk-delete route present in production binary | `routes/api.php:140` | ❌ No gate |
+| 6 | Dev-OTP-peek endpoint (`GET /api/auth/otp/dev-peek`) will be added by P-1.2 — needs conditional registration guard before that lands | `routes/api.php` | ⚠️ Pre-register guard |
+| 7 | `AuthController::requestOtp` returns OTP in response body when `APP_ENV=local` — runtime branch, not a separate endpoint (P-1.2 fixes this; P-1.5 adds boot-time enforcement) | `AuthController.php:50` | ⚠️ P-1.2 prerequisite |
+| 8 | Node `index.js` has only `JWT_SECRET` guard — no check for mock flags or `NODE_ENV=production` | `src/index.js` | ❌ Missing |
+
+---
+
+#### Design decisions
+
+**Throw, don't silently fix.** `mock_services.php` could return `false` when `APP_ENV=production`, silently disabling mocks. This is wrong — it hides operator misconfiguration. The guard must be LOUD: throw/exit so the operator knows immediately what is wrong and why.
+
+**`boot()` not `register()`.** `register()` is for service bindings resolved during the container build phase. Boot-time guards that depend on environment state belong in `boot()`, which runs after all providers are registered but before requests are handled.
+
+**Route registration, not middleware.** Dev-only routes are absent from the production binary rather than blocked at request time. A missing route can never be probed; a blocked-but-present route can still leak information in error responses.
+
+**One flag per concern.** Each `*_MOCK` flag corresponds to one external service. `APP_DEBUG` is a separate flag for Laravel's debug mode. `OTP_DEV_PEEK_ENABLED` is a separate flag for the dev endpoint. Checking them individually gives a clear error message naming exactly which flag is the problem.
+
+---
+
+#### PHP — `AppServiceProvider::boot()`
+
+Add `boot()` to the existing `AppServiceProvider`:
+
+```php
+public function boot(): void
+{
+    if (!$this->app->environment('production')) {
+        return;
+    }
+
+    $flags = [
+        'GPSHOP_MOCK'              => config('mock_services.gpshop'),
+        'LOCATION_CHANGE_API_MOCK' => config('mock_services.location_change'),
+        'REAL_IP_API_MOCK'         => config('mock_services.real_ip'),
+        'CUSTOMER_LIFECYCLE_MOCK'  => config('mock_services.customer_lifecycle'),
+        'APP_DEBUG'                => config('app.debug'),
+        'OTP_DEV_PEEK_ENABLED'     => (bool) env('OTP_DEV_PEEK_ENABLED', false),
+    ];
+
+    $active = array_keys(array_filter($flags));
+
+    if (!empty($active)) {
+        throw new \RuntimeException(
+            '[FATAL] Production boot aborted — dangerous flags are enabled: '
+            . implode(', ', $active)
+            . '. Set each to false/0 before starting in production.'
+        );
+    }
+}
+```
+
+---
+
+#### PHP — `routes/api.php` conditional route registration
+
+**Bulk delete** — move the `Route::delete` line inside the existing `foreach` to a non-production guard:
+
+```php
+foreach ([...] as $resource => $controller) {
+    Route::post("{$resource}/bulk",  [$controller, 'bulkStore']);
+    Route::patch("{$resource}/bulk", [$controller, 'bulkUpdate']);
+    if (!app()->environment('production')) {
+        Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+    }
+}
+```
+
+**Dev OTP peek** — register conditionally alongside the other public auth routes (to be wired in by P-1.2, but guard placed now):
+
+```php
+Route::post('/auth/otp/request', [AuthController::class, 'requestOtp']);
+Route::post('/auth/otp/verify',  [AuthController::class, 'verifyOtp']);
+
+if (!app()->environment('production')) {
+    Route::get('/auth/otp/dev-peek', [AuthController::class, 'devPeek']);
+}
+```
+
+---
+
+#### Node — `src/index.js` production guard
+
+Add immediately after the existing `JWT_SECRET` check:
+
+```js
+if (!process.env.JWT_SECRET) {
+    console.error('[FATAL] JWT_SECRET is not set — refusing to start');
+    process.exit(1);
+}
+
+// Production mock-flag guard
+if (process.env.NODE_ENV === 'production') {
+    const MOCK_FLAGS = {
+        GPSHOP_MOCK:               process.env.GPSHOP_MOCK,
+        LOCATION_CHANGE_API_MOCK:  process.env.LOCATION_CHANGE_API_MOCK,
+        REAL_IP_API_MOCK:          process.env.REAL_IP_API_MOCK,
+        CUSTOMER_LIFECYCLE_MOCK:   process.env.CUSTOMER_LIFECYCLE_MOCK,
+    };
+    const active = Object.entries(MOCK_FLAGS)
+        .filter(([, v]) => v === 'true' || v === '1')
+        .map(([k]) => k);
+    if (active.length > 0) {
+        console.error('[FATAL] Production boot aborted — mock flags enabled:', active.join(', '));
+        process.exit(1);
+    }
+}
+```
+
+Note: Node does not serve the OTP dev-peek or bulk-delete routes (those are PHP-only), so no route-registration guard is needed on the Node side.
+
+---
+
+#### `.env.example` additions (PHP)
+
+```
+# Production guards — all must be false/0 in production
+GPSHOP_MOCK=true
+LOCATION_CHANGE_API_MOCK=true
+REAL_IP_API_MOCK=true
+CUSTOMER_LIFECYCLE_MOCK=true
+OTP_DEV_PEEK_ENABLED=false
+```
+
+Defaults to `true` for local dev so the app works out of the box. The boot guard prevents these defaults from surviving into a production deployment.
+
+---
+
+#### Files created / modified
+
+| File | Action |
+|---|---|
+| `backend-php/app/Providers/AppServiceProvider.php` | Add `boot()` method with 6-flag guard |
+| `backend-php/routes/api.php` | Wrap `Route::delete` bulk in `!production` check; add conditional dev-peek registration |
+| `backend-php/.env.example` | Add `OTP_DEV_PEEK_ENABLED=false` entry with comment block |
+| `backend-node/src/index.js` | Add mock-flag production guard block after JWT_SECRET check |
+| `backend-node/.env.example` | Add `NODE_ENV=development` + mock flag entries with comment |
+
+---
+
+#### Pre-implementation checklist
+
+| # | Item | Status |
+|---|---|---|
+| 1 | `AppServiceProvider::boot()` does not exist today | ❌ Must add |
+| 2 | `mock_services.php` all 4 flags default `true` — dangerous defaults deliberately left for dev | ⚠️ Intentional; boot guard is the enforcement layer |
+| 3 | `APP_DEBUG` included in the boot guard flag list | ❌ Must include in `boot()` |
+| 4 | `OTP_DEV_PEEK_ENABLED` flag absent from `.env.example` | ❌ Must add |
+| 5 | `Route::delete` bulk registration is unconditional today (`api.php:140`) | ❌ Must wrap in `!production` check |
+| 6 | Dev-peek route guard placeholder in `api.php` (P-1.2 will add the handler) | ❌ Must pre-register conditional block |
+| 7 | Node `index.js` mock-flag guard absent | ❌ Must add after JWT_SECRET check |
+| 8 | P-1.4 test suite includes boot-guard case: `APP_ENV=production + GPSHOP_MOCK=true → RuntimeException` | ❌ Test to be written in P-1.4 |
+
+---
+
+**Exit criteria:**
+- `APP_ENV=production php artisan serve` with `GPSHOP_MOCK=true` in env → process exits immediately with `[FATAL] Production boot aborted — dangerous flags are enabled: GPSHOP_MOCK`
+- Same test with `APP_DEBUG=true` → exits with `APP_DEBUG` in the flag list
+- All 6 flags individually trigger the guard when set in production
+- `APP_ENV=local` with any mock flag true → boots normally (guard skipped)
+- `APP_ENV=production` with all 6 flags false/0 → boots normally
+- `GET /api/auth/otp/dev-peek` returns 404 when `APP_ENV=production` (route not registered)
+- `DELETE /api/network-zones/bulk` returns 404 when `APP_ENV=production` (route not registered)
+- Node: `NODE_ENV=production` with `GPSHOP_MOCK=true` → process exits 1 with `[FATAL]` message
+- Node: `NODE_ENV=production` with all mock flags unset/false → boots normally
 
 ### P-1.6 — Drupal removal
 **Verified:** `/drupal/` directory exists but is empty; no PHP or Node code references `:8080` or any Drupal API. Drupal is documentation-only.
