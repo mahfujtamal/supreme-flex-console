@@ -9,11 +9,13 @@ Browser (Next.js :3000)
     └──► Node.js API (:8001)      — Field ops, stock transfers, WS dashboard
               │
               ▼
-         MySQL Database
+         MySQL :3306
               │
               ▼
-         Drupal CMS/BO  — configurable texts, reporting views
+         Redis :6379   — sessions, cache, queue, idempotency keys
 ```
+
+Configurable texts live in the `system_config` table. Reporting (Metabase) deferred to post-launch. Drupal removed — see Phase -1 / P-1.6.
 
 ## Quick Start
 
@@ -58,4 +60,4 @@ npm run dev   # port 3000
 | PHP/Laravel API | 8000 |
 | Node.js API + WebSocket | 8001 |
 | MySQL | 3306 |
-| Drupal | 8080 (or separate) |
+| Redis | 6379 |

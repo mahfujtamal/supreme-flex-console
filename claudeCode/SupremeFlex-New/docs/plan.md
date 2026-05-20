@@ -1323,13 +1323,70 @@ Defaults to `true` for local dev so the app works out of the box. The boot guard
 - Node: `NODE_ENV=production` with all mock flags unset/false → boots normally
 
 ### P-1.6 — Drupal removal
-**Verified:** `/drupal/` directory exists but is empty; no PHP or Node code references `:8080` or any Drupal API. Drupal is documentation-only.
 
 **Decision:** Kill Drupal from the architecture. The maintenance + CVE-patching cost is not justified for "configurable texts and reporting views."
-- Configurable texts → already covered by the `system_config` table (per P0-3).
+- Configurable texts → `system_config` table (already in schema).
 - Reporting → Metabase (or Superset) behind SSO + read replica, deferred to post-launch.
 
-**Exit criteria:** No mention of Drupal in any of the 4 plan docs (`CLAUDE.md`, this file, `docs/developmentPlan.md`, `docs/SupremeFlex_Consolidated_Requirements.md`). Architecture diagram updated. (Already done in this planning round.)
+---
+
+#### Verified state
+
+| File / Artifact | Drupal reference type | Status |
+|---|---|---|
+| `CLAUDE.md` | "Drupal removed from architecture — see P-1.6" | ✅ Already updated |
+| `docs/SupremeFlex_Consolidated_Requirements.md` | "Drupal removed from architecture — see P-1.6" | ✅ Already updated |
+| `docs/architecture.md` | ADR-007 documents removal decision | ✅ Already updated |
+| `docs/developmentPlan.md` | Table row + sequencing note for P-1.6 | ✅ Already updated |
+| `README.md` | Architecture diagram lists Drupal as active; ports table shows `:8080` | ❌ Still active — must fix |
+| `/drupal/` directory | Empty directory tracked in git | ❌ Still present — must delete |
+| `backend-php/`, `backend-node/`, `frontend/` | No code references `:8080` or any Drupal API | ✅ Verified clean |
+
+---
+
+#### Remaining actions (both doc-only)
+
+**1. Update `README.md`**
+
+Remove Drupal from the ASCII architecture diagram:
+```
+Browser (Next.js :3000)
+    │  axios
+    ├──► PHP/Laravel API (:8000)  — CRUD, auth, campaigns, customers
+    └──► Node.js API (:8001)      — Field ops, stock transfers, WS dashboard
+              │
+              ▼
+         MySQL :3306
+              │
+              ▼
+         Redis :6379   — sessions, cache, queue, idempotency keys
+```
+
+Remove Drupal row from the ports table. Ports table becomes:
+
+| Service | Port |
+|---|---|
+| Next.js frontend | 3000 |
+| PHP/Laravel API | 8000 |
+| Node.js API + WebSocket | 8001 |
+| MySQL | 3306 |
+| Redis | 6379 |
+
+**2. Delete `/drupal/` directory**
+
+```bash
+git rm -r drupal/
+```
+
+Empty directory but tracked in git — remove it so there is no stub that a future developer mistakes for a real service.
+
+---
+
+#### Exit criteria
+- `grep -r "Drupal\|:8080" README.md` → zero matches
+- `/drupal/` directory absent from the repository (`git ls-files drupal/` → empty)
+- All other plan/requirements docs already updated (verified above)
+- No active Drupal reference anywhere in `backend-php/`, `backend-node/`, or `frontend/`
 
 ### P-1.7 — DB topology + Redis + queue
 **Target topology:**
