@@ -774,15 +774,376 @@ await phpApi.post('/stock-transfers', payload, {
 - `GET /api/stock-transfers` (read) — middleware not applied; no `Idempotency-Key` required
 
 ### P-1.4 — Test harness
-**Verified state:** Zero test infrastructure — no `tests/` directory, no `phpunit.xml`, no `*.test.js`, no `test` script in `backend-node/package.json`.
 
-**Solution:**
-- **PHP:** PHPUnit + Laravel test client. Coverage targets — 80% on services, 90% on stored-procedure state transitions (`check_and_release_referral_reward`, `force_approve_referral_reward`), 100% on auth/RBAC middleware.
-- **Node:** Vitest (ES modules) + supertest. 80% on route handlers, 100% on auth middleware.
-- **Contract tests:** every `*_MOCK` service has a contract suite that both the Mock and the Real Stub must satisfy — so flipping the env flag never surprises us.
-- **CI:** `.github/workflows/test.yml` runs lint + tests on every push and on PR.
+---
 
-**Exit criteria:** `composer test`, `npm test` (in `backend-node`), and GH Actions all green. Coverage report published as a workflow artifact.
+#### Verified state — current gaps
+
+| # | Gap | File(s) | Status |
+|---|-----|---------|--------|
+| 1 | No `tests/` directory in `backend-php/` | — | ❌ Missing |
+| 2 | No `phpunit.xml` | — | ❌ Missing |
+| 3 | No `composer.json` (blocked on P-1.1) — therefore no PHPUnit dep | — | ⚠️ Blocked |
+| 4 | No `test/` directory in `backend-node/` | — | ❌ Missing |
+| 5 | No `vitest.config.js` | — | ❌ Missing |
+| 6 | No `test` script in `backend-node/package.json` | `package.json` | ❌ Missing |
+| 7 | No vitest / supertest deps in Node | `package.json` | ❌ Missing |
+| 8 | No `.github/workflows/test.yml` (`.github/` dir absent) | — | ❌ Missing |
+| 9 | `AuthController` stores OTP plaintext + has runtime `local`-env branch — post-P-1.2 fix required before auth tests are meaningful | `AuthController.php` | ⚠️ P-1.2 prerequisite |
+| 10 | `JwtMiddleware` reads `bearerToken()` — post-P-1.2 rewrite (cookie) must land first | `JwtMiddleware.php` | ⚠️ P-1.2 prerequisite |
+
+---
+
+#### PHP — directory structure
+
+```
+backend-php/
+├── phpunit.xml
+└── tests/
+    ├── TestCase.php                        # base: RefreshDatabase + auth helpers
+    ├── Feature/
+    │   ├── Auth/
+    │   │   ├── OtpRequestTest.php          # rate-limit, dedup invalidation, SHA-256 storage
+    │   │   ├── OtpVerifyTest.php           # lockout, wrong code, expired, success → cookie
+    │   │   ├── RefreshTest.php             # valid refresh cookie → new access token
+    │   │   └── LogoutTest.php             # cookie cleared, jti in Redis revocation list
+    │   ├── Idempotency/
+    │   │   └── IdempotencyMiddlewareTest.php  # all 4 cases (replay, mismatch, in-flight, missing)
+    │   └── StockTransfers/
+    │       └── StockTransferTest.php       # create, respond, concurrent race (SELECT FOR UPDATE)
+    ├── Unit/
+    │   ├── Middleware/
+    │   │   ├── JwtMiddlewareTest.php       # missing / invalid / revoked / valid token
+    │   │   └── PermissionMiddlewareTest.php # role miss → 403, role hit → pass, Redis cache hit
+    │   └── Services/
+    │       └── ReferralSPTest.php          # check_and_release + force_approve state transitions
+    └── Contract/
+        ├── GpShopServiceContractTest.php
+        ├── LocationChangeServiceContractTest.php
+        ├── RealIpServiceContractTest.php
+        └── CustomerLifecycleServiceContractTest.php
+```
+
+**`phpunit.xml`:**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" colors="true">
+  <testsuites>
+    <testsuite name="Unit">     <directory>tests/Unit</directory>     </testsuite>
+    <testsuite name="Feature">  <directory>tests/Feature</directory>  </testsuite>
+    <testsuite name="Contract"> <directory>tests/Contract</directory> </testsuite>
+  </testsuites>
+  <source><include><directory>app</directory></include></source>
+  <coverage><report><clover outputFile="coverage.xml"/></report></coverage>
+  <php>
+    <env name="APP_ENV"      value="testing"/>
+    <env name="DB_DATABASE"  value="supremeflex_test"/>
+    <env name="REDIS_CLIENT" value="array"/>   <!-- fake in-memory Redis for unit/feature tests -->
+    <env name="JWT_SECRET"   value="test-secret-do-not-use-in-prod"/>
+  </php>
+</phpunit>
+```
+
+**`composer.json` test deps** (to be created in P-1.1; test section only):
+```json
+"require-dev": {
+  "phpunit/phpunit": "^11.0",
+  "mockery/mockery": "^1.6",
+  "orchestra/testbench": "^9.0"
+}
+"scripts": {
+  "test": "phpunit"
+}
+```
+
+**Coverage targets (PHP):**
+
+| Suite | Target | Key classes |
+|-------|--------|-------------|
+| Auth middleware (`JwtMiddleware`, `PermissionMiddleware`) | 100% | Token decode, revocation, role check, Redis cache |
+| OTP flow (`AuthController::requestOtp/verifyOtp`) | 100% | Rate limit, lockout, SHA-256 write, cookie set |
+| Idempotency middleware | 100% | Replay, mismatch, in-flight, missing header |
+| Referral SP state transitions | 90% | `PENDING→RELEASED`, `PENDING→EXPIRED`, `force_approve` |
+| Service layer (controllers) | 80% | All public methods with happy + error paths |
+
+---
+
+#### PHP — representative test cases
+
+**`OtpRequestTest.php`** key cases:
+```
+- 6th request in one hour for same msisdn → 429
+- 21st request in one day from same IP → 429
+- Valid request → otp_codes row has 64-char hex code (SHA-256), not '123456'
+- New request invalidates existing unexpired OTP for same number
+```
+
+**`OtpVerifyTest.php`** key cases:
+```
+- 6th wrong OTP attempt in 15 min → 423 Locked
+- Correct OTP → 200, response contains no 'token' field, Set-Cookie: sf_access; HttpOnly
+- Expired OTP → 422
+- Already-used OTP → 422
+```
+
+**`JwtMiddlewareTest.php`** key cases (post-P-1.2 cookie transport):
+```
+- No sf_access cookie → 401
+- Malformed / wrong-secret token → 401
+- Valid token but jti in Redis revocation list → 401
+- Valid token, jti not revoked → passes through, auth_user merged into request
+```
+
+**`IdempotencyMiddlewareTest.php`** key cases:
+```
+- POST without Idempotency-Key header → 422
+- POST × 2 same key + same body → second returns 200 with Idempotency-Replay: true, one DB row
+- POST × 2 same key + different body → second returns 409 "different request body"
+- POST × 2 same key, first still in-flight → second returns 409 "in flight"
+```
+
+**`ReferralSPTest.php`** key cases:
+```
+- check_and_release: reward with PENDING status, order delivered → status becomes RELEASED
+- check_and_release: reward with PENDING status, order not delivered → status unchanged
+- check_and_release: reward already RELEASED → no duplicate release
+- force_approve: PENDING → RELEASED regardless of delivery status
+- force_approve: already RELEASED → idempotent (no error)
+```
+
+---
+
+#### Node — directory structure
+
+```
+backend-node/
+├── vitest.config.js
+└── test/
+    ├── helpers/
+    │   ├── app.js          # createApp() — express app without listen(), for supertest
+    │   └── redis-mock.js   # vi.mock('../src/services/redis.js', ...) shared setup
+    ├── unit/
+    │   └── middleware/
+    │       ├── auth.test.js           # requireAuth
+    │       └── idempotency.test.js    # requireIdempotency
+    └── integration/
+        ├── stockTransfers.test.js
+        └── fieldExecution.test.js
+```
+
+**`vitest.config.js`:**
+```js
+import { defineConfig } from 'vitest/config';
+export default defineConfig({
+    test: {
+        environment: 'node',
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'lcov'],
+            include: ['src/**'],
+            thresholds: { lines: 80, functions: 80 },
+        },
+    },
+});
+```
+
+**`package.json` test deps** (add alongside existing deps):
+```json
+"devDependencies": {
+  "vitest": "^2.0",
+  "@vitest/coverage-v8": "^2.0",
+  "supertest": "^7.0"
+},
+"scripts": {
+  "dev":  "node --watch src/index.js",
+  "start":"node src/index.js",
+  "test": "vitest run",
+  "test:coverage": "vitest run --coverage"
+}
+```
+
+**Coverage targets (Node):**
+
+| Suite | Target | Key modules |
+|-------|--------|-------------|
+| `src/middleware/auth.js` | 100% | No cookie, bad token, revoked jti, valid pass-through |
+| `src/middleware/idempotency.js` | 100% | Replay, mismatch, in-flight, missing header |
+| `src/routes/stockTransfers.js` | 80% | POST create, PATCH respond, error paths |
+| `src/routes/fieldExecution.js` | 80% | PATCH lead status, POST scan-to-fulfill |
+
+**`auth.test.js`** key cases:
+```
+- No sf_access cookie → 401
+- Invalid signature → 401
+- Valid token → req.auth populated, next() called
+```
+
+**`idempotency.test.js`** key cases (Redis mocked via vi.mock):
+```
+- Missing header → 422
+- Cache miss → in-flight lock written, handler runs, result cached
+- Cache hit (complete, same hash) → 200 replay + Idempotency-Replay header
+- Cache hit (complete, different hash) → 409
+- Cache hit (processing) → 409
+```
+
+---
+
+#### Contract tests — PHP
+
+Pattern: abstract base class defines the contract assertions; two concrete subclasses supply the Mock and the ApiService implementation. The ApiService uses a Guzzle `MockHandler` so no real HTTP calls are made in CI.
+
+**`GpShopServiceContractTest.php`** (abstract base):
+```php
+abstract class GpShopServiceContractTest extends TestCase
+{
+    abstract protected function makeService(): GpShopServiceInterface;
+
+    public function test_createOrder_returns_required_shape(): void
+    {
+        $result = $this->makeService()->createOrder('cust-1', 'prod-1');
+        $this->assertArrayHasKey('gpshop_order_id', $result);
+        $this->assertArrayHasKey('status', $result);
+        $this->assertArrayHasKey('estimated_delivery_days', $result);
+        $this->assertIsInt($result['estimated_delivery_days']);
+    }
+
+    public function test_getOrderStatus_returns_required_shape(): void { ... }
+    public function test_cancelOrder_returns_required_shape(): void { ... }
+}
+
+class GpShopMockContractTest extends GpShopServiceContractTest
+{
+    protected function makeService(): GpShopServiceInterface { return new GpShopService(); }
+}
+
+class GpShopApiContractTest extends GpShopServiceContractTest
+{
+    protected function makeService(): GpShopServiceInterface
+    {
+        // Guzzle MockHandler returns a plausible API response shape
+        $mock = new MockHandler([new Response(200, [], json_encode([...]))]);
+        return new GpShopApiService(new Client(['handler' => HandlerStack::create($mock)]));
+    }
+}
+```
+
+Same pattern applies to `LocationChange`, `RealIp`, and `CustomerLifecycle` contracts.
+
+---
+
+#### CI — `.github/workflows/test.yml`
+
+```yaml
+name: Test Suite
+on: [push, pull_request]
+
+jobs:
+  php-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env: { MYSQL_DATABASE: supremeflex_test, MYSQL_ROOT_PASSWORD: password }
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-retries=3
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.2', extensions: 'pdo_mysql,redis,xdebug', coverage: xdebug }
+      - run: cd backend-php && composer install --no-interaction
+      - run: cd backend-php && cp .env.example .env && php artisan key:generate
+      - run: cd backend-php && php artisan migrate --env=testing
+      - run: cd backend-php && composer test -- --coverage-clover coverage.xml
+      - uses: actions/upload-artifact@v4
+        with: { name: php-coverage, path: backend-php/coverage.xml }
+
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: cd backend-node && npm ci
+      - run: cd backend-node && npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        with: { name: node-coverage, path: backend-node/coverage }
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run lint
+```
+
+---
+
+#### Files created / modified
+
+| File | Action |
+|---|---|
+| `backend-php/phpunit.xml` | New |
+| `backend-php/composer.json` | Add `require-dev` PHPUnit + Mockery + Testbench; add `test` script |
+| `backend-php/tests/TestCase.php` | New — base test case |
+| `backend-php/tests/Feature/Auth/OtpRequestTest.php` | New |
+| `backend-php/tests/Feature/Auth/OtpVerifyTest.php` | New |
+| `backend-php/tests/Feature/Auth/RefreshTest.php` | New |
+| `backend-php/tests/Feature/Auth/LogoutTest.php` | New |
+| `backend-php/tests/Feature/Idempotency/IdempotencyMiddlewareTest.php` | New |
+| `backend-php/tests/Feature/StockTransfers/StockTransferTest.php` | New |
+| `backend-php/tests/Unit/Middleware/JwtMiddlewareTest.php` | New |
+| `backend-php/tests/Unit/Middleware/PermissionMiddlewareTest.php` | New |
+| `backend-php/tests/Unit/Services/ReferralSPTest.php` | New |
+| `backend-php/tests/Contract/GpShopServiceContractTest.php` | New |
+| `backend-php/tests/Contract/LocationChangeServiceContractTest.php` | New |
+| `backend-php/tests/Contract/RealIpServiceContractTest.php` | New |
+| `backend-php/tests/Contract/CustomerLifecycleServiceContractTest.php` | New |
+| `backend-node/vitest.config.js` | New |
+| `backend-node/package.json` | Add vitest + supertest devDeps; add `test` + `test:coverage` scripts |
+| `backend-node/test/helpers/app.js` | New — express app factory for supertest |
+| `backend-node/test/helpers/redis-mock.js` | New — shared Redis vi.mock setup |
+| `backend-node/test/unit/middleware/auth.test.js` | New |
+| `backend-node/test/unit/middleware/idempotency.test.js` | New |
+| `backend-node/test/integration/stockTransfers.test.js` | New |
+| `backend-node/test/integration/fieldExecution.test.js` | New |
+| `.github/workflows/test.yml` | New |
+
+**Sequencing note:** Auth tests (`OtpVerifyTest`, `JwtMiddlewareTest`, `auth.test.js`) must be written against the post-P-1.2 state (cookie transport, SHA-256 OTP). Write these after P-1.2 lands. Idempotency tests depend on P-1.3. The contract tests and referral SP tests are independent — they can be written now.
+
+---
+
+#### Pre-implementation checklist
+
+| # | Item | Status |
+|---|---|---|
+| 1 | `composer.json` exists (P-1.1 prerequisite) | ⚠️ Blocked on P-1.1 |
+| 2 | PHPUnit + Mockery + Testbench in `composer.json` `require-dev` | ❌ Must add |
+| 3 | `phpunit.xml` created at `backend-php/` root | ❌ Must create |
+| 4 | `supremeflex_test` MySQL database created in CI + local | ❌ Must provision |
+| 5 | `REDIS_CLIENT=array` fake driver works for unit/feature (no real Redis needed in tests) | ❌ Must verify |
+| 6 | `GpShopApiService` (and the other 3 real services) accept injected Guzzle client for testability | ❌ Must refactor constructor (currently hardcodes `new Client()`) |
+| 7 | `vitest` + `@vitest/coverage-v8` + `supertest` in `backend-node/package.json` devDeps | ❌ Must add |
+| 8 | `vitest.config.js` created at `backend-node/` root | ❌ Must create |
+| 9 | `test` + `test:coverage` scripts in `backend-node/package.json` | ❌ Must add |
+| 10 | `.github/` directory + `test.yml` workflow created | ❌ Must create |
+
+---
+
+**Exit criteria:**
+- `cd backend-php && composer test` → all suites green, coverage report at `coverage.xml`
+- PHP coverage: auth+RBAC+idempotency middleware ≥ 100%; referral SP ≥ 90%; services ≥ 80%
+- `cd backend-node && npm test` → all unit + integration tests green
+- Node coverage: auth + idempotency middleware ≥ 100%; route handlers ≥ 80%
+- All 4 contract test pairs (Mock + ApiService stub) pass against the same assertion suite
+- `cd frontend && npm run lint` → zero ESLint errors
+- GitHub Actions `test.yml` workflow passes on push to `main`
+- Coverage artifacts uploaded and downloadable from GH Actions run
 
 ### P-1.5 — Boot-time production guards
 **Why:** Mocks default to ON. `APP_DEBUG` can leak in prod. Dev-mode OTP-return is a runtime flag. `X-Dev-Mode: true` is a client-trusted header. Bulk-delete route exists in the production binary.
