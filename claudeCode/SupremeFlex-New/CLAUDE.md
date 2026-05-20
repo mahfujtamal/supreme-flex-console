@@ -13,7 +13,7 @@ Internal CRM and operations platform for the GPFI (Grameenphone FWA) product lin
 
 **Planning-only until Mahfuj explicitly says "start coding".** While in this mode, edits are restricted to planning documents — code, migrations, configs, and env files are off-limits.
 
-Planning docs = this file, `docs/plan.md`, `docs/developmentPlan.md`, `docs/SupremeFlex_Consolidated_Requirements.md`, `.claude/*.md`.
+Planning docs = this file, `docs/plan.md`, `docs/developmentPlan.md`, `docs/phase-1-dod.md`, `docs/SupremeFlex_Consolidated_Requirements.md`, `.claude/*.md`.
 
 When a request is ambiguous, ask first: "Are we starting implementation, or still planning?" Default to planning.
 
@@ -148,6 +148,7 @@ Test suite (Phase -1 / P-1.4): PHPUnit (PHP) + Vitest + supertest (Node) + GitHu
 | `docs/architecture.md` | System architecture — Mermaid diagrams (context, container, component, sequence, deployment, queue, trust boundaries), security model, scale targets, ADR log |
 | `docs/plan.md` | GPWEB-3730 implementation plan — **Phase -1 (Foundation Hardening) must precede Phase 0** |
 | `docs/developmentPlan.md` | Step-by-step development roadmap — **BLOCK 0 (Phase -1) must complete before BLOCK A**; Blocks A–H follow |
+| `docs/phase-1-dod.md` | Phase -1 Definition of Done — per-item checklists (P-1.1–P-1.7) + end-of-phase verification |
 
 **Load only the file(s) relevant to the current task. Do not load all at once.**
 
