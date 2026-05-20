@@ -132,13 +132,157 @@ Phase 4  (Frontend)
 **Target scale:** 3–10M GPFI subscribers; up to 20k concurrent internal users; ~50k orders/day at peak. **Must complete before Phase 0** (some items can run in parallel — see sequencing at the end of this section).
 
 ### P-1.1 — PK strategy: UUIDv7 / BINARY(16)
-**Problem:** Random UUIDv4 stored as `CHAR(36) DEFAULT (UUID())` causes B-tree page splits, 4–5× index bloat vs BIGINT, and slow joins at multi-million-row scale. Every secondary index carries the 36-byte PK; `transaction_ledger` joins compound the cost.
 
-**Solution:** UUIDv7 (time-ordered) stored as `BINARY(16)`. Generated in application code via `Ramsey\Uuid::uuid7()` (PHP) and the `uuidv7` npm package (Node). New helper layer renders to/from canonical string form for JSON I/O.
+**Problem:** Random UUIDv4 stored as `CHAR(36) DEFAULT (UUID())` causes B-tree page splits, 4–5× index bloat vs BIGINT, and slow joins at multi-million-row scale. Every secondary index carries the 36-byte PK; `transaction_ledger` joins compound the cost. 123 `CHAR(36)` column occurrences across 48 tables (migrations 001–004).
 
-**Migration approach:** `011_pk_strategy.sql` ALTERs all 39 tables' PK + FK columns; converts existing rows via `UNHEX(REPLACE(uuid, '-', ''))`. Triggers updated. Because the codebase has only ~50k orders today, this is the cheapest window to do this — every additional row makes it harder.
+**Solution:** UUIDv7 (time-ordered) stored as `BINARY(16)`. Generated in application code via `Ramsey\Uuid::uuid7()` (PHP) and the `uuidv7` npm package (Node). A helper layer converts between binary storage and canonical string form for all JSON I/O and URL parameters.
 
-**Exit criteria:** All migrations 001–004 retrofitted or wrapped; PHP and Node generate UUIDv7 in code; on a 1M-row insert test the page-split rate is <2%.
+---
+
+#### Table inventory — 48 tables in FK dependency waves
+
+Migration must process parent tables before child tables. The migration uses `SET FOREIGN_KEY_CHECKS=0` globally to allow batch ALTER, then rebuilds all FKs in wave order at the end.
+
+| Wave | Tables |
+|---|---|
+| 1 (roots) | `user_account`, `role_master`, `permission_master`, `admin_roles`, `circles`, `districts`, `network_zones`, `channels`, `products`, `campaign_master`, `customers` |
+| 2 | `user_role`, `role_permission`, `admin_users`, `regions`, `areas`, `sub_channels`, `product_price_versions`, `physical_addon_compatibility`, `campaign_product_rules`, `coupons`, `referral_programs`, `anchors`, `otp_codes`, `inventory_master` |
+| 3 | `sub_channel_users`, `price_components`, `campaign_targeting_rules`, `campaign_discount_mappings`, `referral_redemptions`, `referral_reward_ledger`, `active_services`, `customer_assets`, `clusters`, `stock_transfers` |
+| 4 | `asset_replacement_history`, `territories` |
+| 5 | `distribution_houses` |
+| 6 | `dh_area_assignments`, `hub_managers` |
+| 7 | `field_agents`, `kams` |
+| 8 | `orders`, `onetime_invoices`, `transaction_ledger` |
+| 9 | `order_items` |
+| Audit | `audit_logs`, `system_audit_logs` (entity IDs stored as VARCHAR — not FK-constrained; convert column type only) |
+
+---
+
+#### Migration SQL strategy — `011_pk_strategy.sql`
+
+Uses a **shadow-column** approach to avoid in-place MODIFY on live PKs:
+
+```
+Phase A — prep (per table in wave order):
+  1. ALTER TABLE ADD `{pk}_bin` BINARY(16) NULL
+  2. UPDATE t SET {pk}_bin = UNHEX(REPLACE({pk}, '-', ''))
+  3. Verify COUNT(DISTINCT {pk}_bin) = COUNT(*) — no collision, no NULL
+
+Phase B — cut-over (per table, wave order):
+  4. SET FOREIGN_KEY_CHECKS=0
+  5. ALTER TABLE DROP FOREIGN KEY {child_fk}   -- all child FKs referencing this table
+  6. ALTER TABLE DROP PRIMARY KEY
+  7. ALTER TABLE DROP COLUMN {pk}
+  8. ALTER TABLE RENAME COLUMN {pk}_bin TO {pk}
+  9. ALTER TABLE MODIFY {pk} BINARY(16) NOT NULL
+  10. ALTER TABLE ADD PRIMARY KEY ({pk})
+
+Phase C — rebuild FKs (after all tables cut over):
+  11. ALTER TABLE ADD CONSTRAINT {fk_name} FOREIGN KEY ({fk_col})
+      REFERENCES {parent} ({pk}) ON DELETE {action}
+  12. SET FOREIGN_KEY_CHECKS=1
+  13. Validate: SELECT COUNT(*) FROM child WHERE fk_col NOT IN (SELECT pk FROM parent) = 0
+
+Phase D — stored procedures + triggers:
+  14. DROP + recreate all 32 triggers with BINARY(16) NEW.{pk} references
+  15. DROP + recreate stored procedures:
+      - has_role(p_user_id BINARY(16), p_role_name VARCHAR)
+      - check_and_release_referral_reward(p_ledger_id BINARY(16))
+      - force_approve_referral_reward(p_ledger_id BINARY(16), p_admin_name VARCHAR)
+```
+
+**Rollback file:** `011_pk_strategy_rollback.sql` — for each table: ADD `{pk}_old CHAR(36)`, populate via `LOWER(INSERT(INSERT(INSERT(INSERT(HEX({pk}),9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-'))`, drop BINARY(16) PK, rename, rebuild FKs. Pre-migration `mysqldump` is the hard fallback.
+
+**Composite PK tables** (`user_role`, `role_permission`, `dh_area_assignments`) — no single PK column to rename; only FK columns need converting via the same shadow-column pattern per FK column.
+
+---
+
+#### Application-layer changes
+
+**PHP — `app/Helpers/UuidHelper.php` (new file)**
+
+```php
+use Ramsey\Uuid\Uuid;
+
+class UuidHelper {
+    public static function generate(): string { return Uuid::uuid7()->toString(); }
+
+    public static function toBinary(string $uuid): string {
+        return hex2bin(str_replace('-', '', $uuid));
+    }
+
+    public static function toString(string $binary): string {
+        $hex = bin2hex($binary);
+        return sprintf('%s-%s-%s-%s-%s',
+            substr($hex, 0, 8), substr($hex, 8, 4),
+            substr($hex, 12, 4), substr($hex, 16, 4), substr($hex, 20));
+    }
+}
+```
+
+Controller changes (all domain controllers + BaseApiController):
+- Replace any `Str::uuid()` with `UuidHelper::generate()`
+- Wrap incoming route params: `UuidHelper::toBinary($request->route('id'))`
+- Wrap outgoing JSON: `UuidHelper::toString($model->id)`
+- BaseApiController: add `toBinary()` wrapping on all `WHERE id = ?` bindings
+
+**Node — `src/helpers/uuid.js` (new file)**
+
+```js
+import { uuidv7 } from 'uuidv7';
+
+export const generateUuid = () => uuidv7();
+
+export const toBinary = (uuid) =>
+    Buffer.from(uuid.replace(/-/g, ''), 'hex');
+
+export const toString = (buf) => {
+    const h = buf.toString('hex');
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+};
+```
+
+`services/db.js` changes:
+- Add `queryById(sql, id, params)` helper that auto-wraps `id` with `toBinary()`
+- Add `mapRow(row, binaryFields)` helper that converts BINARY(16) columns in result rows
+- All route handlers use these — no inline Buffer handling in handlers
+
+---
+
+#### Packages to add
+
+| Layer | Package | Version pin |
+|---|---|---|
+| PHP | `ramsey/uuid` | `^4.7` |
+| Node | `uuidv7` | `^1.0` |
+
+---
+
+#### Risk flags
+
+| Risk | Mitigation |
+|---|---|
+| Trigger body references PK as CHAR — after cut-over trigger fires on BINARY, implicit cast silently corrupts data | Redrop + recreate all 32 triggers in Phase D before any write after cut-over |
+| SP params typed CHAR(36) — caller passes BINARY, MySQL coerces via HEX, `has_role` returns wrong result | Redrop + recreate SPs with BINARY(16) params in Phase D |
+| `audit_logs` stores `record_id` as VARCHAR (not FK) — existing rows hold CHAR(36) text strings | Add `record_id_bin BINARY(16)` alongside; backfill; new writes use binary; old rows readable via HEX() |
+| Raw string UUID comparison in code (`WHERE id = '...'`) returns 0 rows after cut-over | Grep codebase for literal UUID comparisons before Phase B; block merge until clean |
+| Non-transactional DDL — partial failure leaves schema inconsistent | Take `mysqldump` immediately before Phase B; have rollback SQL ready |
+
+---
+
+#### Pre-migration checklist (planning gate before coding starts)
+
+- [ ] Confirm `ramsey/uuid ^4.7` supports `uuid7()` (added in 4.2 — verify)
+- [ ] Confirm `uuidv7` npm package is ESM-compatible (required — no CommonJS `require()`)
+- [ ] Audit all 32 triggers for CHAR(36) references — list them in migration comments
+- [ ] Grep PHP controllers for raw string UUID comparisons
+- [ ] Grep Node `services/db.js` for raw string UUID comparisons
+- [ ] Verify `audit_logs.record_id` and `system_audit_logs.record_id` column types
+- [ ] Confirm composite PK tables have no shadow-column naming conflict
+
+---
+
+**Exit criteria:** `SET FOREIGN_KEY_CHECKS=1` completes with zero errors; all FK validation queries return 0; `SHOW CREATE TABLE orders` shows `BINARY(16)` PK and FK columns; `UuidHelper::generate()` and `generateUuid()` produce valid UUIDv7 strings; on a synthetic 1M-row insert into `transaction_ledger` the sequential-write pattern produces <2% page splits (verified via `innodb_buffer_pool_stats`); rollback SQL tested on a copy of the dump and restores without error.
 
 ### P-1.2 — Auth hardening
 **Verified gaps (Explore agent run 2026-05-20):** No OTP rate limit on `requestOtp`; no brute-force lockout on `verifyOtp`; OTP stored as plaintext `CHAR(6)`; OTP returned in HTTP response when `APP_ENV=local` (runtime branch — leakable); JWT in `localStorage`; no refresh token; no revocation mechanism; `has_role` SP defined but never called from PHP; WebSocket `/ws/dashboard` has zero auth check.
