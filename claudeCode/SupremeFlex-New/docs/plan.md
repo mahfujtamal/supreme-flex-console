@@ -1583,20 +1583,170 @@ Partition drop is instantaneous (`ALTER TABLE ... DROP PARTITION`) — no row-by
 
 ---
 
+#### Component 6 — `config/queue.php` and `config/cache.php`
+
+**`config/queue.php`** — Redis as the queue driver:
+
+```php
+return [
+    'default' => env('QUEUE_CONNECTION', 'redis'),
+
+    'connections' => [
+        'redis' => [
+            'driver'       => 'redis',
+            'connection'   => 'default',
+            'queue'        => env('REDIS_QUEUE', 'default'),
+            'retry_after'  => 90,       // seconds — longer than the longest expected job
+            'block_for'    => null,
+        ],
+        'sync' => ['driver' => 'sync'],  // kept for testing (P-1.4 feature tests use QUEUE_CONNECTION=sync)
+    ],
+
+    'failed' => [
+        'driver'   => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
+        'database' => env('DB_CONNECTION', 'mysql'),
+        'table'    => 'failed_jobs',
+    ],
+];
+```
+
+Note: `retry_after` must exceed the longest job timeout set in `config/horizon.php` (currently 60 s). Set to 90 s to give headroom. If `retry_after` is shorter than a job's actual runtime, Laravel will dispatch a duplicate.
+
+`QUEUE_CONNECTION=sync` in test environments (`.env.testing`) ensures jobs run inline during feature tests — no worker process needed.
+
+**`config/cache.php`** — Redis as the default cache store (required for hot-data caching in Component 3):
+
+```php
+return [
+    'default' => env('CACHE_DRIVER', 'redis'),
+
+    'stores' => [
+        'redis' => [
+            'driver'     => 'redis',
+            'connection' => 'cache',   // separate Redis connection from queue (see database.php)
+            'lock_connection' => 'default',
+        ],
+        'array' => ['driver' => 'array', 'serialize' => false],  // for testing
+    ],
+
+    'prefix' => env('CACHE_PREFIX', 'supremeflex_cache'),
+];
+```
+
+Add a dedicated `cache` Redis connection in `config/database.php` to avoid queue/cache key collisions:
+
+```php
+'redis' => [
+    'client'  => env('REDIS_CLIENT', 'predis'),
+    'default' => ['url' => env('REDIS_URL', 'redis://127.0.0.1:6379'), 'database' => 0],
+    'cache'   => ['url' => env('REDIS_URL', 'redis://127.0.0.1:6379'), 'database' => 1],
+],
+```
+
+Queue uses DB 0; cache uses DB 1. Same Redis instance, different logical databases — clean separation without a second server.
+
+**`.env.example` additions:**
+```
+CACHE_DRIVER=redis
+QUEUE_CONNECTION=redis
+REDIS_QUEUE=default
+```
+
+---
+
+#### Component 7 — Laravel Scheduler (dispatching Horizon jobs)
+
+Horizon runs the workers, but something must *dispatch* the scheduled jobs. That is Laravel's built-in scheduler (`php artisan schedule:run`), invoked every minute by a system cron. **One system crontab entry** is the only external dependency:
+
+```
+* * * * * cd /var/www/backend-php && php artisan schedule:run >> /dev/null 2>&1
+```
+
+**`routes/console.php`** (Laravel 11 schedule definition — replaces `app/Console/Kernel.php`):
+
+```php
+use Illuminate\Support\Facades\Schedule;
+use App\Jobs\AutoCancelAddonOrders;
+use App\Jobs\AutoUnassignRealIp;
+use App\Jobs\PartitionMaintenance;
+
+Schedule::job(new AutoCancelAddonOrders, 'default')->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();          // prevents duplicate dispatch on multi-server deployments
+
+Schedule::job(new AutoUnassignRealIp, 'default')->everyTenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::job(new PartitionMaintenance, 'low')->monthlyOn(1, '02:00')
+    ->onOneServer();          // runs on the 1st of every month at 02:00
+```
+
+`onOneServer()` requires a Redis-backed cache (Component 6) to hold the distributed lock — it uses `Cache::lock()` internally. This is why `CACHE_DRIVER=redis` is mandatory in production, not optional.
+
+`withoutOverlapping()` prevents a second dispatch if the previous run is still executing — essential for `AutoCancelAddonOrders` which scans the whole orders table and could take >5 min under load.
+
+**`SmsRetry` is not scheduled** — it is dispatched imperatively by `SmsService` on failure:
+```php
+// inside SmsService::send() catch block
+dispatch(new SmsRetry($msisdn, $message))->onQueue('low')->delay(now()->addMinutes(2));
+```
+
+---
+
+#### Component 8 — Partition maintenance job (`PartitionMaintenance`)
+
+The partition migration (`013_partitioning.sql`) pre-creates partitions through the end of the launch year. After that, new months need partitions added and old ones pruned. This runs as a Horizon Job dispatched monthly by the scheduler.
+
+**`App\Jobs\PartitionMaintenance` — logic:**
+
+```
+handle():
+  1. $nextMonth = now()->addMonth()->startOfMonth()
+  2. $partitionName = 'p' . $nextMonth->format('Y_m')
+  3. $upperBound = "TO_DAYS('" . $nextMonth->addMonth()->format('Y-m-01') . "')"
+
+  // Add next month's partition (idempotent — fails silently if already exists)
+  4. foreach (['audit_logs', 'system_audit_logs', 'transaction_ledger', 'otp_codes'] as $table):
+       DB::statement("ALTER TABLE {$table}
+         REORGANIZE PARTITION p_future INTO (
+           PARTITION {$partitionName} VALUES LESS THAN ({$upperBound}),
+           PARTITION p_future VALUES LESS THAN MAXVALUE
+         )")
+
+  // Drop expired partitions according to retention policy
+  5. $retentionMonths = ['audit_logs' => 24, 'system_audit_logs' => 24,
+                          'transaction_ledger' => 84, 'otp_codes' => 1]
+  6. foreach $retentionMonths as $table => $months:
+       $dropBefore = now()->subMonths($months)->startOfMonth()
+       $dropName   = 'p' . $dropBefore->format('Y_m')
+       // Verify partition exists before dropping
+       $exists = DB::selectOne("SELECT PARTITION_NAME FROM information_schema.PARTITIONS
+                                WHERE TABLE_NAME = ? AND PARTITION_NAME = ?", [$table, $dropName])
+       if ($exists): DB::statement("ALTER TABLE {$table} DROP PARTITION {$dropName}")
+```
+
+`REORGANIZE PARTITION` is used instead of `ADD PARTITION` because the `p_future` catch-all must always exist. Reorganizing it splits it into the new named partition + a new `p_future`.
+
+---
+
 #### Files created / modified
 
 | File | Action | Phase |
 |---|---|---|
-| `backend-php/config/database.php` | New — read/write split + replica hosts | P-1.7 |
-| `backend-php/config/queue.php` | New — Redis connection for queue | P-1.7 |
+| `backend-php/config/database.php` | New — read/write split + replica hosts + Redis DB-0/DB-1 split | P-1.7 |
+| `backend-php/config/queue.php` | New — Redis queue driver, `retry_after=90`, sync for tests | P-1.7 |
+| `backend-php/config/cache.php` | New — Redis cache store (DB 1), array store for tests | P-1.7 |
 | `backend-php/config/horizon.php` | New — worker supervisor config | P-1.7 |
-| `backend-php/.env.example` | Add `DB_REPLICA_1_HOST`, `DB_REPLICA_2_HOST`, `QUEUE_CONNECTION=redis` | P-1.7 |
+| `backend-php/routes/console.php` | New — scheduler: AutoCancelAddonOrders (5 min), AutoUnassignRealIp (10 min), PartitionMaintenance (monthly) | P-1.7 |
+| `backend-php/.env.example` | Add replica hosts, `CACHE_DRIVER=redis`, `QUEUE_CONNECTION=redis`, `REDIS_QUEUE=default` | P-1.7 |
 | `database/migrations/013_partitioning.sql` | New — partitions on 4 tables; must run after 011 | P-1.7 |
-| `app/Jobs/AutoCancelAddonOrders.php` | New stub — dispatched by scheduler | BLOCK E5 |
-| `app/Jobs/AutoUnassignRealIp.php` | New stub — dispatched by scheduler | BLOCK E9 |
-| `app/Jobs/SmsRetry.php` | New stub — dispatched on SMS failure | BLOCK F1 |
+| `app/Jobs/PartitionMaintenance.php` | New — monthly add-next + drop-expired partition job | P-1.7 |
+| `app/Jobs/AutoCancelAddonOrders.php` | New stub — dispatched every 5 min by scheduler | BLOCK E5 |
+| `app/Jobs/AutoUnassignRealIp.php` | New stub — dispatched every 10 min by scheduler | BLOCK E9 |
+| `app/Jobs/SmsRetry.php` | New stub — dispatched imperatively by `SmsService` on failure | BLOCK F1 |
 
-**Infra-only (out of repo, documented decisions):** ProxySQL config, XtraBackup cron, binlog settings, Redis Sentinel (if HA needed), Horizon dashboard access control.
+**Infra-only (out of repo, documented decisions):** ProxySQL config, XtraBackup cron, binlog settings (`binlog_format=ROW`, `sync_binlog=1`), Redis Sentinel (if HA needed), Horizon dashboard access control, system `* * * * * php artisan schedule:run` crontab entry.
 
 ---
 
@@ -1604,29 +1754,34 @@ Partition drop is instantaneous (`ALTER TABLE ... DROP PARTITION`) — no row-by
 
 | # | Item | Status |
 |---|---|---|
-| 1 | `config/database.php` with read/write split created | ❌ Must create |
-| 2 | `DB_REPLICA_1_HOST` + `DB_REPLICA_2_HOST` in `.env.example` (point to primary in local dev) | ❌ Must add |
-| 3 | `config/queue.php` sets `QUEUE_CONNECTION=redis` | ❌ Must create |
+| 1 | `config/database.php` with read/write split + Redis DB-0/DB-1 split | ❌ Must create |
+| 2 | `config/queue.php` with `retry_after=90` and sync fallback for tests | ❌ Must create |
+| 3 | `config/cache.php` pointing to Redis DB-1 | ❌ Must create |
 | 4 | `config/horizon.php` with production + local supervisor config | ❌ Must create |
-| 5 | `laravel/horizon` in `composer.json` | ❌ Blocked until `composer.json` created (P-1.1) |
-| 6 | `013_partitioning.sql` authored and sequenced after `011_pk_strategy.sql` Phase D | ❌ Must write |
-| 7 | `sticky => true` on DB connection (prevents read-your-write anomaly) | ❌ Must set in `config/database.php` |
-| 8 | Job classes created as `Horizon` jobs (never Artisan commands) when BLOCK E/F lands | ⚠️ Enforcement by convention — remind at BLOCK E kickoff |
-| 9 | Hot-data cache-aside pattern implemented in `CustomerController::view360` (Customer 360) | ❌ Implemented in BLOCK C/D |
-| 10 | Partition pruning verified on a 10M-row test table before production traffic | ❌ Pre-launch gate |
+| 5 | `routes/console.php` scheduler with 3 job entries + `onOneServer()` | ❌ Must create |
+| 6 | `laravel/horizon` in `composer.json` | ❌ Blocked until `composer.json` created (P-1.1) |
+| 7 | `DB_REPLICA_1_HOST`, `DB_REPLICA_2_HOST`, `CACHE_DRIVER`, `QUEUE_CONNECTION` in `.env.example` | ❌ Must add |
+| 8 | `013_partitioning.sql` authored and sequenced after `011_pk_strategy.sql` Phase D | ❌ Must write |
+| 9 | `PartitionMaintenance` job uses `REORGANIZE PARTITION` (not `ADD PARTITION`) to preserve `p_future` | ❌ Must implement correctly |
+| 10 | `QUEUE_CONNECTION=sync` in `.env.testing` so feature tests run jobs inline | ❌ Must set |
+| 11 | `sticky => true` on DB write connection (prevents read-your-write anomaly) | ❌ Must set in `config/database.php` |
+| 12 | Hot-data cache-aside pattern in `CustomerController::view360` | ❌ Implemented in BLOCK C/D |
+| 13 | System crontab `* * * * * php artisan schedule:run` entry documented in ops runbook | ❌ Infra gate |
+| 14 | Partition pruning verified on a 10M-row test table before production traffic | ❌ Pre-launch gate |
 
 ---
 
 **Exit criteria:**
-- `EXPLAIN SELECT ... FROM audit_logs WHERE created_at > '2026-01-01'` shows `partitions: p2026_01` only (partition pruning active)
-- `SHOW VARIABLES LIKE 'read_only'` on a replica returns `ON`
+- `EXPLAIN SELECT ... FROM audit_logs WHERE created_at > '2026-01-01'` → `partitions: p2026_01` only (partition pruning active)
+- `SHOW VARIABLES LIKE 'read_only'` on a replica → `ON`
 - Laravel slow-query log shows replica hostname in read queries (not primary)
-- `php artisan horizon` starts without error; Horizon dashboard reachable
-- At least one Job dispatched and completed visible in Horizon metrics
-- `Redis::get('cache:customer360:{id}')` returns a value after first Customer 360 load (cache populated)
-- Redis cache hit-rate on `cache:customer360:*` exceeds 80% under simulated load (ab/wrk test)
-- `ALTER TABLE audit_logs DROP PARTITION p_oldest` completes in under 1 s on a 10M-row table
-- `php artisan tinker` → `DB::connection()->getReadPdo()->query('SELECT @@hostname')->fetchColumn()` returns a replica hostname in production
+- `php artisan horizon` starts without error; Horizon dashboard reachable at `/horizon`
+- Scheduled job `AutoCancelAddonOrders` appears in Horizon metrics after 5 min of uptime
+- `PartitionMaintenance` dispatched on the 1st of the month; next month's partition appears in `information_schema.PARTITIONS`
+- `Redis::get('cache:customer360:{id}')` populated after first Customer 360 load; hit-rate > 80% under load
+- Queue DB (Redis DB 0) and cache DB (Redis DB 1) are separate — `Redis::connection('cache')->dbSize()` does not include queue keys
+- `retry_after=90` confirmed: a job that sleeps 91 s is re-dispatched after 90 s (verify in test environment)
+- `ALTER TABLE audit_logs DROP PARTITION p_oldest` on a 10M-row table completes in < 1 s
 
 ### Sequencing summary
 ```
