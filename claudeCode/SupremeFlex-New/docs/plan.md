@@ -1389,15 +1389,244 @@ Empty directory but tracked in git — remove it so there is no stub that a futu
 - No active Drupal reference anywhere in `backend-php/`, `backend-node/`, or `frontend/`
 
 ### P-1.7 — DB topology + Redis + queue
-**Target topology:**
-- **MySQL:** 1 primary + 2 read replicas. ProxySQL routes reads to replicas, writes to primary. Binlog enabled. Nightly XtraBackup + retained binlogs. **RTO 15 min, RPO 5 min**, with documented restore drills.
-- **Redis:** sessions, idempotency keys, JWT revocation list, hot-data cache (geography, product catalog, RBAC permissions), Laravel Horizon backing store.
-- **Queue (Laravel Horizon, Redis-backed):** replaces daily Artisan crons (`AutoCancelAddonOrders`, `AutoUnassignRealIp`, SMS retries) with chunked workers, automatic retry, and a Dead Letter Queue. Per-job observability via Horizon dashboard.
-- **Partitioning:** monthly date-range partitions on `audit_logs`, `system_audit_logs`, `transaction_ledger`, `otp_codes`. Per-table retention policy.
 
-**Sequencing:** Topology decisions documented now. Redis + queue in place before first feature code in BLOCK A. Replicas + partitioning deployed before any public traffic.
+---
 
-**Exit criteria:** Read traffic routes to a replica (verified via slow-query log); at least one Artisan command refactored as a queued Horizon job; Redis cache hit-rate >80% on Customer 360 lookup under load test; partition pruning verified on a 10M-row test table.
+#### Verified state — current gaps
+
+| # | Gap | Status |
+|---|-----|--------|
+| 1 | No `config/database.php` — no read/write split, no replica connections | ❌ Missing |
+| 2 | No `config/queue.php` or `config/horizon.php` | ❌ Missing |
+| 3 | No `app/Console/` — the three cron jobs (`AutoCancelAddonOrders`, `AutoUnassignRealIp`, SMS retry) don't exist yet | ⚠️ Created in BLOCK E/F — must be Horizon jobs from day one |
+| 4 | No partition migration for `audit_logs`, `system_audit_logs`, `transaction_ledger`, `otp_codes` | ❌ Missing |
+| 5 | No Redis config in PHP beyond what P-1.2/P-1.3 add (`predis/predis`) | ⚠️ Covered by P-1.2 dep; this item adds the `config/database.php` Redis connection |
+| 6 | No ProxySQL, no XtraBackup schedule, no binlog config (infra-only — out of repo) | ❌ Infra decisions documented here |
+| 7 | Node `src/services/redis.js` created in P-1.3 — but `REDIS_URL` env var not yet confirmed in both `.env.example` files | ⚠️ P-1.3 covers this |
+
+---
+
+#### Component 1 — MySQL topology (infra-side, out of repo)
+
+**Target:**
+- 1 primary (writes) + 2 read replicas (reads), same availability zone
+- ProxySQL v2 in front: routes `SELECT` to replicas via round-robin, all writes to primary
+- Binary log (`binlog_format=ROW`) enabled on primary; replicas configured with `read_only=1`
+- Nightly `XtraBackup` full + continuous binlog streaming → object storage
+- **RTO 15 min** (restore from last XtraBackup + replay binlogs); **RPO 5 min** (binlog flush interval)
+- Documented restore drill: quarterly test of full restore to a throwaway instance
+
+**ProxySQL routing rule (pseudoconfig):**
+```
+mysql_query_rules:
+  - rule_id: 1
+    match_pattern: "^SELECT"
+    destination_hostgroup: 20   # replica group
+  - rule_id: 2
+    match_pattern: "."
+    destination_hostgroup: 10   # primary group
+```
+
+---
+
+#### Component 2 — MySQL app-side read/write split
+
+**`config/database.php`** — add replica connections inside the `mysql` driver block:
+
+```php
+'mysql' => [
+    'read' => [
+        'host' => [
+            env('DB_REPLICA_1_HOST', '127.0.0.1'),
+            env('DB_REPLICA_2_HOST', '127.0.0.1'),
+        ],
+    ],
+    'write' => [
+        'host' => env('DB_HOST', '127.0.0.1'),
+    ],
+    'sticky' => true,   // writes within a request are immediately readable on primary
+    'driver'   => 'mysql',
+    'database' => env('DB_DATABASE', 'supremeflex'),
+    'username' => env('DB_USERNAME', 'root'),
+    'password' => env('DB_PASSWORD', ''),
+    'charset'  => 'utf8mb4',
+    'collation'=> 'utf8mb4_unicode_ci',
+],
+```
+
+`sticky => true` prevents read-your-own-write anomalies: after a write in the same request, subsequent reads on the same connection go to primary. This is critical for flows like "create order → immediately show order detail."
+
+**`.env.example` additions:**
+```
+DB_REPLICA_1_HOST=127.0.0.1
+DB_REPLICA_2_HOST=127.0.0.1
+```
+
+In local dev both replicas point to the primary — no replica setup needed locally. In production the hostnames differ.
+
+---
+
+#### Component 3 — Redis configuration
+
+Redis serves five distinct namespaces. All use the same connection (`REDIS_URL`) but different key prefixes:
+
+| Namespace prefix | Owner | TTL | Set by |
+|---|---|---|---|
+| `jwt:revoked:{jti}` | P-1.2 auth | 900 s (access token lifetime) | `AuthController::logout` |
+| `jwt:refresh:{token}` | P-1.2 auth | 7 days | `AuthController::verifyOtp` |
+| `rbac:{userId}:{perm}` | P-1.2 RBAC | 300 s | `PermissionMiddleware` |
+| `idempotency:{sha256}` | P-1.3 | 86 400 s | `IdempotencyMiddleware` |
+| `cache:*` | P-1.7 hot data | varies | see below |
+
+**Hot-data cache keys (P-1.7 specific):**
+
+| Key | Content | TTL | Invalidated by |
+|---|---|---|---|
+| `cache:geo:network_zones` | All network zones (small table) | 3 600 s | Any `POST/PATCH/DELETE /api/network-zones` |
+| `cache:geo:districts:{zone_id}` | Districts for a zone | 3 600 s | Any district mutation |
+| `cache:products:catalog` | Active product list + current price versions | 600 s | Any `POST /api/price-versions` |
+| `cache:customer360:{customerId}` | Customer + anchors + active services (flattened) | 120 s | Any order mutation for that customer |
+| `cache:rbac:*` | Already covered by P-1.2 RBAC namespace | 300 s | — |
+
+Cache-aside pattern for all hot-data keys:
+```
+1. $cached = Redis::get($cacheKey)
+2. if ($cached) return json_decode($cached, true)
+3. $data = DB::...query...
+4. Redis::setex($cacheKey, $ttl, json_encode($data))
+5. return $data
+```
+
+Invalidation: mutating endpoints call `Redis::del($cacheKey)` after committing the DB write — simple key-level delete, no cache stampede protection needed at this scale.
+
+---
+
+#### Component 4 — Laravel Horizon (queue)
+
+**Why Horizon over raw `php artisan queue:work`:** Horizon provides per-job metrics (throughput, runtime, failure rate), supervisor-style worker management, automatic retry with configurable backoff, a web dashboard, and a Dead Letter Queue for permanently failed jobs — all critical for production visibility at 50k orders/day.
+
+**Replaces these Artisan commands** (stubbed in BLOCK E/F — must be Jobs, never Artisan commands):
+
+| Job class | Replaces | Trigger | Frequency |
+|---|---|---|---|
+| `App\Jobs\AutoCancelAddonOrders` | `AutoCancelAddonOrders` Artisan command | Horizon scheduler | Every 5 min |
+| `App\Jobs\AutoUnassignRealIp` | `AutoUnassignRealIp` Artisan command | Horizon scheduler | Every 10 min |
+| `App\Jobs\SmsRetry` | Ad-hoc SMS retry loop | Dispatched on failure by `SmsService` | On failure, max 3 retries |
+
+**`config/horizon.php`** (key sections):
+```php
+'environments' => [
+    'production' => [
+        'supervisor-1' => [
+            'connection' => 'redis',
+            'queue'      => ['default', 'high', 'low'],
+            'balance'    => 'auto',
+            'minProcesses' => 2,
+            'maxProcesses' => 10,
+            'tries'      => 3,
+            'timeout'    => 60,
+        ],
+    ],
+    'local' => [
+        'supervisor-1' => [
+            'connection' => 'redis',
+            'queue'      => ['default'],
+            'balance'    => 'simple',
+            'processes'  => 2,
+            'tries'      => 1,
+        ],
+    ],
+],
+```
+
+**Queue priority:** `high` → order confirmations, OTP dispatch; `default` → auto-cancel, auto-unassign; `low` → audit log writes, SMS retry.
+
+**Dead Letter Queue:** failed jobs after `tries` exhausted are stored in `failed_jobs` table (standard Laravel) and surfaced in Horizon dashboard. Ops team monitors and manually requeues or escalates.
+
+---
+
+#### Component 5 — Table partitioning (`013_partitioning.sql`)
+
+Monthly `RANGE` partitions on `created_at` for the four high-volume tables. Partitioning requires the partition column to be part of (or the entire) primary key — a constraint that interacts with P-1.1's `BINARY(16)` UUIDv7 PKs.
+
+**Partition key design:** Add `created_month DATE GENERATED ALWAYS AS (DATE_FORMAT(created_at, '%Y-%m-01')) STORED` to each table, then partition on `TO_DAYS(created_month)`. Include `created_month` in the PK to satisfy MySQL's partitioning constraint.
+
+**Example for `audit_logs`:**
+```sql
+ALTER TABLE audit_logs
+  ADD COLUMN created_month DATE GENERATED ALWAYS AS
+    (DATE_FORMAT(created_at, '%Y-%m-01')) STORED,
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY (id, created_month)
+  PARTITION BY RANGE (TO_DAYS(created_month)) (
+    PARTITION p2026_01 VALUES LESS THAN (TO_DAYS('2026-02-01')),
+    PARTITION p2026_02 VALUES LESS THAN (TO_DAYS('2026-03-01')),
+    -- ... auto-extend script adds future partitions monthly
+    PARTITION p_future VALUES LESS THAN MAXVALUE
+  );
+```
+
+Same pattern applies to `system_audit_logs`, `transaction_ledger`, `otp_codes`.
+
+**Retention policy (applied via monthly cron):**
+
+| Table | Retain | Drop partition older than |
+|---|---|---|
+| `audit_logs` | 2 years | 24 months |
+| `system_audit_logs` | 2 years | 24 months |
+| `transaction_ledger` | 7 years (regulatory) | 84 months |
+| `otp_codes` | 30 days | 1 month |
+
+Partition drop is instantaneous (`ALTER TABLE ... DROP PARTITION`) — no row-by-row `DELETE`.
+
+**Constraint with P-1.1:** The generated `created_month` column + PK change in `013_partitioning.sql` must run *after* P-1.1's `011_pk_strategy.sql` Phase D (final PK cutover). Migration order: 011 → 012 → 013.
+
+---
+
+#### Files created / modified
+
+| File | Action | Phase |
+|---|---|---|
+| `backend-php/config/database.php` | New — read/write split + replica hosts | P-1.7 |
+| `backend-php/config/queue.php` | New — Redis connection for queue | P-1.7 |
+| `backend-php/config/horizon.php` | New — worker supervisor config | P-1.7 |
+| `backend-php/.env.example` | Add `DB_REPLICA_1_HOST`, `DB_REPLICA_2_HOST`, `QUEUE_CONNECTION=redis` | P-1.7 |
+| `database/migrations/013_partitioning.sql` | New — partitions on 4 tables; must run after 011 | P-1.7 |
+| `app/Jobs/AutoCancelAddonOrders.php` | New stub — dispatched by scheduler | BLOCK E5 |
+| `app/Jobs/AutoUnassignRealIp.php` | New stub — dispatched by scheduler | BLOCK E9 |
+| `app/Jobs/SmsRetry.php` | New stub — dispatched on SMS failure | BLOCK F1 |
+
+**Infra-only (out of repo, documented decisions):** ProxySQL config, XtraBackup cron, binlog settings, Redis Sentinel (if HA needed), Horizon dashboard access control.
+
+---
+
+#### Pre-implementation checklist
+
+| # | Item | Status |
+|---|---|---|
+| 1 | `config/database.php` with read/write split created | ❌ Must create |
+| 2 | `DB_REPLICA_1_HOST` + `DB_REPLICA_2_HOST` in `.env.example` (point to primary in local dev) | ❌ Must add |
+| 3 | `config/queue.php` sets `QUEUE_CONNECTION=redis` | ❌ Must create |
+| 4 | `config/horizon.php` with production + local supervisor config | ❌ Must create |
+| 5 | `laravel/horizon` in `composer.json` | ❌ Blocked until `composer.json` created (P-1.1) |
+| 6 | `013_partitioning.sql` authored and sequenced after `011_pk_strategy.sql` Phase D | ❌ Must write |
+| 7 | `sticky => true` on DB connection (prevents read-your-write anomaly) | ❌ Must set in `config/database.php` |
+| 8 | Job classes created as `Horizon` jobs (never Artisan commands) when BLOCK E/F lands | ⚠️ Enforcement by convention — remind at BLOCK E kickoff |
+| 9 | Hot-data cache-aside pattern implemented in `CustomerController::view360` (Customer 360) | ❌ Implemented in BLOCK C/D |
+| 10 | Partition pruning verified on a 10M-row test table before production traffic | ❌ Pre-launch gate |
+
+---
+
+**Exit criteria:**
+- `EXPLAIN SELECT ... FROM audit_logs WHERE created_at > '2026-01-01'` shows `partitions: p2026_01` only (partition pruning active)
+- `SHOW VARIABLES LIKE 'read_only'` on a replica returns `ON`
+- Laravel slow-query log shows replica hostname in read queries (not primary)
+- `php artisan horizon` starts without error; Horizon dashboard reachable
+- At least one Job dispatched and completed visible in Horizon metrics
+- `Redis::get('cache:customer360:{id}')` returns a value after first Customer 360 load (cache populated)
+- Redis cache hit-rate on `cache:customer360:*` exceeds 80% under simulated load (ab/wrk test)
+- `ALTER TABLE audit_logs DROP PARTITION p_oldest` completes in under 1 s on a 10M-row table
+- `php artisan tinker` → `DB::connection()->getReadPdo()->query('SELECT @@hostname')->fetchColumn()` returns a replica hostname in production
 
 ### Sequencing summary
 ```
