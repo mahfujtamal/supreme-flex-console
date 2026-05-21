@@ -85,6 +85,11 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('invoices',             [InvoiceController::class, 'store']);
     Route::get('transaction-ledger',    [InvoiceController::class, 'ledger']);
 
+    // TODO(p-1.3): add idempotency middleware when AddonOrderController routes are registered (group 2: addon_order_history)
+    // TODO(p-1.3): add idempotency middleware when CpeOrderController routes are registered (group 3: cpe_order_history)
+    // TODO(p-1.3): add idempotency middleware when OttOrderController routes are registered (group 4: ott_order_history)
+    // TODO(p-1.3): add idempotency middleware when RealIpAssignmentController routes are registered (group 5: real_ip_assignments)
+
     // Asset Lifecycle
     Route::apiResource('assets',                AssetController::class);
     Route::post('assets/{id}/replace',          [AssetController::class, 'replace']);
@@ -94,9 +99,11 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('inventory',                    [InventoryController::class, 'store']);
     Route::post('inventory/bulk-inward',        [InventoryController::class, 'bulkInward']);
 
-    // Stock Transfers
-    Route::apiResource('stock-transfers',           StockTransferController::class);
-    Route::patch('stock-transfers/{id}/respond',    [StockTransferController::class, 'respond']);
+    // Stock Transfers — group 6: idempotency required on all mutating routes
+    Route::middleware('idempotency')->group(function () {
+        Route::apiResource('stock-transfers',           StockTransferController::class);
+        Route::patch('stock-transfers/{id}/respond',    [StockTransferController::class, 'respond']);
+    });
 
     // Governance (admin role required)
     Route::middleware('permission:admin')->group(function () {
@@ -114,13 +121,17 @@ Route::middleware('auth.jwt')->group(function () {
     Route::get('dashboard/hub-manager',     [DashboardController::class, 'hubManager']);
     Route::get('dashboard/field-execution', [DashboardController::class, 'fieldExecution']);
 
-    // Referral RPCs
-    Route::post('referrals/check-reward',   [ReferralRewardController::class, 'checkReward']);
-    Route::post('referrals/force-approve',  [ReferralRewardController::class, 'forceApprove']);
+    // Referral RPCs — group 7: referral-programs / referral_redemptions
+    Route::middleware('idempotency')->group(function () {
+        Route::post('referrals/check-reward',   [ReferralRewardController::class, 'checkReward']);
+        Route::post('referrals/force-approve',  [ReferralRewardController::class, 'forceApprove']);
+    });
 
     // Bulk Operations — POST /{resource}/bulk · PATCH /{resource}/bulk · DELETE /{resource}/bulk (dev-only)
     // Excluded: customers/invoices (B2C flows), inventory (has bulkInward), stock-transfers (custom flow), audit-logs, dashboards
-    foreach ([
+    // Groups 8 & 9: bulk-insert (POST /bulk) and bulk-update (PATCH /bulk) require idempotency.
+    // Bulk-delete is dev-only and excluded from idempotency enforcement.
+    $bulkResources = [
         'network-zones'       => NetworkZoneController::class,
         'districts'           => DistrictController::class,
         'areas'               => AreaController::class,
@@ -142,9 +153,24 @@ Route::middleware('auth.jwt')->group(function () {
         'assets'              => AssetController::class,
         'admin-users'         => AdminUserController::class,
         'admin-roles'         => AdminRoleController::class,
-    ] as $resource => $controller) {
-        Route::post("{$resource}/bulk",   [$controller, 'bulkStore']);
-        Route::patch("{$resource}/bulk",  [$controller, 'bulkUpdate']);
+    ];
+
+    // Group 8: Bulk-insert routes — POST /{resource}/bulk
+    Route::middleware('idempotency')->group(function () use ($bulkResources) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::post("{$resource}/bulk", [$controller, 'bulkStore']);
+        }
+    });
+
+    // Group 9: Bulk-update routes — PATCH /{resource}/bulk
+    Route::middleware('idempotency')->group(function () use ($bulkResources) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::patch("{$resource}/bulk", [$controller, 'bulkUpdate']);
+        }
+    });
+
+    // Bulk-delete — dev-only, no idempotency (destructive ops are not replayed)
+    foreach ($bulkResources as $resource => $controller) {
         Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
     }
 });
