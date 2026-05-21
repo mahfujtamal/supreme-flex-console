@@ -34,6 +34,12 @@ use App\Http\Controllers\Api\ReferralRewardController;
 // ── Public ──────────────────────────────────────────────────
 Route::post('/auth/otp/request', [AuthController::class, 'requestOtp']);
 Route::post('/auth/otp/verify',  [AuthController::class, 'verifyOtp']);
+Route::post('/auth/refresh',     [AuthController::class, 'refresh']);
+
+// Dev-only: peek at the last issued OTP (Redis-cached plaintext, 5 min TTL)
+if (config('app.env') !== 'production') {
+    Route::get('/auth/otp/dev-peek', [AuthController::class, 'devPeekOtp']);
+}
 
 // ── Protected (JWT) ─────────────────────────────────────────
 Route::middleware('auth.jwt')->group(function () {
@@ -92,9 +98,11 @@ Route::middleware('auth.jwt')->group(function () {
     Route::apiResource('stock-transfers',           StockTransferController::class);
     Route::patch('stock-transfers/{id}/respond',    [StockTransferController::class, 'respond']);
 
-    // Governance
-    Route::apiResource('admin-users',   AdminUserController::class);
-    Route::apiResource('admin-roles',   AdminRoleController::class);
+    // Governance (admin role required)
+    Route::middleware('permission:admin')->group(function () {
+        Route::apiResource('admin-users', AdminUserController::class);
+        Route::apiResource('admin-roles', AdminRoleController::class);
+    });
 
     // Audit Logs
     Route::get('audit-logs',        [AuditLogController::class, 'index']);

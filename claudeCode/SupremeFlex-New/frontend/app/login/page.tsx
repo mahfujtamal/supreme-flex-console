@@ -22,13 +22,8 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await phpApi.post('/auth/otp/request', { contact_number: contactNumber.trim() });
-      // In local dev the API returns the OTP — surface it for convenience
-      if (res.data.otp) {
-        toast.info(`Dev OTP: ${res.data.otp}`);
-      } else {
-        toast.success('OTP sent to your number');
-      }
+      await phpApi.post('/auth/otp/request', { contact_number: contactNumber.trim() });
+      toast.success('OTP sent to your number');
       setStep('otp');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -48,7 +43,7 @@ export default function LoginPage() {
         contact_number: contactNumber.trim(),
         code: otp,
       });
-      login(res.data.token, res.data.user);
+      login(res.data.access_token, res.data.user);
       router.replace('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

@@ -7,6 +7,7 @@
         "php": "^8.2",
         "laravel/framework": "^11.0",
         "ramsey/uuid": "^4.7",
+        "firebase/php-jwt": "^6.10",
         "predis/predis": "^2.0"
     },
     "require-dev": {
