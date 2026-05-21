@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import fieldExecutionRouter from './routes/fieldExecution.js';
@@ -30,7 +31,26 @@ app.get('/health', (_, res) => res.json({ status: 'ok' }));
 const server = createServer(app);
 const wss    = new WebSocketServer({ server, path: '/ws/dashboard' });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  // Authenticate via JWT passed as the first WebSocket subprotocol
+  const protocols = (req.headers['sec-websocket-protocol'] ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const token = protocols[0];
+  if (!token) {
+    ws.close(1008, 'Unauthorized');
+    return;
+  }
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    ws.close(1008, 'Token invalid or expired');
+    return;
+  }
+
   console.log('[WS] client connected');
 
   // Send initial snapshot immediately
