@@ -1,6 +1,10 @@
 -- ============================================================
 -- SupremeFlex Migration 005: CHAR(36) → BINARY(16) upgrade
 -- For fresh installs: no-op rebuild (columns already BINARY(16)).
+--   NOTE: Even on a fresh install, MySQL 8.0 may perform a full table
+--   rebuild for MODIFY COLUMN statements when the column definition
+--   matches the current type (InnoDB instant DDL does not apply to
+--   BINARY type changes). This is safe but may be slow on large tables.
 -- For existing installs: converts column types.
 -- WARNING: Does not convert existing UUID string data to bytes.
 -- Run only on fresh/test databases or after manual data migration.

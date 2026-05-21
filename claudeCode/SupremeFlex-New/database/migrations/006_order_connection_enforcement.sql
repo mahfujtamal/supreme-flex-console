@@ -3,6 +3,12 @@
 -- Parent summary invoices (is_summary = 1) intentionally have NULL anchor/service.
 -- Run: mysql -u root -p supremeflex < database/migrations/006_order_connection_enforcement.sql
 
+-- PRE-CONDITION: This migration assumes a fresh database with no existing rows
+-- in orders, transaction_ledger, or onetime_invoices. In MySQL strict mode
+-- (STRICT_TRANS_TABLES, default in MySQL 8.0), ADD COLUMN NOT NULL without
+-- DEFAULT will fail if any existing rows are present. For a populated database,
+-- use a two-step approach: add as NULL, backfill, then MODIFY to NOT NULL.
+
 -- ── orders ────────────────────────────────────────────────────────────────────
 ALTER TABLE `orders`
   ADD COLUMN `anchor_id`         BINARY(16) NOT NULL AFTER `customer_type`,

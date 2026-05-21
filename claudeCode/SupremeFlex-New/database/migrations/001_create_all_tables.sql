@@ -174,11 +174,12 @@ CREATE TABLE IF NOT EXISTS `areas` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `channels` (
-  `channel_id`        BINARY(16)     NOT NULL,
-  `channel_name`      VARCHAR(150) NOT NULL,
-  `is_assisted`       TINYINT(1)   NOT NULL DEFAULT 0,
-  `is_self_delivered` TINYINT(1)   NOT NULL DEFAULT 0,
-  `status`            TINYINT(1)   NOT NULL DEFAULT 1,
+  `channel_id`             BINARY(16)     NOT NULL,
+  `channel_name`           VARCHAR(150) NOT NULL,
+  `is_assisted`            TINYINT(1)   NOT NULL DEFAULT 0,
+  `is_self_delivered`      TINYINT(1)   NOT NULL DEFAULT 0,
+  `default_delivery_mode`  ENUM('DH','OWN') NOT NULL DEFAULT 'DH',
+  `status`                 TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`channel_id`)
@@ -508,7 +509,7 @@ CREATE TABLE IF NOT EXISTS `referral_reward_ledger` (
 CREATE TABLE IF NOT EXISTS `anchors` (
   `anchor_id`    BINARY(16)     NOT NULL,
   `customer_id`  BINARY(16)     NOT NULL,
-  `order_id`     BINARY(16),
+  `order_id`     BINARY(16) NULL, -- no FK: circular dep with orders; enforced at application layer
   `test_status`  ENUM('PENDING','SUCCESS','FAIL') NOT NULL DEFAULT 'PENDING',
   `location_tac` VARCHAR(50),
   `network_zone` VARCHAR(150),
@@ -537,9 +538,10 @@ CREATE TABLE IF NOT EXISTS `active_services` (
   `created_at`           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`service_id`),
-  CONSTRAINT `fk_as_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_as_product`  FOREIGN KEY (`product_id`)  REFERENCES `products` (`product_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_as_anchor`   FOREIGN KEY (`anchor_id`)   REFERENCES `anchors` (`anchor_id`) ON DELETE SET NULL
+  CONSTRAINT `fk_as_customer`      FOREIGN KEY (`customer_id`)             REFERENCES `customers`        (`customer_id`)  ON DELETE CASCADE,
+  CONSTRAINT `fk_as_product`       FOREIGN KEY (`product_id`)              REFERENCES `products`         (`product_id`)   ON DELETE CASCADE,
+  CONSTRAINT `fk_as_anchor`        FOREIGN KEY (`anchor_id`)               REFERENCES `anchors`          (`anchor_id`)    ON DELETE SET NULL,
+  CONSTRAINT `fk_as_cpe_inventory` FOREIGN KEY (`current_cpe_inventory_id`) REFERENCES `inventory_master` (`inventory_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `customer_assets` (
