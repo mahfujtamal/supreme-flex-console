@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  php-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claudeCode/SupremeFlex-New/backend-php
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_sqlite, redis
+          coverage: xdebug
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHPUnit
+        run: php artisan test --coverage-clover coverage/clover.xml
+        env:
+          APP_KEY: base64:dGVzdF9rZXlfZm9yX2NpX29ubHlfMzJfY2hhcnM=
+          APP_ENV: testing
+          JWT_SECRET: test_jwt_secret_for_ci
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          REDIS_HOST: localhost
+
+  node-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claudeCode/SupremeFlex-New/backend-node
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: claudeCode/SupremeFlex-New/backend-node/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm test
+        env:
+          JWT_SECRET: test_jwt_secret_for_ci
+          NODE_ENV: test
