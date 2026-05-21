@@ -11,8 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'auth.jwt'   => \App\Http\Middleware\JwtMiddleware::class,
-            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'auth.jwt'    => \App\Http\Middleware\JwtMiddleware::class,
+            'permission'  => \App\Http\Middleware\PermissionMiddleware::class,
+            'idempotency' => \App\Http\Middleware\IdempotencyMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
