@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { pool } from '../services/db.js';
-import { v4 as uuid } from 'uuid';
+import { pool, newId, toBin, fromBin } from '../services/db.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -22,7 +21,7 @@ router.get('/', async (req, res) => {
 
     if (entity_id) {
       sql += ' AND (from_entity_id = ? OR to_entity_id = ?)';
-      params.push(entity_id, entity_id);
+      params.push(toBin(entity_id), toBin(entity_id));
     }
     if (status) { sql += ' AND transfer_status = ?'; params.push(status); }
 
@@ -30,7 +29,8 @@ router.get('/', async (req, res) => {
     params.push(Number(per_page), offset);
 
     const [rows] = await pool.query(sql, params);
-    res.json(rows);
+    const formatted = rows.map(r => ({ ...r, transfer_id: fromBin(r.transfer_id) }));
+    res.json(formatted);
   } catch (err) {
     console.error('[stockTransfers] GET /', err);
     res.status(500).json({ message: 'Internal server error' });
@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes } = req.body;
-    const id = uuid();
+    const id = newId();
     await pool.query(
       `INSERT INTO stock_transfers
        (transfer_id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes, transfer_status, requested_at, created_at, updated_at)
@@ -49,7 +49,7 @@ router.post('/', async (req, res) => {
       [id, inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes]
     );
     const [[row]] = await pool.query('SELECT * FROM stock_transfers WHERE transfer_id = ?', [id]);
-    res.status(201).json(row);
+    res.status(201).json({ ...row, transfer_id: fromBin(row.transfer_id) });
   } catch (err) {
     console.error('[stockTransfers] POST /', err);
     res.status(500).json({ message: 'Internal server error' });
@@ -63,7 +63,7 @@ router.patch('/:id/respond', async (req, res) => {
     return res.status(400).json({ message: 'action must be ACCEPTED or REJECTED' });
   }
 
-  const [[transfer]] = await pool.query('SELECT * FROM stock_transfers WHERE transfer_id = ?', [req.params.id]);
+  const [[transfer]] = await pool.query('SELECT * FROM stock_transfers WHERE transfer_id = ?', [toBin(req.params.id)]);
   if (!transfer) return res.status(404).json({ message: 'Not found' });
 
   const conn = await pool.getConnection();
@@ -73,7 +73,7 @@ router.patch('/:id/respond', async (req, res) => {
     await conn.query(
       `UPDATE stock_transfers SET transfer_status = ?, responded_at = NOW(), updated_at = NOW()
        WHERE transfer_id = ?`,
-      [action, req.params.id]
+      [action, toBin(req.params.id)]
     );
 
     if (action === 'ACCEPTED') {
