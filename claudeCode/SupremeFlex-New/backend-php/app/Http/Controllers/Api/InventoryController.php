@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use App\Helpers\Uuid;
 
 class InventoryController extends BaseApiController
 {
@@ -33,7 +33,7 @@ class InventoryController extends BaseApiController
         $now  = now();
         foreach ($request->items as $item) {
             $rows[] = array_merge($item, [
-                'inventory_id' => (string) Str::uuid(),
+                'inventory_id' => Uuid::make(),
                 'status'       => 'IN_GPFI_STAGING',
                 'stock_type'   => 'GPFI_STAGING',
                 'created_at'   => $now,

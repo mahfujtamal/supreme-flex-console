@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use App\Helpers\Uuid;
 
 class AuditLogController extends Controller
 {
@@ -27,9 +27,9 @@ class AuditLogController extends Controller
             'changed_by' => 'nullable|string',
         ]);
 
-        $id = (string) Str::uuid();
+        $idBytes = Uuid::make();
         DB::table('system_audit_logs')->insert([
-            'log_id'     => $id,
+            'log_id'     => $idBytes,
             'table_name' => $request->table_name,
             'record_id'  => $request->record_id,
             'changed_by' => $request->get('changed_by', 'GPFI Sales Manager'),
@@ -38,7 +38,7 @@ class AuditLogController extends Controller
             'new_value'  => $request->new_value ? json_encode($request->new_value) : null,
         ]);
 
-        return response()->json(['log_id' => $id], 201);
+        return response()->json(['log_id' => Uuid::fromBin($idBytes)], 201);
     }
 
     public function system(Request $request)
