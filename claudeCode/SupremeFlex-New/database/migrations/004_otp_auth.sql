@@ -7,7 +7,7 @@ ALTER TABLE `user_account`
   ADD UNIQUE KEY `uq_user_contact` (`contact_number`);
 
 CREATE TABLE IF NOT EXISTS `otp_codes` (
-  `id`             CHAR(36)    NOT NULL DEFAULT (UUID()),
+  `id`             BINARY(16) NOT NULL,
   `contact_number` VARCHAR(20) NOT NULL,
   `code`           CHAR(6)     NOT NULL,
   `expires_at`     DATETIME    NOT NULL,

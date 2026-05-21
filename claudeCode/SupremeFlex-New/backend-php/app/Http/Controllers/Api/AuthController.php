@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\Uuid;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class AuthController extends Controller
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         DB::table('otp_codes')->insert([
-            'id'             => (string) \Illuminate\Support\Str::uuid(),
+            'id'             => Uuid::make(),
             'contact_number' => $request->contact_number,
             'code'           => $code,
             'expires_at'     => now()->addMinutes(5),
@@ -82,9 +83,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
+        $userIdStr = Uuid::fromBin($user->id);
         $payload = [
             'iss'            => config('app.url'),
-            'sub'            => $user->id,
+            'sub'            => $userIdStr,
             'contact_number' => $user->contact_number,
             'name'           => $user->user_name,
             'iat'            => time(),
@@ -96,7 +98,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user'  => [
-                'id'             => $user->id,
+                'id'             => $userIdStr,
                 'user_name'      => $user->user_name,
                 'contact_number' => $user->contact_number,
                 'staff_type'     => $user->staff_type,
@@ -112,14 +114,14 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $auth = $request->auth_user;
-        $user = DB::table('user_account')->where('id', $auth['sub'])->first();
+        $user = DB::table('user_account')->where('id', Uuid::toBin($auth['sub']))->first();
 
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
 
         return response()->json([
-            'id'             => $user->id,
+            'id'             => Uuid::fromBin($user->id),
             'user_name'      => $user->user_name,
             'contact_number' => $user->contact_number,
             'staff_type'     => $user->staff_type,

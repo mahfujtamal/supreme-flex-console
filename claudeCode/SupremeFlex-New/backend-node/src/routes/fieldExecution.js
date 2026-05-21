@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { pool } from '../services/db.js';
-import { v4 as uuid } from 'uuid';
+import { pool, toBin } from '../services/db.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -23,7 +22,7 @@ router.get('/leads', async (req, res) => {
     `;
     const params = [];
 
-    if (agent_id) { sql += ' AND o.assigned_agent_id = ?'; params.push(agent_id); }
+    if (agent_id) { sql += ' AND o.assigned_agent_id = ?'; params.push(toBin(agent_id)); }
     if (status)   { sql += ' AND o.order_status = ?';      params.push(status); }
 
     sql += ' GROUP BY o.order_id ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
@@ -44,7 +43,7 @@ router.patch('/leads/:id/status', async (req, res) => {
     await pool.query(
       `UPDATE orders SET order_status = ?, fulfillment_status = ?, updated_at = NOW()
        WHERE order_id = ?`,
-      [order_status, fulfillment_status, req.params.id]
+      [order_status, fulfillment_status, toBin(req.params.id)]
     );
     res.json({ message: 'Status updated' });
   } catch (err) {
@@ -67,12 +66,12 @@ router.post('/scan-to-fulfill', async (req, res) => {
     await conn.query(
       `UPDATE inventory_master SET status = 'DELIVERED', imei = COALESCE(?, imei), updated_at = NOW()
        WHERE inventory_id = ?`,
-      [imei || null, inventory_id]
+      [imei || null, toBin(inventory_id)]
     );
 
     await conn.query(
       `UPDATE orders SET order_status = 'INSTALLED', updated_at = NOW() WHERE order_id = ?`,
-      [order_id]
+      [toBin(order_id)]
     );
 
     await conn.commit();

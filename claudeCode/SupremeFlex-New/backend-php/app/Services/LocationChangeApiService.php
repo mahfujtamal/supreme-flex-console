@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Services\Contracts\LocationChangeApiServiceInterface;
-use Illuminate\Support\Str;
 
 class LocationChangeApiService implements LocationChangeApiServiceInterface
 {
@@ -11,7 +10,7 @@ class LocationChangeApiService implements LocationChangeApiServiceInterface
     {
         return [
             'success'      => true,
-            'reference_id' => (string) Str::uuid(),
+            'reference_id' => \Ramsey\Uuid\Uuid::uuid7()->toString(),
             'message'      => 'Location change request accepted',
         ];
     }
