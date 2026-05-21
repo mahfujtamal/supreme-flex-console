@@ -20,10 +20,19 @@ class StockTransferController extends BaseApiController
     {
         $request->validate(['action' => 'required|in:ACCEPTED,REJECTED']);
 
-        $transfer = DB::table('stock_transfers')->where('transfer_id', $id)->first();
-        if (!$transfer) return response()->json(['message' => 'Not found'], 404);
+        DB::transaction(function () use ($request, $id) {
+            $transfer = DB::table('stock_transfers')
+                ->where('transfer_id', $id)
+                ->lockForUpdate()
+                ->first();
 
-        DB::transaction(function () use ($request, $id, $transfer) {
+            if (!$transfer) {
+                abort(404, 'Not found');
+            }
+            if ($transfer->transfer_status !== 'PENDING') {
+                abort(409, 'Transfer already ' . strtolower($transfer->transfer_status));
+            }
+
             DB::table('stock_transfers')->where('transfer_id', $id)->update([
                 'transfer_status' => $request->action,
                 'responded_at'    => now(),
