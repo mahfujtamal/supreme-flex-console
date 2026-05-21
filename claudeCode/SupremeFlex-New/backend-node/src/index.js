@@ -14,6 +14,11 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === 'production' && process.env.OTP_DEV_PEEK === 'true') {
+  console.error('[FATAL] OTP_DEV_PEEK must not be enabled in production — refusing to start');
+  process.exit(1);
+}
+
 const app  = express();
 const port = process.env.PORT || 8001;
 

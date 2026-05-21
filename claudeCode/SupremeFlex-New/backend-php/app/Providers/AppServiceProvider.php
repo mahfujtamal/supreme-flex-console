@@ -18,6 +18,29 @@ use App\Services\CustomerLifecycleApiService;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public function boot(): void
+    {
+        if (config('app.env') !== 'production') {
+            return;
+        }
+
+        $banned = [
+            'GPSHOP_MOCK'              => config('mock_services.gpshop'),
+            'LOCATION_CHANGE_API_MOCK' => config('mock_services.location_change'),
+            'REAL_IP_API_MOCK'         => config('mock_services.real_ip'),
+            'CUSTOMER_LIFECYCLE_MOCK'  => config('mock_services.customer_lifecycle'),
+            'APP_DEBUG'                => config('app.debug'),
+        ];
+
+        foreach ($banned as $name => $value) {
+            if ($value) {
+                throw new \RuntimeException(
+                    "[FATAL] {$name} must not be enabled in production. Fix your .env and redeploy."
+                );
+            }
+        }
+    }
+
     public function register(): void
     {
         $this->app->bind(GpShopServiceInterface::class, fn () =>
