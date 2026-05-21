@@ -5,8 +5,8 @@
 
 -- ── orders ────────────────────────────────────────────────────────────────────
 ALTER TABLE `orders`
-  ADD COLUMN `anchor_id`         CHAR(36) NOT NULL AFTER `customer_type`,
-  ADD COLUMN `active_service_id` CHAR(36) NOT NULL AFTER `anchor_id`,
+  ADD COLUMN `anchor_id`         BINARY(16) NOT NULL AFTER `customer_type`,
+  ADD COLUMN `active_service_id` BINARY(16) NOT NULL AFTER `anchor_id`,
   ADD CONSTRAINT `fk_orders_anchor`
     FOREIGN KEY (`anchor_id`)         REFERENCES `anchors`         (`anchor_id`)  ON DELETE RESTRICT,
   ADD CONSTRAINT `fk_orders_service`
@@ -18,8 +18,8 @@ ALTER TABLE `orders`
 -- Child rows carry anchor_id + active_service_id; parent summary rows leave them NULL.
 ALTER TABLE `onetime_invoices`
   ADD COLUMN `is_summary`        TINYINT(1) NOT NULL DEFAULT 0 AFTER `customer_id`,
-  ADD COLUMN `anchor_id`         CHAR(36)   NULL     AFTER `is_summary`,
-  ADD COLUMN `active_service_id` CHAR(36)   NULL     AFTER `anchor_id`,
+  ADD COLUMN `anchor_id`         BINARY(16) NULL     AFTER `is_summary`,
+  ADD COLUMN `active_service_id` BINARY(16) NULL     AFTER `anchor_id`,
   ADD CONSTRAINT `fk_oi_parent_summary`
     FOREIGN KEY (`parent_summary_invoice_id`) REFERENCES `onetime_invoices` (`invoice_id`) ON DELETE SET NULL,
   ADD CONSTRAINT `fk_oi_anchor`
@@ -31,9 +31,9 @@ ALTER TABLE `onetime_invoices`
 -- anchor_id existed but was nullable with no FK — tighten it.
 -- Add active_service_id and invoice_id references.
 ALTER TABLE `transaction_ledger`
-  MODIFY `anchor_id` CHAR(36) NOT NULL,
-  ADD COLUMN `active_service_id` CHAR(36) NOT NULL AFTER `anchor_id`,
-  ADD COLUMN `invoice_id`        CHAR(36) NULL     AFTER `order_id`,
+  MODIFY `anchor_id` BINARY(16) NOT NULL,
+  ADD COLUMN `active_service_id` BINARY(16) NOT NULL AFTER `anchor_id`,
+  ADD COLUMN `invoice_id`        BINARY(16) NULL     AFTER `order_id`,
   ADD CONSTRAINT `fk_tl_anchor`
     FOREIGN KEY (`anchor_id`)         REFERENCES `anchors`         (`anchor_id`)  ON DELETE RESTRICT,
   ADD CONSTRAINT `fk_tl_service`

@@ -12,7 +12,7 @@ DELIMITER $$
 -- ============================================================
 DROP PROCEDURE IF EXISTS `has_role`$$
 CREATE PROCEDURE `has_role`(
-  IN  p_user_id   CHAR(36),
+  IN  p_user_id   BINARY(16),
   IN  p_role_name VARCHAR(100),
   OUT p_result    TINYINT(1)
 )
@@ -33,7 +33,7 @@ END$$
 -- ============================================================
 DROP PROCEDURE IF EXISTS `check_and_release_referral_reward`$$
 CREATE PROCEDURE `check_and_release_referral_reward`(
-  IN  p_ledger_id CHAR(36),
+  IN  p_ledger_id BINARY(16),
   OUT p_status    VARCHAR(50)
 )
 proc_label: BEGIN
@@ -96,7 +96,7 @@ END$$
 -- ============================================================
 DROP PROCEDURE IF EXISTS `force_approve_referral_reward`$$
 CREATE PROCEDURE `force_approve_referral_reward`(
-  IN p_ledger_id  CHAR(36),
+  IN p_ledger_id  BINARY(16),
   IN p_admin_name VARCHAR(200)
 )
 BEGIN
