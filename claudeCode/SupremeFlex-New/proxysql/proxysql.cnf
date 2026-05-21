@@ -1,0 +1,69 @@
+datadir="/var/lib/proxysql"
+
+admin_variables=
+{
+    admin_credentials="admin:admin"
+    mysql_ifaces="0.0.0.0:6032"
+}
+
+mysql_variables=
+{
+    threads=4
+    max_connections=2048
+    default_query_delay=0
+    default_query_timeout=36000000
+    have_compress=true
+    poll_timeout=2000
+    interfaces="0.0.0.0:6033"
+    default_schema="supremeflex"
+    stacksize=1048576
+    server_version="8.0.0"
+    connect_timeout_server=3000
+    monitor_username="proxysql_monitor"
+    monitor_password="monitor_password"
+    monitor_history=600000
+    monitor_connect_interval=60000
+    monitor_ping_interval=10000
+    ping_interval_server_msec=120000
+    ping_timeout_server=500
+    commands_stats=true
+    sessions_sort=true
+    connect_retries_on_failure=10
+}
+
+# Hostgroup 10 = primary (writes), Hostgroup 20 = replicas (reads)
+mysql_replication_hostgroups=
+(
+    { writer_hostgroup=10, reader_hostgroup=20, comment="supremeflex rw-split" }
+)
+
+mysql_servers=
+(
+    { address="${DB_HOST}",           port=3306, hostgroup=10, max_connections=200, weight=1 },
+    { address="${DB_HOST_REPLICA_1}", port=3306, hostgroup=20, max_connections=200, weight=1 },
+    { address="${DB_HOST_REPLICA_2}", port=3306, hostgroup=20, max_connections=200, weight=1 }
+)
+
+mysql_users=
+(
+    { username="${DB_USERNAME}", password="${DB_PASSWORD}", default_hostgroup=10, transaction_persistent=1, active=1 }
+)
+
+# SELECT ... FOR UPDATE stays on primary; all other SELECTs go to replicas
+mysql_query_rules=
+(
+    {
+        rule_id=1
+        active=1
+        match_digest="^SELECT .* FOR UPDATE"
+        destination_hostgroup=10
+        apply=1
+    },
+    {
+        rule_id=2
+        active=1
+        match_digest="^SELECT"
+        destination_hostgroup=20
+        apply=1
+    }
+)
