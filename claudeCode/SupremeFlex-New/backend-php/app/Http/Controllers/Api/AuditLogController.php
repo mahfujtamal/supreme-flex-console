@@ -24,7 +24,6 @@ class AuditLogController extends Controller
             'record_id'  => 'nullable|string',
             'old_value'  => 'nullable|array',
             'new_value'  => 'nullable|array',
-            'changed_by' => 'nullable|string',
         ]);
 
         $idBytes = Uuid::make();
@@ -32,7 +31,7 @@ class AuditLogController extends Controller
             'log_id'     => $idBytes,
             'table_name' => $request->table_name,
             'record_id'  => $request->record_id,
-            'changed_by' => $request->get('changed_by', 'GPFI Sales Manager'),
+            'changed_by' => auth()->id(),
             'changed_at' => now(),
             'old_value'  => $request->old_value ? json_encode($request->old_value) : null,
             'new_value'  => $request->new_value ? json_encode($request->new_value) : null,
