@@ -1,13 +1,9 @@
 import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import fieldExecutionRouter from './routes/fieldExecution.js';
-import stockTransferRouter  from './routes/stockTransfers.js';
-import dashboardRouter      from './routes/dashboard.js';
 import { broadcastDashboard } from './services/dashboardBroadcast.js';
+import app from './app.js';
 
 if (!process.env.JWT_SECRET) {
   console.error('[FATAL] JWT_SECRET is not set — refusing to start');
@@ -19,18 +15,7 @@ if (process.env.NODE_ENV === 'production' && process.env.OTP_DEV_PEEK === 'true'
   process.exit(1);
 }
 
-const app  = express();
 const port = process.env.PORT || 8001;
-
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
-app.use(express.json());
-
-// REST routes (Node.js-owned modules)
-app.use('/api/field-execution',  fieldExecutionRouter);
-app.use('/api/stock-transfers',  stockTransferRouter);
-app.use('/api/dashboard',        dashboardRouter);
-
-app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
 // HTTP + WebSocket on same port
 const server = createServer(app);
