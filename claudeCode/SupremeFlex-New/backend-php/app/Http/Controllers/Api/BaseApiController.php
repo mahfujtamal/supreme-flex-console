@@ -17,6 +17,7 @@ abstract class BaseApiController extends Controller
     protected string $primaryKey = 'id';
     protected string $searchColumn = 'name';
     protected array  $fillable = [];
+    protected bool   $pkIsBinary = true;
 
     public function index(Request $request)
     {
@@ -52,14 +53,14 @@ abstract class BaseApiController extends Controller
 
     public function show(string $id)
     {
-        $record = DB::table($this->table)->where($this->primaryKey, Uuid::toBin($id))->first();
+        $record = DB::table($this->table)->where($this->primaryKey, $this->parseBinId($id))->first();
         if (!$record) return response()->json(['message' => 'Not found'], 404);
         return response()->json($this->castRecord($record));
     }
 
     public function update(Request $request, string $id)
     {
-        $binId = Uuid::toBin($id);
+        $binId = $this->parseBinId($id);
         $exists = DB::table($this->table)->where($this->primaryKey, $binId)->exists();
         if (!$exists) return response()->json(['message' => 'Not found'], 404);
 
@@ -73,7 +74,7 @@ abstract class BaseApiController extends Controller
     // Soft-delete: set status = INACTIVE. Hard deletes are never permitted on master data.
     public function destroy(string $id)
     {
-        $binId = Uuid::toBin($id);
+        $binId = $this->parseBinId($id);
         $exists = DB::table($this->table)->where($this->primaryKey, $binId)->exists();
         if (!$exists) return response()->json(['message' => 'Not found'], 404);
 
@@ -112,7 +113,7 @@ abstract class BaseApiController extends Controller
         $pk = $this->primaryKey;
         $request->validate([
             'items'        => 'required|array|min:1|max:100',
-            "items.*.$pk"  => 'required|string',
+            "items.*.$pk"  => 'required|uuid',
         ]);
 
         DB::transaction(function () use ($request, $pk) {
@@ -134,7 +135,10 @@ abstract class BaseApiController extends Controller
             return response()->json(['message' => 'Bulk delete requires X-Dev-Mode: true header'], 403);
         }
 
-        $request->validate(['ids' => 'required|array|min:1|max:100']);
+        $request->validate([
+            'ids'   => 'required|array|min:1|max:100',
+            'ids.*' => 'required|uuid',
+        ]);
 
         DB::transaction(function () use ($request) {
             DB::table($this->table)
@@ -150,10 +154,19 @@ abstract class BaseApiController extends Controller
     {
         if (!$record) return null;
         $r = (array) $record;
-        if (isset($r[$this->primaryKey]) && is_string($r[$this->primaryKey]) && strlen($r[$this->primaryKey]) === 16) {
+        if ($this->pkIsBinary && isset($r[$this->primaryKey]) && is_string($r[$this->primaryKey]) && strlen($r[$this->primaryKey]) === 16) {
             $r[$this->primaryKey] = Uuid::fromBin($r[$this->primaryKey]);
         }
         return (object) $r;
+    }
+
+    private function parseBinId(string $id): string
+    {
+        try {
+            return Uuid::toBin($id);
+        } catch (\InvalidArgumentException) {
+            abort(422, 'Invalid UUID format');
+        }
     }
 
     private function writeAuditLog(string $actionType, int $count, ?array $ids, Request $request): void
