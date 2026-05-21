@@ -4,13 +4,15 @@ import { getAccessTokenGlobal, setAccessTokenGlobal } from '@/contexts/AuthConte
 // PHP/Laravel API — master data, campaigns, customers, etc.
 export const phpApi = axios.create({
   baseURL:         process.env.NEXT_PUBLIC_API_PHP || 'http://localhost:8000/api',
-  withCredentials: true, // sends httpOnly cookies (refresh token) to PHP origin
+  withCredentials: true,
+  timeout:         15000,
 });
 
 // Node.js API — field execution, stock transfers, dashboards
 export const nodeApi = axios.create({
   baseURL:         process.env.NEXT_PUBLIC_API_NODE || 'http://localhost:8001/api',
   withCredentials: true,
+  timeout:         15000,
 });
 
 // Attach access token from memory on every request (both backends accept Bearer)
