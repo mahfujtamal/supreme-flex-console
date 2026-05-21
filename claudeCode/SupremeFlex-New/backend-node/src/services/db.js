@@ -11,6 +11,8 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Generate a new UUIDv7 as a 16-byte Buffer for BINARY(16) INSERT. */
 export function newId() {
     return Buffer.from(uuidv7().replace(/-/g, ''), 'hex');
@@ -18,6 +20,11 @@ export function newId() {
 
 /** Convert UUID string "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" to 16-byte Buffer for WHERE clauses. */
 export function toBin(uuidStr) {
+    if (!UUID_RE.test(uuidStr)) {
+        const err = new Error(`Invalid UUID: ${uuidStr}`);
+        err.status = 422;
+        throw err;
+    }
     return Buffer.from(uuidStr.replace(/-/g, ''), 'hex');
 }
 
