@@ -1,0 +1,30 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+
+# PHP / Laravel
+backend-php/vendor/
+backend-php/bootstrap/cache/*.php
+backend-php/storage/logs/
+backend-php/storage/framework/cache/
+backend-php/storage/framework/sessions/
+backend-php/storage/framework/views/
+
+# Node
+backend-node/node_modules/
+frontend/node_modules/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Misc
+*.pem

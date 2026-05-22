@@ -9,17 +9,17 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
     "supertest": "^7.0.0",
-    "@vitest/coverage-v8": "^2.0.0"
+    "vitest": "^2.0.0"
   },
   "dependencies": {
-    "express": "^4.21.0",
     "cors": "^2.8.5",
-    "mysql2": "^3.11.0",
-    "jsonwebtoken": "^9.0.2",
-    "ws": "^8.18.0",
     "dotenv": "^16.4.5",
-    "uuidv7": "^0.3.0"
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "uuidv7": "^0.3.7",
+    "ws": "^8.18.0"
   }
 }

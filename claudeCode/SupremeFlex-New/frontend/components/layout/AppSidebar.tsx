@@ -23,7 +23,7 @@ const navItems = [
   { title: 'Bulk Inwarding',   href: '/bulk-inwarding',          icon: PackagePlus },
   { title: 'Stock Transfers',  href: '/stock-transfers',         icon: ArrowRightLeft },
   { title: 'GPFI Dashboard',   href: '/gpfi-dashboard',          icon: Gauge },
-  { title: 'Hub Manager',      href: '/hub-manager-dashboard',   icon: Building2 },
+  { title: 'Manager Dashboard', href: '/manager-dashboard',        icon: Building2 },
   { title: 'Field Execution',  href: '/field-execution',         icon: ScanLine },
   { title: 'Governance',       href: '/governance',              icon: Shield },
   { title: 'Logs',             href: '/logs',                    icon: FileText },
