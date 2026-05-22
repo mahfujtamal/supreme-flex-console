@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { phpApi } from '@/lib/api';
@@ -16,13 +17,15 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
+  const fullNumber = contactNumber.trim() ? `+880${contactNumber.trim()}` : '';
+
   async function handleRequestOtp(e: React.FormEvent) {
     e.preventDefault();
     if (!contactNumber.trim()) return;
 
     setLoading(true);
     try {
-      await phpApi.post('/auth/otp/request', { contact_number: contactNumber.trim() });
+      await phpApi.post('/auth/otp/request', { contact_number: fullNumber });
       toast.success('OTP sent to your number');
       setStep('otp');
     } catch (err: unknown) {
@@ -40,10 +43,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await phpApi.post('/auth/otp/verify', {
-        contact_number: contactNumber.trim(),
+        contact_number: fullNumber,
         code: otp,
       });
-      login(res.data.access_token, res.data.user);
+      flushSync(() => {
+        login(res.data.access_token, res.data.user);
+      });
       router.replace('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -70,17 +75,20 @@ export default function LoginPage() {
                 <label className="text-sm font-medium block mb-1.5" htmlFor="contact">
                   Mobile number
                 </label>
-                <input
-                  id="contact"
-                  type="tel"
-                  autoComplete="tel"
-                  autoFocus
-                  value={contactNumber}
-                  onChange={e => setContactNumber(e.target.value)}
-                  placeholder="01xxxxxxxxx"
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  required
-                />
+                <div className="flex items-center border rounded-md focus-within:ring-2 focus-within:ring-primary/50 bg-background">
+                  <span className="px-3 py-2 text-sm text-muted-foreground border-r select-none">+880</span>
+                  <input
+                    id="contact"
+                    type="tel"
+                    autoComplete="tel"
+                    autoFocus
+                    value={contactNumber}
+                    onChange={e => setContactNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1XXXXXXXXX"
+                    className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none"
+                    required
+                  />
+                </div>
               </div>
               <button
                 type="submit"
@@ -94,7 +102,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  OTP sent to <span className="font-medium text-foreground">{contactNumber}</span>
+                  OTP sent to <span className="font-medium text-foreground">{fullNumber}</span>
                 </p>
                 <label className="text-sm font-medium block mb-1.5" htmlFor="otp">
                   Enter 6-digit OTP
