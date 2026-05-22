@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { flushSync } from 'react-dom';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { phpApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +12,6 @@ export default function LoginPage() {
   const [contactNumber, setContactNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { login } = useAuth();
 
   const fullNumber = contactNumber.trim() ? `+880${contactNumber.trim()}` : '';
@@ -46,10 +43,8 @@ export default function LoginPage() {
         contact_number: fullNumber,
         code: otp,
       });
-      flushSync(() => {
-        login(res.data.access_token, res.data.user);
-      });
-      router.replace('/');
+      login(res.data.access_token, res.data.user);
+      window.location.replace('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg ?? 'Invalid or expired OTP');
