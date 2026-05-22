@@ -35,7 +35,11 @@ phpApi.interceptors.response.use(
   res => res,
   async err => {
     const original = err.config;
-    if (err.response?.status !== 401 || original._retried) {
+    if (
+      err.response?.status !== 401 ||
+      original._retried ||
+      original.url?.includes('/auth/refresh')
+    ) {
       return Promise.reject(err);
     }
     original._retried = true;
