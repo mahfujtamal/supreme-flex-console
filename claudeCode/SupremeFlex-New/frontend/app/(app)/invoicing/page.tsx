@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -42,18 +42,66 @@ function PagedTab<T extends { id: string }>({ qk, ep, cols }: { qk: string; ep: 
   );
 }
 
+function SummaryInvoiceGenerator() {
+  const qc = useQueryClient();
+  const [customerId, setCustomerId] = useState('');
+  const [done, setDone] = useState(false);
+
+  const generate = useMutation({
+    mutationFn: () => phpApi.post('/invoices', { customer_id: customerId, is_summary: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      setCustomerId('');
+      setDone(true);
+    },
+  });
+
+  return (
+    <div className="pt-4 max-w-md space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Generates a summary invoice aggregating all line items for the given customer.
+        Summary rows leave anchor/service fields null per billing rules.
+      </p>
+      {done && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+          Summary invoice created successfully.
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          className="border rounded px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-primary/30"
+          placeholder="Customer ID"
+          value={customerId}
+          onChange={e => { setCustomerId(e.target.value); setDone(false); }}
+        />
+        <button
+          onClick={() => generate.mutate()}
+          disabled={!customerId.trim() || generate.isPending}
+          className="px-4 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90 disabled:opacity-40"
+        >
+          {generate.isPending ? 'Generating…' : 'Generate'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const TABS = ['Invoices', 'Transaction Ledger', 'Generate Summary'];
+const TAB_VALUES = ['invoices', 'ledger', 'generate'];
+
 export default function InvoicingPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Invoicing</h1>
       <Tabs.Root defaultValue="invoices">
         <Tabs.List className="flex gap-1 border-b">
-          {['Invoices', 'Transaction Ledger'].map((label, i) => (
-            <Tabs.Trigger key={i} value={['invoices','ledger'][i]} className="px-3 py-2 text-sm text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary -mb-px">{label}</Tabs.Trigger>
+          {TABS.map((label, i) => (
+            <Tabs.Trigger key={i} value={TAB_VALUES[i]} className="px-3 py-2 text-sm text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary -mb-px">{label}</Tabs.Trigger>
           ))}
         </Tabs.List>
         <Tabs.Content value="invoices"><PagedTab<Invoice> qk="invoices" ep="/invoices" cols={INV_COLS} /></Tabs.Content>
         <Tabs.Content value="ledger"><PagedTab<Ledger> qk="ledger" ep="/transaction-ledger" cols={LED_COLS} /></Tabs.Content>
+        <Tabs.Content value="generate"><SummaryInvoiceGenerator /></Tabs.Content>
       </Tabs.Root>
     </div>
   );
