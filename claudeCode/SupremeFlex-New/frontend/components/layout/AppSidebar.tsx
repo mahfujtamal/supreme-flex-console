@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Database, Box, DollarSign, Megaphone, Settings,
   Users, Receipt, HardDrive, PackagePlus, ArrowRightLeft, Gauge,
   Building2, ScanLine, Shield, FileText, ChevronLeft, ChevronRight,
+  Package, Tv, MapPin, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,8 +26,12 @@ const navItems = [
   { title: 'GPFI Dashboard',   href: '/gpfi-dashboard',          icon: Gauge },
   { title: 'Manager Dashboard', href: '/manager-dashboard',        icon: Building2 },
   { title: 'Field Execution',  href: '/field-execution',         icon: ScanLine },
-  { title: 'Governance',       href: '/governance',              icon: Shield },
-  { title: 'Logs',             href: '/logs',                    icon: FileText },
+  { title: 'Accessories',      href: '/accessories',             icon: Package },
+  { title: 'OTT Orders',      href: '/ott-orders',              icon: Tv },
+  { title: 'Location Change', href: '/location-change',         icon: MapPin },
+  { title: 'Real IP',         href: '/real-ip',                 icon: Globe },
+  { title: 'Governance',      href: '/governance',              icon: Shield },
+  { title: 'Logs',            href: '/logs',                    icon: FileText },
 ];
 
 export function AppSidebar() {

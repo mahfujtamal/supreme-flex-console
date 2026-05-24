@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -62,8 +62,64 @@ const VERSION_COLS: Column<PriceVersion>[] = [
   { key: 'status',         header: 'Status',         cell: r => <StatusBadge status={r.status} /> },
 ];
 
-const TAB_LABELS = ['Products', 'Addon Compatibility', 'Price Versions'];
-const TAB_VALUES = ['products', 'compat', 'versions'];
+interface SysConfig { config_key: string; config_value: string; description: string | null; updated_at: string }
+
+function DisplayConfigTab() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<Record<string, string>>({});
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['system-config'],
+    queryFn: () => phpApi.get('/system-config').then(r => r.data as SysConfig[]),
+  });
+
+  const save = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      phpApi.put(`/system-config/${key}`, { config_value: value }),
+    onSuccess: (_, { key }) => {
+      qc.invalidateQueries({ queryKey: ['system-config'] });
+      setEditing(e => { const n = { ...e }; delete n[key]; return n; });
+    },
+  });
+
+  if (isLoading) return <p className="pt-4 text-sm text-muted-foreground">Loading…</p>;
+  const rows: SysConfig[] = Array.isArray(data) ? data : [];
+
+  return (
+    <div className="pt-4 space-y-2">
+      {rows.length === 0 && <p className="text-sm text-muted-foreground">No config entries.</p>}
+      {rows.map(row => {
+        const draft = editing[row.config_key] ?? row.config_value;
+        const dirty = editing[row.config_key] !== undefined;
+        return (
+          <div key={row.config_key} className="flex items-start gap-3 p-3 border rounded-lg">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium font-mono">{row.config_key}</p>
+              {row.description && <p className="text-xs text-muted-foreground mt-0.5">{row.description}</p>}
+              <input
+                className="mt-1 border rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={draft}
+                onChange={e => setEditing(ed => ({ ...ed, [row.config_key]: e.target.value }))}
+              />
+            </div>
+            {dirty && (
+              <button
+                onClick={() => save.mutate({ key: row.config_key, value: draft })}
+                disabled={save.isPending}
+                className="mt-5 px-3 py-1 bg-primary text-primary-foreground rounded text-xs hover:opacity-90 disabled:opacity-40 shrink-0"
+              >
+                Save
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const TAB_LABELS = ['Products', 'Addon Compatibility', 'Price Versions', 'Display Config'];
+const TAB_VALUES = ['products', 'compat', 'versions', 'display-config'];
 
 export default function ProductEnginePage() {
   return (
@@ -85,6 +141,9 @@ export default function ProductEnginePage() {
         </Tabs.Content>
         <Tabs.Content value="versions">
           <SearchTable<PriceVersion> queryKey="price-versions" endpoint="/price-versions" columns={VERSION_COLS} templateHeaders={['product_id','price','effective_from']} />
+        </Tabs.Content>
+        <Tabs.Content value="display-config">
+          <DisplayConfigTab />
         </Tabs.Content>
       </Tabs.Root>
     </div>
