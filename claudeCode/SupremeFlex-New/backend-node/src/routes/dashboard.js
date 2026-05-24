@@ -43,7 +43,7 @@ router.get('/field-execution', async (req, res) => {
 // Manager dashboard — scoped to the requesting manager's entity via staff_type in JWT
 router.get('/manager', async (req, res) => {
   try {
-    const { sub: userId, staff_type } = req.user;
+    const { sub: userId, staff_type } = req.authUser;
 
     let rows = [];
 

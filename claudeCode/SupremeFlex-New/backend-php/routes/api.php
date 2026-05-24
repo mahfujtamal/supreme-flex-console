@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\MasterData\AreaController;
 use App\Http\Controllers\Api\MasterData\ChannelController;
 use App\Http\Controllers\Api\MasterData\SubChannelController;
 use App\Http\Controllers\Api\MasterData\DistributionHouseController;
-use App\Http\Controllers\Api\MasterData\HubManagerController;
 use App\Http\Controllers\Api\MasterData\FieldAgentController;
 use App\Http\Controllers\Api\MasterData\KamController;
 use App\Http\Controllers\Api\ProductEngine\ProductController;
@@ -54,7 +53,6 @@ Route::middleware('auth.jwt')->group(function () {
     Route::apiResource('channels',             ChannelController::class);
     Route::apiResource('sub-channels',         SubChannelController::class);
     Route::apiResource('distribution-houses',  DistributionHouseController::class);
-    Route::apiResource('hub-managers',         HubManagerController::class);
     Route::apiResource('field-agents',         FieldAgentController::class);
     Route::apiResource('kams',                 KamController::class);
 
@@ -138,7 +136,6 @@ Route::middleware('auth.jwt')->group(function () {
         'channels'            => ChannelController::class,
         'sub-channels'        => SubChannelController::class,
         'distribution-houses' => DistributionHouseController::class,
-        'hub-managers'        => HubManagerController::class,
         'field-agents'        => FieldAgentController::class,
         'kams'                => KamController::class,
         'products'            => ProductController::class,
