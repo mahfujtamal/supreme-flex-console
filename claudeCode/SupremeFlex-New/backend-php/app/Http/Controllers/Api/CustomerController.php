@@ -66,8 +66,16 @@ class CustomerController extends Controller
             ->select('ca.*', 'p.product_name', 'p.warranty_value', 'p.warranty_unit')
             ->where('ca.customer_id', $id)
             ->get();
-        $invoices = DB::table('onetime_invoices')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $invoices        = DB::table('onetime_invoices')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $addonOrders     = DB::table('addon_order_history')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $cpeOrders       = DB::table('cpe_order_history')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $ottOrders       = DB::table('ott_order_history')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $locationChanges = DB::table('location_change_history')->where('customer_id', $id)->orderByDesc('created_at')->get();
+        $realIps         = DB::table('real_ip_assignments')->where('customer_id', $id)->orderByDesc('created_at')->get();
 
-        return response()->json(compact('customer', 'services', 'anchors', 'assets', 'invoices'));
+        return response()->json(compact(
+            'customer', 'services', 'anchors', 'assets', 'invoices',
+            'addonOrders', 'cpeOrders', 'ottOrders', 'locationChanges', 'realIps'
+        ));
     }
 }

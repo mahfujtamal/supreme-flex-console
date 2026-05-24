@@ -29,6 +29,13 @@ use App\Http\Controllers\Api\Governance\AdminRoleController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReferralRewardController;
+use App\Http\Controllers\Api\SystemConfigController;
+use App\Http\Controllers\Api\InternalController;
+use App\Http\Controllers\Api\AddonOrderController;
+use App\Http\Controllers\Api\CpeOrderController;
+use App\Http\Controllers\Api\OttOrderController;
+use App\Http\Controllers\Api\LocationChangeController;
+use App\Http\Controllers\Api\RealIpController;
 
 // ── Public ──────────────────────────────────────────────────
 Route::post('/auth/otp/request', [AuthController::class, 'requestOtp']);
@@ -39,6 +46,11 @@ Route::post('/auth/refresh',     [AuthController::class, 'refresh']);
 if (config('app.env') !== 'production') {
     Route::get('/auth/otp/dev-peek', [AuthController::class, 'devPeekOtp']);
 }
+
+// ── Internal (Node → PHP, key-protected, no JWT) ────────────
+Route::middleware('internal.key')->group(function () {
+    Route::post('/internal/sms', [InternalController::class, 'sendSms']);
+});
 
 // ── Protected (JWT) ─────────────────────────────────────────
 Route::middleware('auth.jwt')->group(function () {
@@ -87,6 +99,38 @@ Route::middleware('auth.jwt')->group(function () {
     // TODO(p-1.3): add idempotency middleware when CpeOrderController routes are registered (group 3: cpe_order_history)
     // TODO(p-1.3): add idempotency middleware when OttOrderController routes are registered (group 4: ott_order_history)
     // TODO(p-1.3): add idempotency middleware when RealIpAssignmentController routes are registered (group 5: real_ip_assignments)
+
+    // System Config
+    Route::get('system-config',          [SystemConfigController::class, 'index']);
+    Route::get('system-config/{key}',    [SystemConfigController::class, 'show']);
+    Route::put('system-config/{key}',    [SystemConfigController::class, 'upsert']);
+    Route::delete('system-config/{key}', [SystemConfigController::class, 'destroy']);
+
+    // GPWEB-3730 — order histories + location + real IP
+    Route::get('addon-orders',          [AddonOrderController::class, 'index']);
+    Route::post('addon-orders',         [AddonOrderController::class, 'store']);
+    Route::get('addon-orders/{id}',     [AddonOrderController::class, 'show']);
+    Route::patch('addon-orders/{id}',   [AddonOrderController::class, 'update']);
+
+    Route::get('cpe-orders',            [CpeOrderController::class, 'index']);
+    Route::post('cpe-orders',           [CpeOrderController::class, 'store']);
+    Route::get('cpe-orders/{id}',       [CpeOrderController::class, 'show']);
+    Route::patch('cpe-orders/{id}',     [CpeOrderController::class, 'update']);
+
+    Route::get('ott-orders',            [OttOrderController::class, 'index']);
+    Route::post('ott-orders',           [OttOrderController::class, 'store']);
+    Route::get('ott-orders/{id}',       [OttOrderController::class, 'show']);
+    Route::patch('ott-orders/{id}',     [OttOrderController::class, 'update']);
+
+    Route::get('location-changes',      [LocationChangeController::class, 'index']);
+    Route::post('location-changes',     [LocationChangeController::class, 'store']);
+    Route::get('location-changes/{id}', [LocationChangeController::class, 'show']);
+    Route::patch('location-changes/{id}', [LocationChangeController::class, 'update']);
+
+    Route::get('real-ip',               [RealIpController::class, 'index']);
+    Route::post('real-ip',              [RealIpController::class, 'store']);
+    Route::get('real-ip/{id}',          [RealIpController::class, 'show']);
+    Route::delete('real-ip/{id}',       [RealIpController::class, 'destroy']);
 
     // Asset Lifecycle
     Route::apiResource('assets',                AssetController::class);
