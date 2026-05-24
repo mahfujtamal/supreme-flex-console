@@ -9,5 +9,6 @@ return [
     'locale'     => env('APP_LOCALE', 'en'),
     'key'        => env('APP_KEY'),
     'cipher'     => 'AES-256-CBC',
-    'jwt_secret' => env('JWT_SECRET'),
+    'jwt_secret'       => env('JWT_SECRET'),
+    'internal_api_key' => env('INTERNAL_API_KEY'),
 ];

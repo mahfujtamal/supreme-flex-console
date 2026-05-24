@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Helpers\Uuid;
+use App\Http\Controllers\Api\BaseApiController;
 use App\Http\Controllers\Controller;
 use App\Services\Contracts\LocationChangeApiServiceInterface;
 use Illuminate\Http\Request;
@@ -27,7 +28,8 @@ class LocationChangeController extends Controller
         }
 
         $total = $query->count();
-        $items = $query->offset($page * $perPage)->limit($perPage)->get();
+        $items = $query->offset($page * $perPage)->limit($perPage)->get()
+            ->map(fn($r) => BaseApiController::castRecord($r))->values();
 
         return response()->json(['items' => $items, 'total' => $total]);
     }
@@ -66,14 +68,14 @@ class LocationChangeController extends Controller
             'updated_at'        => now(),
         ]);
 
-        return response()->json(DB::table('location_change_history')->where('id', $id)->first(), 201);
+        return response()->json(BaseApiController::castRecord(DB::table('location_change_history')->where('id', $id)->first()), 201);
     }
 
     public function show(string $id)
     {
         $record = DB::table('location_change_history')->where('id', Uuid::toBin($id))->first();
         if (!$record) return response()->json(['message' => 'Not found'], 404);
-        return response()->json($record);
+        return response()->json(BaseApiController::castRecord($record));
     }
 
     public function update(Request $request, string $id)
@@ -91,6 +93,6 @@ class LocationChangeController extends Controller
             'updated_at'   => now(),
         ]);
 
-        return response()->json(DB::table('location_change_history')->where('id', $binId)->first());
+        return response()->json(BaseApiController::castRecord(DB::table('location_change_history')->where('id', $binId)->first()));
     }
 }
