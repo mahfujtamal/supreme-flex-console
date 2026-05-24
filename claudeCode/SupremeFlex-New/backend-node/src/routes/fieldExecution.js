@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { pool, toBin } from '../services/db.js';
+import { pool, toBin, newId } from '../services/db.js';
+import { sendSms } from '../services/phpBridge.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -82,6 +83,135 @@ router.post('/scan-to-fulfill', async (req, res) => {
   } finally {
     conn.release();
   }
+});
+
+// ── Accessories CRUD ─────────────────────────────────────────────────────────
+
+// GET /api/field-execution/leads/:id/accessories
+router.get('/leads/:id/accessories', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT BIN_TO_UUID(item_id) AS item_id,
+              BIN_TO_UUID(product_id) AS product_id,
+              quantity, unit_price_bdt, item_fulfillment_status, created_at
+       FROM order_items WHERE order_id = ?`,
+      [toBin(req.params.id)]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[fieldExecution] GET /leads/:id/accessories', err);
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+});
+
+// POST /api/field-execution/leads/:id/accessories
+router.post('/leads/:id/accessories', async (req, res) => {
+  const { product_id, quantity = 1, unit_price_bdt = 0 } = req.body;
+  if (!product_id) return res.status(400).json({ message: 'product_id required' });
+
+  try {
+    const itemId = newId();
+    await pool.query(
+      `INSERT INTO order_items (item_id, order_id, product_id, quantity, unit_price_bdt)
+       VALUES (?, ?, ?, ?, ?)`,
+      [itemId, toBin(req.params.id), toBin(product_id), quantity, unit_price_bdt]
+    );
+    res.status(201).json({ message: 'Accessory added' });
+  } catch (err) {
+    console.error('[fieldExecution] POST /leads/:id/accessories', err);
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/field-execution/leads/:id/accessories/:itemId
+router.patch('/leads/:id/accessories/:itemId', async (req, res) => {
+  const { quantity } = req.body;
+  if (quantity === undefined) return res.status(400).json({ message: 'quantity required' });
+
+  try {
+    await pool.query(
+      `UPDATE order_items SET quantity = ?, updated_at = NOW()
+       WHERE item_id = ? AND order_id = ?`,
+      [quantity, toBin(req.params.itemId), toBin(req.params.id)]
+    );
+    res.json({ message: 'Accessory updated' });
+  } catch (err) {
+    console.error('[fieldExecution] PATCH /leads/:id/accessories/:itemId', err);
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/field-execution/leads/:id/accessories/:itemId
+router.delete('/leads/:id/accessories/:itemId', async (req, res) => {
+  try {
+    await pool.query(
+      `DELETE FROM order_items WHERE item_id = ? AND order_id = ?`,
+      [toBin(req.params.itemId), toBin(req.params.id)]
+    );
+    res.json({ message: 'Accessory removed' });
+  } catch (err) {
+    console.error('[fieldExecution] DELETE /leads/:id/accessories/:itemId', err);
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+});
+
+// ── Setup Complete ────────────────────────────────────────────────────────────
+
+// POST /api/field-execution/leads/:id/setup-complete
+// Body: { customer_id, anchor_id, active_service_id, old_cpe_serial?, new_cpe_serial?,
+//         notes?, customer_msisdn, sms_message }
+router.post('/leads/:id/setup-complete', async (req, res) => {
+  const {
+    customer_id, anchor_id, active_service_id,
+    old_cpe_serial = null, new_cpe_serial = null, notes = null,
+    customer_msisdn, sms_message,
+  } = req.body;
+
+  if (!customer_id || !anchor_id || !active_service_id || !customer_msisdn || !sms_message) {
+    return res.status(400).json({
+      message: 'customer_id, anchor_id, active_service_id, customer_msisdn, sms_message required',
+    });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    await conn.query(
+      `INSERT INTO cpe_order_history
+         (id, order_id, anchor_id, active_service_id, customer_id, old_cpe_serial, new_cpe_serial, status, completed_at, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'COMPLETED', NOW(), ?)`,
+      [
+        newId(),
+        toBin(req.params.id),
+        toBin(anchor_id),
+        toBin(active_service_id),
+        toBin(customer_id),
+        old_cpe_serial,
+        new_cpe_serial,
+        notes,
+      ]
+    );
+
+    await conn.query(
+      `UPDATE orders SET order_status = 'INSTALLED', fulfillment_status = 'COMPLETED', updated_at = NOW()
+       WHERE order_id = ?`,
+      [toBin(req.params.id)]
+    );
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    console.error('[fieldExecution] POST /leads/:id/setup-complete (db)', err);
+    return res.status(err.status ?? 500).json({ message: err.message });
+  } finally {
+    conn.release();
+  }
+
+  // SMS is best-effort — failure does not roll back the order update
+  const smsSent = await sendSms(customer_msisdn, sms_message);
+
+  res.json({ message: 'Setup complete', sms_sent: smsSent });
 });
 
 export default router;
