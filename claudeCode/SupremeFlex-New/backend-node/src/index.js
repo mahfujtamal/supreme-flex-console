@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { broadcastDashboard } from './services/dashboardBroadcast.js';
+import { getRedis } from './services/redis.js';
 import app from './app.js';
 
 if (!process.env.JWT_SECRET) {
@@ -31,6 +32,18 @@ const port = process.env.PORT || 8001;
 const server = createServer(app);
 const wss    = new WebSocketServer({ server, path: '/ws/dashboard' });
 
+function attachWsSession(ws) {
+  console.log('[WS] client connected');
+  broadcastDashboard().then(data => ws.send(JSON.stringify({ type: 'snapshot', data })));
+  const interval = setInterval(async () => {
+    if (ws.readyState === ws.OPEN) {
+      const data = await broadcastDashboard();
+      ws.send(JSON.stringify({ type: 'update', data }));
+    }
+  }, 10_000);
+  ws.on('close', () => clearInterval(interval));
+}
+
 wss.on('connection', (ws, req) => {
   // Authenticate via JWT passed as the first WebSocket subprotocol
   const protocols = (req.headers['sec-websocket-protocol'] ?? '')
@@ -44,27 +57,25 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
+  let payload;
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
+    payload = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
     ws.close(1008, 'Token invalid or expired');
     return;
   }
 
-  console.log('[WS] client connected');
+  if (!payload.jti) {
+    attachWsSession(ws);
+    return;
+  }
 
-  // Send initial snapshot immediately
-  broadcastDashboard().then(data => ws.send(JSON.stringify({ type: 'snapshot', data })));
-
-  // Push updates every 10 seconds
-  const interval = setInterval(async () => {
-    if (ws.readyState === ws.OPEN) {
-      const data = await broadcastDashboard();
-      ws.send(JSON.stringify({ type: 'update', data }));
-    }
-  }, 10_000);
-
-  ws.on('close', () => clearInterval(interval));
+  getRedis().get(`jwt_rev:${payload.jti}`)
+    .then(revoked => {
+      if (revoked) { ws.close(1008, 'Token has been revoked'); return; }
+      attachWsSession(ws);
+    })
+    .catch(() => attachWsSession(ws)); // Redis unavailable — fail open
 });
 
 server.listen(port, () => console.log(`[Node] listening on port ${port}`));
