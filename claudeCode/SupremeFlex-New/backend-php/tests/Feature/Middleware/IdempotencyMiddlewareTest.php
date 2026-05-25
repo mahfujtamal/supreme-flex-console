@@ -11,7 +11,7 @@ class IdempotencyMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Redis::fake();
+        Redis::flushdb();
 
         // Register a test route protected by idempotency middleware
         Route::middleware('idempotency')

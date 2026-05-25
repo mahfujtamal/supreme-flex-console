@@ -14,7 +14,7 @@ class OtpAuthTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Redis::fake();
+        Redis::flushdb();
 
         // Create the tables needed for auth (SQLite in-memory)
         DB::statement('CREATE TABLE IF NOT EXISTS user_account (

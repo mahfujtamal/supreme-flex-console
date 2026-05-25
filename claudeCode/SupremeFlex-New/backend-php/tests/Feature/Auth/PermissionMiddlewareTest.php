@@ -15,7 +15,7 @@ class PermissionMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Redis::fake();
+        Redis::flushdb();
 
         // Register test routes that mirror the real admin-users route
         Route::middleware(['auth.jwt', 'permission:admin'])

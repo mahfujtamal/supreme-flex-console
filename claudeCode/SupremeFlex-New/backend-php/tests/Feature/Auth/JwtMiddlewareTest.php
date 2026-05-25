@@ -12,11 +12,17 @@ class JwtMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Redis::fake();
+        Redis::flushdb();
 
         // Register a protected test route
         Route::middleware('auth.jwt')
              ->get('/test-jwt-protected', fn() => response()->json(['ok' => true]));
+    }
+
+    protected function tearDown(): void
+    {
+        Redis::flushdb();
+        parent::tearDown();
     }
 
     private function makeToken(array $overrides = []): string
