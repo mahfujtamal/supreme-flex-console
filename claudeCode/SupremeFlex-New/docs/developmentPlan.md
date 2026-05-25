@@ -195,14 +195,23 @@ Each step ends with a "How to verify" section. You test → confirm → I procee
 
 ---
 
-## Current Status (2026-05-24)
+## Current Status (2026-05-25)
 
-**Blocks A–H are complete.** P-1.6 (Drupal removal) and P-1.7 (DB topology + Redis + queue) are also done.
+**All blocks complete. Codebase merged to `main`.**
 
-**Remaining work — Block 0 only:**
+| Block | Status |
+|-------|--------|
+| BLOCK 0 — Phase -1 Foundation Hardening | ✅ Complete — DoD verified locally (2026-05-25) |
+| BLOCK A — Bug Fixes | ✅ Complete |
+| BLOCK B — Frontend Foundation | ✅ Complete |
+| BLOCK C — Real UI for Existing Pages | ✅ Complete |
+| BLOCK D — Database Migrations | ✅ Complete (001–012) |
+| BLOCK E — PHP APIs | ✅ Complete |
+| BLOCK F — Node.js APIs | ✅ Complete |
+| BLOCK G — Frontend Pages (GPWEB-3730) | ✅ Complete |
+| BLOCK H — Delivery Routing UI | ✅ Complete |
 
-1. **P-1.1** — UUIDv7/BINARY(16) PK migration (Large) — 48 tables, 9 FK waves, shadow-column approach
-2. **P-1.2** — Auth hardening (Large) — OTP SHA-256+salt, JWT cookies, Redis revocation, RBAC, WS auth
-3. **P-1.5** — Boot-time production guards (Small) — PHP `AppServiceProvider::boot()` + Node startup check
-4. **P-1.3** — Idempotency-Key middleware (Medium) — PHP + Node, Redis-backed, 24h TTL
-5. **P-1.4** — PHP test harness (Medium) — PHPUnit + GitHub Actions CI (Node tests already done in Block F)
+**Next steps (outside codebase):**
+1. IT team staging deployment — wire real API endpoints (replace mocks)
+2. UAT / staging verification
+3. Migration strategy from current platform to this solution

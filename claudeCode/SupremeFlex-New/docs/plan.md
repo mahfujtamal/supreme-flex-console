@@ -1,6 +1,7 @@
 # SupremeFlex — GPWEB-3730 Implementation Plan
 **Feature: Experience 5G WiFi with Real IP Access and Add-Ons**
-**Platform: GPFI — Grameenphone FWA | Version: 2.0 | Date: 2026-05-18**
+**Platform: GPFI — Grameenphone FWA | Version: 2.1 | Date: 2026-05-25**
+**Status: Implementation complete — all phases done, merged to `main`, DoD verified locally.**
 
 ---
 

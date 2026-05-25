@@ -1,5 +1,5 @@
 # SupremeFlex — Consolidated Requirements
-**Platform: GPFI (Grameenphone FWA) | Version: 2.1 | Date: 2026-05-20**
+**Platform: GPFI (Grameenphone FWA) | Version: 2.2 | Date: 2026-05-25**
 
 ---
 

@@ -1,13 +1,11 @@
 # SupremeFlex — Architecture
-**Platform: GPFI (Grameenphone FWA) | Version: 1.0 | Date: 2026-05-20**
+**Platform: GPFI (Grameenphone FWA) | Version: 1.1 | Date: 2026-05-25**
 
 ---
 
 ## 0. Purpose & Scope
 
-This document is the canonical architecture reference for SupremeFlex. It captures **both the current implementation and the post Phase -1 target topology** (see `docs/plan.md` Phase -1 and `docs/developmentPlan.md` BLOCK 0).
-
-Where current ≠ target, both states are shown side-by-side and each gap is tagged with the Phase -1 work item that closes it (e.g., `Phase -1 / P-1.2`).
+This document is the canonical architecture reference for SupremeFlex. It reflects the **implemented and verified state** as of 2026-05-25 — Phase -1 (BLOCK 0) is complete and all P-1.x items are closed (see `docs/phase-1-dod.md`).
 
 **Audience:** Engineers joining the project, infra/SRE reviewers, security reviewers, and Claude Code sessions resolving cross-cutting questions.
 

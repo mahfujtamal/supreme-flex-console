@@ -9,15 +9,11 @@ Internal CRM and operations platform for the GPFI (Grameenphone FWA) product lin
 
 ---
 
-## Workflow Mode
+## Project Status (2026-05-25)
 
-**Planning-only until Mahfuj explicitly says "start coding".** While in this mode, edits are restricted to planning documents — code, migrations, configs, and env files are off-limits.
+**All blocks complete and merged to `main`.** BLOCK 0 (Phase -1 foundation hardening) + Blocks A–H are fully implemented and DoD-verified locally. Next step: IT team staging deployment to wire real API endpoints (replacing mocks), followed by migration strategy from the current platform.
 
-Planning docs = this file, `docs/plan.md`, `docs/developmentPlan.md`, `docs/phase-1-dod.md`, `docs/SupremeFlex_Consolidated_Requirements.md`, `.claude/*.md`.
-
-When a request is ambiguous, ask first: "Are we starting implementation, or still planning?" Default to planning.
-
-Code work resumes only when Mahfuj explicitly says "start coding", "implement X", "build it now", or equivalent.
+Active development focus: admin and customer-facing pages, and ensuring everything works end-to-end once staging is live.
 
 ---
 
@@ -38,11 +34,11 @@ Browser (Next.js :3000)
 
 Reporting tool (Metabase or Superset behind SSO + read replica) deferred to post-launch. Configurable texts live in the `system_config` table. **Drupal removed from architecture** — see Phase -1 / P-1.6.
 
-WebSocket endpoint: `ws://localhost:8001/ws/dashboard` — server-push only, 10-second intervals. No client messages are handled. **Currently unauthenticated**; Phase -1 / P-1.2 requires JWT via subprotocol on upgrade and rejects unauthenticated connections.
+WebSocket endpoint: `ws://localhost:8001/ws/dashboard` — server-push only, 10-second intervals. No client messages are handled. JWT authentication via subprotocol on upgrade; unauthenticated connections are rejected (close code 1008).
 
-**Authentication:** OTP-based login. User enters mobile number → PHP issues 6-digit OTP (logged to Laravel log; dev-mode response moves to a separate `/api/auth/otp/dev-peek` endpoint registered only when `APP_ENV != production` — see Phase -1 / P-1.2) → user submits OTP → JWT issued. No email/password login.
+**Authentication:** OTP-based login. User enters mobile number → PHP issues 6-digit OTP → user submits OTP → JWT issued as httpOnly + Secure + SameSite=Strict cookie (access 15 min, refresh 7 days). Dev-only peek endpoint `/api/auth/otp/dev-peek` registered only when `APP_ENV != production`. No email/password login.
 
-JWT token is **currently** stored in `localStorage` as `sf_token` — **Phase -1 / P-1.2 migrates to httpOnly+Secure+SameSite=Strict cookies** with 15-min access + 7-day refresh tokens, plus a Redis-backed revocation list keyed by `jti`. User object stored as `sf_user`. Both `phpApi` and `nodeApi` instances in `frontend/lib/api.ts` attach the token automatically via interceptors. `AuthContext` (`contexts/AuthContext.tsx`) manages auth state; unauthenticated users are redirected to `/login` by the `(app)` route group layout.
+JWT delivered via `sf_access_token` + `sf_refresh_token` httpOnly cookies. Redis-backed revocation list keyed by `jti`. Both `phpApi` and `nodeApi` instances in `frontend/lib/api.ts` use cookie credentials automatically. `AuthContext` (`contexts/AuthContext.tsx`) manages auth state; unauthenticated users are redirected to `/login` by the `(app)` route group layout.
 
 ---
 
@@ -70,11 +66,17 @@ cd backend-node && npm run dev        # port 8001
 cd frontend && npm run dev            # port 3000
 cd frontend && npm run lint           # ESLint via next lint
 
-# Database (first time only)
+# Database (first time only — run in order)
 mysql -u root -p supremeflex < database/migrations/001_create_all_tables.sql
 mysql -u root -p supremeflex < database/migrations/002_create_triggers.sql
 mysql -u root -p supremeflex < database/migrations/003_create_stored_procedures.sql
 mysql -u root -p supremeflex < database/migrations/004_otp_auth.sql
+mysql -u root -p supremeflex < database/migrations/005_uuid7_binary16_migration.sql
+mysql -u root -p supremeflex < database/migrations/008_remove_hub_manager.sql
+mysql -u root -p supremeflex < database/migrations/009_gpweb3730_new_tables.sql
+mysql -u root -p supremeflex < database/migrations/010_gpweb3730_triggers.sql
+mysql -u root -p supremeflex < database/migrations/011_add_indexes.sql
+mysql -u root -p supremeflex < database/migrations/012_delivery_routing.sql
 ```
 
 **First-time env setup:**
@@ -96,7 +98,7 @@ cd frontend && cp .env.local.example .env.local
 # CUSTOMER_LIFECYCLE_MOCK=true
 ```
 
-Test suite (Phase -1 / P-1.4): PHPUnit (PHP) + Vitest + supertest (Node) + GitHub Actions CI. Until that lands, lint (`npm run lint`) is the only automated check.
+**Test suite:** PHPUnit via `./vendor/bin/phpunit` (43 tests, SQLite in-memory) + Vitest/supertest via `npm test` (55 tests) + GitHub Actions CI on every push to `main`.
 
 ---
 
