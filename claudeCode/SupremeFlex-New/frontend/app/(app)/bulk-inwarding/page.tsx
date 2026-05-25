@@ -1,41 +1,40 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
+import { BulkImportModal } from '@/components/ui/BulkImportModal';
+import { CheckCircle } from 'lucide-react';
+
+const HEADERS = ['serial_number', 'product_id', 'stock_type', 'zone_id'];
 
 export default function BulkInwardingPage() {
-  const [page, setPage]     = useState(0);
-  const [search, setSearch] = useState('');
+  const qc = useQueryClient();
+  const [open, setOpen]           = useState(false);
+  const [lastCount, setLastCount] = useState<number | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['inventory', page, search],
-    queryFn: () =>
-      phpApi.get('/inventory', { params: { page, per_page: 20, search } })
-        .then(r => r.data),
+  const inward = useMutation({
+    mutationFn: (rows: Record<string, string>[]) => phpApi.post('/inventory/bulk-inward', rows),
+    onSuccess: (_, rows) => { setLastCount(rows.length); qc.invalidateQueries({ queryKey: ['inventory'] }); },
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 max-w-lg">
       <h1 className="text-2xl font-bold">Bulk Inwarding</h1>
-      <input
-        className="border rounded px-3 py-1.5 text-sm w-64"
-        placeholder="Search..."
-        value={search}
-        onChange={e => { setSearch(e.target.value); setPage(0); }}
-      />
-      {isLoading ? (
-        <p className="text-muted-foreground text-sm">Loading...</p>
-      ) : (
-        <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+      <p className="text-sm text-muted-foreground">Upload a CSV to inward multiple inventory items at once.</p>
+
+      {lastCount !== null && (
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+          <CheckCircle className="w-4 h-4" />
+          {lastCount} items inwarded successfully.
+        </div>
       )}
-      <div className="flex gap-2">
-        <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded text-sm disabled:opacity-40">Prev</button>
-        <span className="text-sm py-1">Page {page + 1}</span>
-        <button onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded text-sm">Next</button>
-      </div>
+
+      <button onClick={() => setOpen(true)} className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm hover:opacity-90">
+        Upload Inventory CSV
+      </button>
+
+      <BulkImportModal open={open} onOpenChange={setOpen} title="Bulk Inward Inventory" templateHeaders={HEADERS} onImport={rows => inward.mutate(rows)} />
     </div>
   );
 }

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use App\Helpers\Uuid;
 
 class AssetController extends BaseApiController
 {
@@ -29,15 +29,16 @@ class AssetController extends BaseApiController
         ]);
 
         DB::transaction(function () use ($request, $id) {
+            $binId = Uuid::toBin($id);
             DB::table('customer_assets')
-                ->where('asset_id', $id)
+                ->where('asset_id', $binId)
                 ->update(['asset_status' => 'REPLACED', 'updated_at' => now()]);
 
             DB::table('asset_replacement_history')->insert([
-                'replacement_id'   => (string) Str::uuid(),
+                'replacement_id'   => Uuid::make(),
                 'anchor_id'        => $request->anchor_id,
-                'old_asset_id'     => $id,
-                'new_asset_id'     => $request->new_asset_id,
+                'old_asset_id'     => $binId,
+                'new_asset_id'     => Uuid::toBin($request->new_asset_id),
                 'reason'           => $request->reason,
                 'charge_amount_bdt' => $request->charge_amount_bdt,
                 'notes'            => $request->notes,

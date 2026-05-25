@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\MasterData\AreaController;
 use App\Http\Controllers\Api\MasterData\ChannelController;
 use App\Http\Controllers\Api\MasterData\SubChannelController;
 use App\Http\Controllers\Api\MasterData\DistributionHouseController;
-use App\Http\Controllers\Api\MasterData\HubManagerController;
 use App\Http\Controllers\Api\MasterData\FieldAgentController;
 use App\Http\Controllers\Api\MasterData\KamController;
 use App\Http\Controllers\Api\ProductEngine\ProductController;
@@ -30,10 +29,28 @@ use App\Http\Controllers\Api\Governance\AdminRoleController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReferralRewardController;
+use App\Http\Controllers\Api\SystemConfigController;
+use App\Http\Controllers\Api\InternalController;
+use App\Http\Controllers\Api\AddonOrderController;
+use App\Http\Controllers\Api\CpeOrderController;
+use App\Http\Controllers\Api\OttOrderController;
+use App\Http\Controllers\Api\LocationChangeController;
+use App\Http\Controllers\Api\RealIpController;
 
 // ── Public ──────────────────────────────────────────────────
 Route::post('/auth/otp/request', [AuthController::class, 'requestOtp']);
 Route::post('/auth/otp/verify',  [AuthController::class, 'verifyOtp']);
+Route::post('/auth/refresh',     [AuthController::class, 'refresh']);
+
+// Dev-only: peek at the last issued OTP (Redis-cached plaintext, 5 min TTL)
+if (config('app.env') !== 'production') {
+    Route::get('/auth/otp/dev-peek', [AuthController::class, 'devPeekOtp']);
+}
+
+// ── Internal (Node → PHP, key-protected, no JWT) ────────────
+Route::middleware('internal.key')->group(function () {
+    Route::post('/internal/sms', [InternalController::class, 'sendSms']);
+});
 
 // ── Protected (JWT) ─────────────────────────────────────────
 Route::middleware('auth.jwt')->group(function () {
@@ -48,7 +65,6 @@ Route::middleware('auth.jwt')->group(function () {
     Route::apiResource('channels',             ChannelController::class);
     Route::apiResource('sub-channels',         SubChannelController::class);
     Route::apiResource('distribution-houses',  DistributionHouseController::class);
-    Route::apiResource('hub-managers',         HubManagerController::class);
     Route::apiResource('field-agents',         FieldAgentController::class);
     Route::apiResource('kams',                 KamController::class);
 
@@ -79,6 +95,46 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('invoices',             [InvoiceController::class, 'store']);
     Route::get('transaction-ledger',    [InvoiceController::class, 'ledger']);
 
+    // System Config
+    Route::get('system-config',          [SystemConfigController::class, 'index']);
+    Route::get('system-config/{key}',    [SystemConfigController::class, 'show']);
+    Route::put('system-config/{key}',    [SystemConfigController::class, 'upsert']);
+    Route::delete('system-config/{key}', [SystemConfigController::class, 'destroy']);
+
+    // GPWEB-3730 — order histories + location + real IP
+    Route::get('addon-orders',        [AddonOrderController::class, 'index']);
+    Route::get('addon-orders/{id}',   [AddonOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('addon-orders',       [AddonOrderController::class, 'store']);
+        Route::patch('addon-orders/{id}', [AddonOrderController::class, 'update']);
+    });
+
+    Route::get('cpe-orders',          [CpeOrderController::class, 'index']);
+    Route::get('cpe-orders/{id}',     [CpeOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('cpe-orders',         [CpeOrderController::class, 'store']);
+        Route::patch('cpe-orders/{id}',   [CpeOrderController::class, 'update']);
+    });
+
+    Route::get('ott-orders',          [OttOrderController::class, 'index']);
+    Route::get('ott-orders/{id}',     [OttOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('ott-orders',         [OttOrderController::class, 'store']);
+        Route::patch('ott-orders/{id}',   [OttOrderController::class, 'update']);
+    });
+
+    Route::get('location-changes',        [LocationChangeController::class, 'index']);
+    Route::get('location-changes/{id}',   [LocationChangeController::class, 'show']);
+    Route::post('location-changes',       [LocationChangeController::class, 'store']);
+    Route::patch('location-changes/{id}', [LocationChangeController::class, 'update']);
+
+    Route::get('real-ip',             [RealIpController::class, 'index']);
+    Route::get('real-ip/{id}',        [RealIpController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('real-ip',            [RealIpController::class, 'store']);
+        Route::delete('real-ip/{id}',     [RealIpController::class, 'destroy']);
+    });
+
     // Asset Lifecycle
     Route::apiResource('assets',                AssetController::class);
     Route::post('assets/{id}/replace',          [AssetController::class, 'replace']);
@@ -88,13 +144,17 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('inventory',                    [InventoryController::class, 'store']);
     Route::post('inventory/bulk-inward',        [InventoryController::class, 'bulkInward']);
 
-    // Stock Transfers
-    Route::apiResource('stock-transfers',           StockTransferController::class);
-    Route::patch('stock-transfers/{id}/respond',    [StockTransferController::class, 'respond']);
+    // Stock Transfers — group 6: idempotency required on all mutating routes
+    Route::middleware('idempotency')->group(function () {
+        Route::apiResource('stock-transfers',           StockTransferController::class);
+        Route::patch('stock-transfers/{id}/respond',    [StockTransferController::class, 'respond']);
+    });
 
-    // Governance
-    Route::apiResource('admin-users',   AdminUserController::class);
-    Route::apiResource('admin-roles',   AdminRoleController::class);
+    // Governance (admin role required)
+    Route::middleware('permission:admin')->group(function () {
+        Route::apiResource('admin-users', AdminUserController::class);
+        Route::apiResource('admin-roles', AdminRoleController::class);
+    });
 
     // Audit Logs
     Route::get('audit-logs',        [AuditLogController::class, 'index']);
@@ -106,20 +166,23 @@ Route::middleware('auth.jwt')->group(function () {
     Route::get('dashboard/hub-manager',     [DashboardController::class, 'hubManager']);
     Route::get('dashboard/field-execution', [DashboardController::class, 'fieldExecution']);
 
-    // Referral RPCs
-    Route::post('referrals/check-reward',   [ReferralRewardController::class, 'checkReward']);
-    Route::post('referrals/force-approve',  [ReferralRewardController::class, 'forceApprove']);
+    // Referral RPCs — group 7: referral-programs / referral_redemptions
+    Route::middleware('idempotency')->group(function () {
+        Route::post('referrals/check-reward',   [ReferralRewardController::class, 'checkReward']);
+        Route::post('referrals/force-approve',  [ReferralRewardController::class, 'forceApprove']);
+    });
 
     // Bulk Operations — POST /{resource}/bulk · PATCH /{resource}/bulk · DELETE /{resource}/bulk (dev-only)
     // Excluded: customers/invoices (B2C flows), inventory (has bulkInward), stock-transfers (custom flow), audit-logs, dashboards
-    foreach ([
+    // Groups 8 & 9: bulk-insert (POST /bulk) and bulk-update (PATCH /bulk) require idempotency.
+    // Bulk-delete is dev-only and excluded from idempotency enforcement.
+    $bulkResources = [
         'network-zones'       => NetworkZoneController::class,
         'districts'           => DistrictController::class,
         'areas'               => AreaController::class,
         'channels'            => ChannelController::class,
         'sub-channels'        => SubChannelController::class,
         'distribution-houses' => DistributionHouseController::class,
-        'hub-managers'        => HubManagerController::class,
         'field-agents'        => FieldAgentController::class,
         'kams'                => KamController::class,
         'products'            => ProductController::class,
@@ -134,9 +197,26 @@ Route::middleware('auth.jwt')->group(function () {
         'assets'              => AssetController::class,
         'admin-users'         => AdminUserController::class,
         'admin-roles'         => AdminRoleController::class,
-    ] as $resource => $controller) {
-        Route::post("{$resource}/bulk",   [$controller, 'bulkStore']);
-        Route::patch("{$resource}/bulk",  [$controller, 'bulkUpdate']);
-        Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+    ];
+
+    // Group 8: Bulk-insert routes — POST /{resource}/bulk
+    Route::middleware('idempotency')->group(function () use ($bulkResources) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::post("{$resource}/bulk", [$controller, 'bulkStore']);
+        }
+    });
+
+    // Group 9: Bulk-update routes — PATCH /{resource}/bulk
+    Route::middleware('idempotency')->group(function () use ($bulkResources) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::patch("{$resource}/bulk", [$controller, 'bulkUpdate']);
+        }
+    });
+
+    // Bulk-delete — dev-only, no idempotency (destructive ops are not replayed)
+    if (!app()->environment('production')) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+        }
     }
 });

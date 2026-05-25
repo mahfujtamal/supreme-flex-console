@@ -113,17 +113,19 @@ All defaults `true`. Real stubs throw `RuntimeException`. `AppServiceProvider` b
 ```
 ✅ Done   (OTP Auth — migration 004, login page, AuthContext, auth guard)
     ↓
-Phase -1 (Foundation Hardening — PKs UUIDv7/BINARY(16), auth hardening,
-          idempotency, tests, prod guards, Drupal kill, DB topology+Redis+queue)
+✅ Done   Phase 0  (Groundwork — mock services, SMS, system_config, internal bridge)
     ↓
-Phase 0  (Groundwork — mock services, SMS, system_config, internal bridge)
+✅ Done   Phase 1  (DB Migrations D0–D4 → files 005–010)
     ↓
-Phase 1  (DB Migrations D0–D4 → now files 005–009)
+✅ Done   Phase 2  (PHP Backend — Block E)  ←parallel→  Phase 3  (Node.js Backend — Block F)
     ↓
-Phase 2  (PHP Backend)  ←parallel→  Phase 3  (Node.js Backend)
+✅ Done   Phase 4  (Frontend — Blocks B, C, G, H)
     ↓
-Phase 4  (Frontend)
+⏳ TODO   Phase -1 (Foundation Hardening — P-1.1 through P-1.5 still pending;
+          P-1.6 Drupal removal ✅; P-1.7 DB topology + Redis + queue ✅)
 ```
+
+**As of 2026-05-24:** Phases 0–4 are complete. Remaining: P-1.1 (PK migration), P-1.2 (auth hardening), P-1.3 (idempotency), P-1.4 (PHP tests), P-1.5 (boot guards).
 
 ---
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { phpApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,8 +12,9 @@ export default function LoginPage() {
   const [contactNumber, setContactNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { login } = useAuth();
+
+  const fullNumber = contactNumber.trim() ? `+880${contactNumber.trim()}` : '';
 
   async function handleRequestOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -22,13 +22,8 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await phpApi.post('/auth/otp/request', { contact_number: contactNumber.trim() });
-      // In local dev the API returns the OTP — surface it for convenience
-      if (res.data.otp) {
-        toast.info(`Dev OTP: ${res.data.otp}`);
-      } else {
-        toast.success('OTP sent to your number');
-      }
+      await phpApi.post('/auth/otp/request', { contact_number: fullNumber });
+      toast.success('OTP sent to your number');
       setStep('otp');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -45,11 +40,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await phpApi.post('/auth/otp/verify', {
-        contact_number: contactNumber.trim(),
+        contact_number: fullNumber,
         code: otp,
       });
-      login(res.data.token, res.data.user);
-      router.replace('/');
+      login(res.data.access_token, res.data.user);
+      window.location.replace('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg ?? 'Invalid or expired OTP');
@@ -75,17 +70,20 @@ export default function LoginPage() {
                 <label className="text-sm font-medium block mb-1.5" htmlFor="contact">
                   Mobile number
                 </label>
-                <input
-                  id="contact"
-                  type="tel"
-                  autoComplete="tel"
-                  autoFocus
-                  value={contactNumber}
-                  onChange={e => setContactNumber(e.target.value)}
-                  placeholder="01xxxxxxxxx"
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  required
-                />
+                <div className="flex items-center border rounded-md focus-within:ring-2 focus-within:ring-primary/50 bg-background">
+                  <span className="px-3 py-2 text-sm text-muted-foreground border-r select-none">+880</span>
+                  <input
+                    id="contact"
+                    type="tel"
+                    autoComplete="tel"
+                    autoFocus
+                    value={contactNumber}
+                    onChange={e => setContactNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1XXXXXXXXX"
+                    className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none"
+                    required
+                  />
+                </div>
               </div>
               <button
                 type="submit"
@@ -99,7 +97,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  OTP sent to <span className="font-medium text-foreground">{contactNumber}</span>
+                  OTP sent to <span className="font-medium text-foreground">{fullNumber}</span>
                 </p>
                 <label className="text-sm font-medium block mb-1.5" htmlFor="otp">
                   Enter 6-digit OTP

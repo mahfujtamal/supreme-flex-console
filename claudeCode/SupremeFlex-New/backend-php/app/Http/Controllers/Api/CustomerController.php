@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\Uuid;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,6 @@ class CustomerController extends Controller
         }
 
         if ($search) {
-            // Check gpfi_msisdn match
             $gpfiIds = DB::table('active_services')
                 ->where('gpfi_msisdn', 'LIKE', "%{$search}%")
                 ->pluck('customer_id')
@@ -42,32 +42,53 @@ class CustomerController extends Controller
         }
 
         $total   = $query->count();
-        $records = $query->offset($page * $perPage)->limit($perPage)->get();
+        $records = $query->offset($page * $perPage)->limit($perPage)->get()
+            ->map(fn($r) => BaseApiController::castRecord($r))->values();
 
         return response()->json(['items' => $records, 'total' => $total]);
     }
 
     public function show(string $id)
     {
-        $customer = DB::table('customers')->where('customer_id', $id)->first();
+        $customer = DB::table('customers')->where('customer_id', Uuid::toBin($id))->first();
         if (!$customer) return response()->json(['message' => 'Not found'], 404);
-        return response()->json($customer);
+        return response()->json(BaseApiController::castRecord($customer));
     }
 
     public function view360(string $id)
     {
-        $customer = DB::table('customers')->where('customer_id', $id)->first();
+        $binId = Uuid::toBin($id);
+
+        $customer = DB::table('customers')->where('customer_id', $binId)->first();
         if (!$customer) return response()->json(['message' => 'Not found'], 404);
 
-        $services = DB::table('active_services')->where('customer_id', $id)->get();
-        $anchors  = DB::table('anchors')->where('customer_id', $id)->orderByDesc('created_at')->get();
-        $assets   = DB::table('customer_assets as ca')
+        $cast = fn($r) => BaseApiController::castRecord($r);
+
+        $services        = DB::table('active_services')->where('customer_id', $binId)->get()->map($cast)->values();
+        $anchors         = DB::table('anchors')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $assets          = DB::table('customer_assets as ca')
             ->join('products as p', 'p.product_id', '=', 'ca.product_id')
             ->select('ca.*', 'p.product_name', 'p.warranty_value', 'p.warranty_unit')
-            ->where('ca.customer_id', $id)
-            ->get();
-        $invoices = DB::table('onetime_invoices')->where('customer_id', $id)->orderByDesc('created_at')->get();
+            ->where('ca.customer_id', $binId)
+            ->get()->map($cast)->values();
+        $invoices        = DB::table('onetime_invoices')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $addonOrders     = DB::table('addon_order_history')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $cpeOrders       = DB::table('cpe_order_history')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $ottOrders       = DB::table('ott_order_history')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $locationChanges = DB::table('location_change_history')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
+        $realIps         = DB::table('real_ip_assignments')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
 
-        return response()->json(compact('customer', 'services', 'anchors', 'assets', 'invoices'));
+        return response()->json([
+            'customer'        => $cast($customer),
+            'services'        => $services,
+            'anchors'         => $anchors,
+            'assets'          => $assets,
+            'invoices'        => $invoices,
+            'addonOrders'     => $addonOrders,
+            'cpeOrders'       => $cpeOrders,
+            'ottOrders'       => $ottOrders,
+            'locationChanges' => $locationChanges,
+            'realIps'         => $realIps,
+        ]);
     }
 }

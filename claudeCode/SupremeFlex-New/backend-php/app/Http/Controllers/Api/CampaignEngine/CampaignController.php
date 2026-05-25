@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\CampaignEngine;
 use App\Http\Controllers\Api\BaseApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use App\Helpers\Uuid;
 
 class CampaignController extends BaseApiController
 {
@@ -22,10 +22,10 @@ class CampaignController extends BaseApiController
     /** POST /api/campaigns/{id}/clone — deep clone with related rules */
     public function clone(string $id)
     {
-        $campaign = DB::table('campaign_master')->where('campaign_id', $id)->first();
+        $campaign = DB::table('campaign_master')->where('campaign_id', Uuid::toBin($id))->first();
         if (!$campaign) return response()->json(['message' => 'Not found'], 404);
 
-        $newId = (string) Str::uuid();
+        $newId = Uuid::make();
         $now   = now();
 
         DB::transaction(function () use ($campaign, $newId, $now) {
@@ -42,7 +42,7 @@ class CampaignController extends BaseApiController
             $rules = DB::table('campaign_targeting_rules')->where('campaign_id', $campaign->campaign_id)->get();
             foreach ($rules as $rule) {
                 $r = (array) $rule;
-                $r['rule_id']    = (string) Str::uuid();
+                $r['rule_id']    = Uuid::make();
                 $r['campaign_id'] = $newId;
                 $r['created_at'] = $now;
                 $r['updated_at'] = $now;
@@ -53,7 +53,7 @@ class CampaignController extends BaseApiController
             $productRules = DB::table('campaign_product_rules')->where('campaign_id', $campaign->campaign_id)->get();
             foreach ($productRules as $pr) {
                 $oldRuleId  = $pr->rule_id;
-                $newRuleId  = (string) Str::uuid();
+                $newRuleId  = Uuid::make();
                 $prd = (array) $pr;
                 $prd['rule_id']    = $newRuleId;
                 $prd['campaign_id'] = $newId;
@@ -64,7 +64,7 @@ class CampaignController extends BaseApiController
                 $mappings = DB::table('campaign_discount_mappings')->where('rule_id', $oldRuleId)->get();
                 foreach ($mappings as $m) {
                     $md = (array) $m;
-                    $md['mapping_id'] = (string) Str::uuid();
+                    $md['mapping_id'] = Uuid::make();
                     $md['rule_id']    = $newRuleId;
                     $md['created_at'] = $now;
                     DB::table('campaign_discount_mappings')->insert($md);
@@ -72,6 +72,6 @@ class CampaignController extends BaseApiController
             }
         });
 
-        return response()->json(DB::table('campaign_master')->where('campaign_id', $newId)->first(), 201);
+        return response()->json($this->castRecord(DB::table('campaign_master')->where('campaign_id', $newId)->first()), 201);
     }
 }

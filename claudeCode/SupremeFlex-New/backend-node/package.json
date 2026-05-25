@@ -4,15 +4,23 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.0.0",
+    "supertest": "^7.0.0",
+    "vitest": "^2.0.0"
   },
   "dependencies": {
-    "express": "^4.21.0",
     "cors": "^2.8.5",
-    "mysql2": "^3.11.0",
-    "jsonwebtoken": "^9.0.2",
-    "ws": "^8.18.0",
     "dotenv": "^16.4.5",
-    "uuid": "^10.0.0"
+    "express": "^4.21.0",
+    "ioredis": "^5.10.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "uuidv7": "^0.3.7",
+    "ws": "^8.18.0"
   }
 }

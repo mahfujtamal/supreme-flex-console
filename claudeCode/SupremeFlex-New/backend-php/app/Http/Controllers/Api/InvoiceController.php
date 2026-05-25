@@ -12,9 +12,10 @@ class InvoiceController extends BaseApiController
     protected string $primaryKey   = 'invoice_id';
     protected string $searchColumn = 'customer_id';
     protected array  $fillable     = [
-        'customer_id', 'parent_summary_invoice_id', 'payment_status',
-        'trigger_type', 'charged_amount_bdt', 'refund_amount_bdt',
-        'refund_reason', 'refunded_at',
+        'customer_id', 'parent_summary_invoice_id', 'is_summary',
+        'anchor_id', 'active_service_id',
+        'payment_status', 'trigger_type', 'charged_amount_bdt',
+        'refund_amount_bdt', 'refund_reason', 'refunded_at',
     ];
 
     public function ledger(Request $request)

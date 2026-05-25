@@ -11,7 +11,7 @@ SET NAMES utf8mb4;
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `role_master` (
-  `role_id`          CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `role_id`          BINARY(16)   NOT NULL,
   `role_name`        VARCHAR(100) NOT NULL,
   `role_description` TEXT,
   `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `role_master` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `permission_master` (
-  `permission_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `permission_id`   BINARY(16)   NOT NULL,
   `permission_name` VARCHAR(150) NOT NULL,
   `module`          VARCHAR(100),
   `description`     TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `permission_master` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `user_account` (
-  `id`            CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `id`            BINARY(16)   NOT NULL,
   `user_name`     VARCHAR(150) NOT NULL,
   `email`         VARCHAR(255) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS `user_account` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `user_role` (
-  `user_id`    CHAR(36) NOT NULL,
-  `role_id`    CHAR(36) NOT NULL,
+  `user_id`    BINARY(16) NOT NULL,
+  `role_id`    BINARY(16) NOT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`user_id`, `role_id`),
   CONSTRAINT `fk_user_role_user` FOREIGN KEY (`user_id`) REFERENCES `user_account` (`id`) ON DELETE CASCADE,
@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS `user_role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `role_permission` (
-  `role_id`       CHAR(36) NOT NULL,
-  `permission_id` CHAR(36) NOT NULL,
+  `role_id`       BINARY(16) NOT NULL,
+  `permission_id` BINARY(16) NOT NULL,
   `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`role_id`, `permission_id`),
   CONSTRAINT `fk_rp_role` FOREIGN KEY (`role_id`) REFERENCES `role_master` (`role_id`) ON DELETE CASCADE,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `role_permission` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `admin_roles` (
-  `role_id`     CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `role_id`     BINARY(16)     NOT NULL,
   `role_name`   VARCHAR(100) NOT NULL,
   `permissions` JSON,
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -71,10 +71,10 @@ CREATE TABLE IF NOT EXISTS `admin_roles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `admin_users` (
-  `admin_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `admin_id`   BINARY(16)     NOT NULL,
   `email`      VARCHAR(255) NOT NULL,
   `full_name`  VARCHAR(200),
-  `role_id`    CHAR(36),
+  `role_id`    BINARY(16),
   `is_active`  TINYINT(1)   NOT NULL DEFAULT 1,
   `last_login` DATETIME,
   `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS `admin_users` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `circles` (
-  `circle_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `circle_id`   BINARY(16)     NOT NULL,
   `circle_name` VARCHAR(150) NOT NULL,
   `status`      TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -98,8 +98,8 @@ CREATE TABLE IF NOT EXISTS `circles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `regions` (
-  `region_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `circle_id`   CHAR(36)     NOT NULL,
+  `region_id`   BINARY(16)     NOT NULL,
+  `circle_id`   BINARY(16)     NOT NULL,
   `region_name` VARCHAR(150) NOT NULL,
   `status`      TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS `regions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `clusters` (
-  `cluster_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `region_id`    CHAR(36)     NOT NULL,
+  `cluster_id`   BINARY(16)     NOT NULL,
+  `region_id`    BINARY(16)     NOT NULL,
   `cluster_name` VARCHAR(150) NOT NULL,
   `status`       TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -120,8 +120,8 @@ CREATE TABLE IF NOT EXISTS `clusters` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `territories` (
-  `territory_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `cluster_id`     CHAR(36)     NOT NULL,
+  `territory_id`   BINARY(16)     NOT NULL,
+  `cluster_id`     BINARY(16)     NOT NULL,
   `territory_name` VARCHAR(150) NOT NULL,
   `status`         TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS `territories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `network_zones` (
-  `network_zone_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `network_zone_id`   BINARY(16)     NOT NULL,
   `network_zone_name` VARCHAR(150) NOT NULL,
   `4g_rsrp`           DECIMAL(10,2),
   `4g_rsrq`           DECIMAL(10,2),
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS `network_zones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `districts` (
-  `district_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `district_id`   BINARY(16)     NOT NULL,
   `district_name` VARCHAR(150) NOT NULL,
   `status`        TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -155,10 +155,10 @@ CREATE TABLE IF NOT EXISTS `districts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `areas` (
-  `area_id`                CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `area_id`                BINARY(16)     NOT NULL,
   `area_name`              VARCHAR(150) NOT NULL,
-  `district_id`            CHAR(36)     NOT NULL,
-  `network_zone_id`        CHAR(36),
+  `district_id`            BINARY(16)     NOT NULL,
+  `network_zone_id`        BINARY(16),
   `is_4g_area`             TINYINT(1)   NOT NULL DEFAULT 0,
   `is_5g_area`             TINYINT(1)   NOT NULL DEFAULT 0,
   `last_assigned_dh_index` INT          NOT NULL DEFAULT 0,
@@ -174,19 +174,20 @@ CREATE TABLE IF NOT EXISTS `areas` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `channels` (
-  `channel_id`        CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `channel_name`      VARCHAR(150) NOT NULL,
-  `is_assisted`       TINYINT(1)   NOT NULL DEFAULT 0,
-  `is_self_delivered` TINYINT(1)   NOT NULL DEFAULT 0,
-  `status`            TINYINT(1)   NOT NULL DEFAULT 1,
+  `channel_id`             BINARY(16)     NOT NULL,
+  `channel_name`           VARCHAR(150) NOT NULL,
+  `is_assisted`            TINYINT(1)   NOT NULL DEFAULT 0,
+  `is_self_delivered`      TINYINT(1)   NOT NULL DEFAULT 0,
+  `default_delivery_mode`  ENUM('DH','OWN') NOT NULL DEFAULT 'DH',
+  `status`                 TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`channel_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `sub_channels` (
-  `sub_channel_id`   CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `channel_id`       CHAR(36)     NOT NULL,
+  `sub_channel_id`   BINARY(16)     NOT NULL,
+  `channel_id`       BINARY(16)     NOT NULL,
   `sub_channel_name` VARCHAR(150) NOT NULL,
   `delivery_ownership` ENUM('FOLLOW_CHANNEL','SELF_DELIVERY','DH_DELIVERY') NOT NULL DEFAULT 'FOLLOW_CHANNEL',
   `is_direct_delivery` TINYINT(1) NOT NULL DEFAULT 0,
@@ -198,11 +199,11 @@ CREATE TABLE IF NOT EXISTS `sub_channels` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `sub_channel_users` (
-  `id`             CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `id`             BINARY(16)     NOT NULL,
   `user_name`      VARCHAR(150) NOT NULL,
   `employee_id`    VARCHAR(100),
   `msisdn`         VARCHAR(20),
-  `sub_channel_id` CHAR(36)     NOT NULL,
+  `sub_channel_id` BINARY(16)     NOT NULL,
   `role`           VARCHAR(100),
   `status`         TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -212,9 +213,9 @@ CREATE TABLE IF NOT EXISTS `sub_channel_users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `distribution_houses` (
-  `dh_id`            CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `dh_id`            BINARY(16)     NOT NULL,
   `dh_code`          VARCHAR(50)  NOT NULL,
-  `territory_id`     CHAR(36),
+  `territory_id`     BINARY(16),
   `name`             VARCHAR(200) NOT NULL,
   `phone_number`     VARCHAR(20),
   `last_assigned_at` DATETIME,
@@ -227,8 +228,8 @@ CREATE TABLE IF NOT EXISTS `distribution_houses` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `dh_area_assignments` (
-  `dh_id`      CHAR(36) NOT NULL,
-  `area_id`    CHAR(36) NOT NULL,
+  `dh_id`      BINARY(16) NOT NULL,
+  `area_id`    BINARY(16) NOT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`dh_id`, `area_id`),
   CONSTRAINT `fk_daa_dh`   FOREIGN KEY (`dh_id`)   REFERENCES `distribution_houses` (`dh_id`) ON DELETE CASCADE,
@@ -240,13 +241,13 @@ CREATE TABLE IF NOT EXISTS `dh_area_assignments` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `hub_managers` (
-  `hub_manager_id` CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `hub_manager_id` BINARY(16)     NOT NULL,
   `name`           VARCHAR(200) NOT NULL,
   `email`          VARCHAR(255),
   `msisdn`         VARCHAR(20),
-  `dh_id`          CHAR(36),
-  `channel_id`     CHAR(36),
-  `sub_channel_id` CHAR(36),
+  `dh_id`          BINARY(16),
+  `channel_id`     BINARY(16),
+  `sub_channel_id` BINARY(16),
   `status`         TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -257,10 +258,10 @@ CREATE TABLE IF NOT EXISTS `hub_managers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `field_agents` (
-  `agent_id`       CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `agent_id`       BINARY(16)     NOT NULL,
   `agent_name`     VARCHAR(200) NOT NULL,
-  `dh_id`          CHAR(36),
-  `hub_manager_id` CHAR(36),
+  `dh_id`          BINARY(16),
+  `hub_manager_id` BINARY(16),
   `msisdn`         VARCHAR(20),
   `status`         ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
   `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -271,10 +272,10 @@ CREATE TABLE IF NOT EXISTS `field_agents` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `kams` (
-  `kam_id`          CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `kam_id`          BINARY(16)     NOT NULL,
   `name`            VARCHAR(200) NOT NULL,
   `msisdn`          VARCHAR(20),
-  `hub_manager_id`  CHAR(36),
+  `hub_manager_id`  BINARY(16),
   `assigned_segments` JSON,
   `status`          TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -288,7 +289,7 @@ CREATE TABLE IF NOT EXISTS `kams` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `products` (
-  `product_id`        CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `product_id`        BINARY(16)     NOT NULL,
   `product_name`      VARCHAR(200) NOT NULL,
   `product_category`  ENUM('WIFI_PLAN','CPE','SIM','ADDON') NOT NULL,
   `addon_type`        ENUM('PHYSICAL','DIGITAL'),
@@ -305,8 +306,8 @@ CREATE TABLE IF NOT EXISTS `products` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `product_price_versions` (
-  `price_version_id` CHAR(36)       NOT NULL DEFAULT (UUID()),
-  `product_id`       CHAR(36)       NOT NULL,
+  `price_version_id` BINARY(16)       NOT NULL,
+  `product_id`       BINARY(16)       NOT NULL,
   `base_price_bdt`   DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
   `start_date`       DATETIME       NOT NULL,
   `end_date`         DATETIME,
@@ -318,8 +319,8 @@ CREATE TABLE IF NOT EXISTS `product_price_versions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `price_components` (
-  `component_id`    CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `price_version_id` CHAR(36)     NOT NULL,
+  `component_id`    BINARY(16)      NOT NULL,
+  `price_version_id` BINARY(16)     NOT NULL,
   `component_name`  VARCHAR(100)  NOT NULL,
   `component_type`  VARCHAR(50)   NOT NULL,
   `amount_bdt`      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -331,9 +332,9 @@ CREATE TABLE IF NOT EXISTS `price_components` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `physical_addon_compatibility` (
-  `compatibility_id` CHAR(36) NOT NULL DEFAULT (UUID()),
-  `addon_product_id` CHAR(36) NOT NULL,
-  `cpe_product_id`   CHAR(36) NOT NULL,
+  `compatibility_id` BINARY(16) NOT NULL,
+  `addon_product_id` BINARY(16) NOT NULL,
+  `cpe_product_id`   BINARY(16) NOT NULL,
   `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`compatibility_id`),
   UNIQUE KEY `uq_addon_cpe` (`addon_product_id`, `cpe_product_id`),
@@ -346,7 +347,7 @@ CREATE TABLE IF NOT EXISTS `physical_addon_compatibility` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `campaign_master` (
-  `campaign_id`                    CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `campaign_id`                    BINARY(16)     NOT NULL,
   `campaign_name`                  VARCHAR(200) NOT NULL,
   `description`                    TEXT,
   `start_date`                     DATETIME,
@@ -364,13 +365,13 @@ CREATE TABLE IF NOT EXISTS `campaign_master` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `campaign_targeting_rules` (
-  `rule_id`              CHAR(36) NOT NULL DEFAULT (UUID()),
-  `campaign_id`          CHAR(36) NOT NULL,
-  `network_zone_id`      CHAR(36),
-  `district_id`          CHAR(36),
-  `area_id`              CHAR(36),
-  `channel_id`           CHAR(36),
-  `sub_channel_id`       CHAR(36),
+  `rule_id`              BINARY(16) NOT NULL,
+  `campaign_id`          BINARY(16) NOT NULL,
+  `network_zone_id`      BINARY(16),
+  `district_id`          BINARY(16),
+  `area_id`              BINARY(16),
+  `channel_id`           BINARY(16),
+  `sub_channel_id`       BINARY(16),
   `network_type`         ENUM('4G','5G','ANY') NOT NULL DEFAULT 'ANY',
   `min_network_age_days` INT,
   `max_network_age_days` INT,
@@ -387,9 +388,9 @@ CREATE TABLE IF NOT EXISTS `campaign_targeting_rules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `campaign_product_rules` (
-  `rule_id`                CHAR(36) NOT NULL DEFAULT (UUID()),
-  `campaign_id`            CHAR(36) NOT NULL,
-  `product_id`             CHAR(36) NOT NULL,
+  `rule_id`                BINARY(16) NOT NULL,
+  `campaign_id`            BINARY(16) NOT NULL,
+  `product_id`             BINARY(16) NOT NULL,
   `rule_type`              ENUM('EXCLUSIVE','UNAVAILABLE','DISCOUNT') NOT NULL DEFAULT 'DISCOUNT',
   `discount_type`          ENUM('FLAT','PERCENT'),
   `discount_value`         DECIMAL(12,2),
@@ -402,8 +403,8 @@ CREATE TABLE IF NOT EXISTS `campaign_product_rules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `campaign_discount_mappings` (
-  `mapping_id`         CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `rule_id`            CHAR(36)      NOT NULL,
+  `mapping_id`         BINARY(16)      NOT NULL,
+  `rule_id`            BINARY(16)      NOT NULL,
   `component_name`     VARCHAR(100)  NOT NULL,
   `discount_amount_bdt` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `created_at`         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -412,8 +413,8 @@ CREATE TABLE IF NOT EXISTS `campaign_discount_mappings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `coupons` (
-  `coupon_id`              CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `campaign_id`            CHAR(36)     NOT NULL,
+  `coupon_id`              BINARY(16)     NOT NULL,
+  `campaign_id`            BINARY(16)     NOT NULL,
   `coupon_code`            VARCHAR(100) NOT NULL,
   `global_usage_limit`     INT,
   `current_global_uses`    INT          NOT NULL DEFAULT 0,
@@ -427,14 +428,14 @@ CREATE TABLE IF NOT EXISTS `coupons` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `referral_programs` (
-  `program_id`                  CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `campaign_id`                 CHAR(36)     NOT NULL,
+  `program_id`                  BINARY(16)     NOT NULL,
+  `campaign_id`                 BINARY(16)     NOT NULL,
   `start_date`                  DATETIME,
   `end_date`                    DATETIME,
   `max_referrals_per_customer`  INT,
   `is_locked`                   TINYINT(1)   NOT NULL DEFAULT 0,
   `reward_on_signup`            TINYINT(1)   NOT NULL DEFAULT 0,
-  `referrer_product_id`         CHAR(36),
+  `referrer_product_id`         BINARY(16),
   `referrer_reward_type`        VARCHAR(50),
   `referrer_reward_value`       DECIMAL(12,2),
   `referrer_reward_unit`        VARCHAR(50),
@@ -453,7 +454,7 @@ CREATE TABLE IF NOT EXISTS `referral_programs` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `customers` (
-  `customer_id`            CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `customer_id`            BINARY(16)     NOT NULL,
   `customer_type`          ENUM('B2C','B2B') NOT NULL DEFAULT 'B2C',
   `full_name`              VARCHAR(200) NOT NULL,
   `primary_contact_number` VARCHAR(20),
@@ -465,10 +466,10 @@ CREATE TABLE IF NOT EXISTS `customers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `referral_redemptions` (
-  `redemption_id`      CHAR(36) NOT NULL DEFAULT (UUID()),
-  `program_id`         CHAR(36) NOT NULL,
-  `referrer_customer_id` CHAR(36) NOT NULL,
-  `referee_customer_id`  CHAR(36) NOT NULL,
+  `redemption_id`      BINARY(16) NOT NULL,
+  `program_id`         BINARY(16) NOT NULL,
+  `referrer_customer_id` BINARY(16) NOT NULL,
+  `referee_customer_id`  BINARY(16) NOT NULL,
   `referral_code`      VARCHAR(100) NOT NULL,
   `applied_rewards`    JSON,
   `created_at`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -479,10 +480,10 @@ CREATE TABLE IF NOT EXISTS `referral_redemptions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `referral_reward_ledger` (
-  `ledger_id`              CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `program_id`             CHAR(36)     NOT NULL,
-  `referrer_customer_id`   CHAR(36)     NOT NULL,
-  `referee_customer_id`    CHAR(36)     NOT NULL,
+  `ledger_id`              BINARY(16)     NOT NULL,
+  `program_id`             BINARY(16)     NOT NULL,
+  `referrer_customer_id`   BINARY(16)     NOT NULL,
+  `referee_customer_id`    BINARY(16)     NOT NULL,
   `referral_code`          VARCHAR(100) NOT NULL,
   `reward_status`          ENUM('PENDING','AWAITING_ACTIVATION','AWAITING_PAYMENT','EARNED','APPLIED','FORCE_APPROVED') NOT NULL DEFAULT 'PENDING',
   `reward_rule_snapshot`   JSON,
@@ -506,9 +507,9 @@ CREATE TABLE IF NOT EXISTS `referral_reward_ledger` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `anchors` (
-  `anchor_id`    CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `customer_id`  CHAR(36)     NOT NULL,
-  `order_id`     CHAR(36),
+  `anchor_id`    BINARY(16)     NOT NULL,
+  `customer_id`  BINARY(16)     NOT NULL,
+  `order_id`     BINARY(16) NULL, -- no FK: circular dep with orders; enforced at application layer
   `test_status`  ENUM('PENDING','SUCCESS','FAIL') NOT NULL DEFAULT 'PENDING',
   `location_tac` VARCHAR(50),
   `network_zone` VARCHAR(150),
@@ -522,11 +523,11 @@ CREATE TABLE IF NOT EXISTS `anchors` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `active_services` (
-  `service_id`           CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `customer_id`          CHAR(36)     NOT NULL,
-  `product_id`           CHAR(36)     NOT NULL,
-  `anchor_id`            CHAR(36),
-  `current_cpe_inventory_id` CHAR(36),
+  `service_id`           BINARY(16)     NOT NULL,
+  `customer_id`          BINARY(16)     NOT NULL,
+  `product_id`           BINARY(16)     NOT NULL,
+  `anchor_id`            BINARY(16),
+  `current_cpe_inventory_id` BINARY(16),
   `service_status`       ENUM('ACTIVE','SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
   `activation_date`      DATETIME,
   `expiry_date`          DATETIME,
@@ -537,16 +538,17 @@ CREATE TABLE IF NOT EXISTS `active_services` (
   `created_at`           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`service_id`),
-  CONSTRAINT `fk_as_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_as_product`  FOREIGN KEY (`product_id`)  REFERENCES `products` (`product_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_as_anchor`   FOREIGN KEY (`anchor_id`)   REFERENCES `anchors` (`anchor_id`) ON DELETE SET NULL
+  CONSTRAINT `fk_as_customer`      FOREIGN KEY (`customer_id`)             REFERENCES `customers`        (`customer_id`)  ON DELETE CASCADE,
+  CONSTRAINT `fk_as_product`       FOREIGN KEY (`product_id`)              REFERENCES `products`         (`product_id`)   ON DELETE CASCADE,
+  CONSTRAINT `fk_as_anchor`        FOREIGN KEY (`anchor_id`)               REFERENCES `anchors`          (`anchor_id`)    ON DELETE SET NULL,
+  CONSTRAINT `fk_as_cpe_inventory` FOREIGN KEY (`current_cpe_inventory_id`) REFERENCES `inventory_master` (`inventory_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `customer_assets` (
-  `asset_id`            CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `customer_id`         CHAR(36)     NOT NULL,
-  `anchor_id`           CHAR(36),
-  `product_id`          CHAR(36)     NOT NULL,
+  `asset_id`            BINARY(16)     NOT NULL,
+  `customer_id`         BINARY(16)     NOT NULL,
+  `anchor_id`           BINARY(16),
+  `product_id`          BINARY(16)     NOT NULL,
   `asset_type`          ENUM('CPE','SIM','PHYSICAL_ADDON') NOT NULL,
   `asset_status`        ENUM('ACTIVE','REPLACED','RETURNED','DEFECTIVE') NOT NULL DEFAULT 'ACTIVE',
   `serial_number`       VARCHAR(100),
@@ -563,10 +565,10 @@ CREATE TABLE IF NOT EXISTS `customer_assets` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `asset_replacement_history` (
-  `replacement_id`  CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `anchor_id`       CHAR(36)      NOT NULL,
-  `old_asset_id`    CHAR(36),
-  `new_asset_id`    CHAR(36),
+  `replacement_id`  BINARY(16)      NOT NULL,
+  `anchor_id`       BINARY(16)      NOT NULL,
+  `old_asset_id`    BINARY(16),
+  `new_asset_id`    BINARY(16),
   `reason`          ENUM('WARRANTY','PAID','UPGRADE') NOT NULL DEFAULT 'WARRANTY',
   `charge_amount_bdt` DECIMAL(12,2),
   `notes`           TEXT,
@@ -582,15 +584,15 @@ CREATE TABLE IF NOT EXISTS `asset_replacement_history` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `orders` (
-  `order_id`           CHAR(36)      NOT NULL DEFAULT (UUID()),
+  `order_id`           BINARY(16)      NOT NULL,
   `customer_name`      VARCHAR(200),
   `customer_type`      ENUM('B2C','B2B') NOT NULL DEFAULT 'B2C',
   `contact_msisdn`     VARCHAR(20),
-  `channel_id`         CHAR(36),
-  `sub_channel_id`     CHAR(36),
-  `assigned_agent_id`  CHAR(36),
-  `assigned_dh_kam_id` CHAR(36),
-  `staff_user_id`      CHAR(36),
+  `channel_id`         BINARY(16),
+  `sub_channel_id`     BINARY(16),
+  `assigned_agent_id`  BINARY(16),
+  `assigned_dh_kam_id` BINARY(16),
+  `staff_user_id`      BINARY(16),
   `order_status`       ENUM('PENDING_DISPATCH','OUT_FOR_DELIVERY','ACTIVE','CANCELLED','ASSIGNED','CONTACTED','NETWORK_TEST','INSTALLED') NOT NULL DEFAULT 'PENDING_DISPATCH',
   `fulfillment_status` ENUM('PAID_AWAITING_INSTALLATION','PROVISIONAL','EARNED','CANCELLED','REFUNDED'),
   `payment_status`     ENUM('PENDING_COD','PAID_COD','ONLINE_PAID') NOT NULL DEFAULT 'PENDING_COD',
@@ -605,10 +607,10 @@ CREATE TABLE IF NOT EXISTS `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `order_items` (
-  `item_id`               CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `order_id`              CHAR(36)      NOT NULL,
-  `product_id`            CHAR(36)      NOT NULL,
-  `inventory_id`          CHAR(36),
+  `item_id`               BINARY(16)      NOT NULL,
+  `order_id`              BINARY(16)      NOT NULL,
+  `product_id`            BINARY(16)      NOT NULL,
+  `inventory_id`          BINARY(16),
   `quantity`              INT           NOT NULL DEFAULT 1,
   `unit_price_bdt`        DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `locked_unit_price_bdt` DECIMAL(12,2),
@@ -628,13 +630,13 @@ CREATE TABLE IF NOT EXISTS `order_items` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `inventory_master` (
-  `inventory_id`        CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `product_id`          CHAR(36)     NOT NULL,
+  `inventory_id`        BINARY(16)     NOT NULL,
+  `product_id`          BINARY(16)     NOT NULL,
   `item_type`           ENUM('CPE','SIM','ADDON') NOT NULL,
   `status`              ENUM('IN_WAREHOUSE','ALLOCATED_TO_DH','ALLOCATED_TO_KAM','WITH_AGENT','DELIVERED','DEFECTIVE','IN_GPFI_STAGING','WITH_HUB_MANAGER','WITH_FIELD_STAFF') NOT NULL DEFAULT 'IN_WAREHOUSE',
   `stock_type`          ENUM('GPFI_STAGING','SWAP_BUFFER_STOCK','SALES_STOCK') NOT NULL DEFAULT 'SALES_STOCK',
-  `allocated_agent_id`  CHAR(36),
-  `allocated_entity_id` CHAR(36),
+  `allocated_agent_id`  BINARY(16),
+  `allocated_entity_id` BINARY(16),
   `serial_number`       VARCHAR(100),
   `imei`                VARCHAR(50),
   `msisdn`              VARCHAR(20),
@@ -645,11 +647,11 @@ CREATE TABLE IF NOT EXISTS `inventory_master` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `stock_transfers` (
-  `transfer_id`     CHAR(36)     NOT NULL DEFAULT (UUID()),
-  `inventory_id`    CHAR(36)     NOT NULL,
-  `from_entity_id`  CHAR(36)     NOT NULL,
+  `transfer_id`     BINARY(16)     NOT NULL,
+  `inventory_id`    BINARY(16)     NOT NULL,
+  `from_entity_id`  BINARY(16)     NOT NULL,
   `from_entity_type` VARCHAR(50) NOT NULL,
-  `to_entity_id`    CHAR(36)     NOT NULL,
+  `to_entity_id`    BINARY(16)     NOT NULL,
   `to_entity_type`  VARCHAR(50)  NOT NULL,
   `transfer_status` ENUM('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
   `requested_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -666,9 +668,9 @@ CREATE TABLE IF NOT EXISTS `stock_transfers` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `onetime_invoices` (
-  `invoice_id`               CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `customer_id`              CHAR(36)      NOT NULL,
-  `parent_summary_invoice_id` CHAR(36),
+  `invoice_id`               BINARY(16)      NOT NULL,
+  `customer_id`              BINARY(16)      NOT NULL,
+  `parent_summary_invoice_id` BINARY(16),
   `payment_status`           ENUM('PENDING','PAID') NOT NULL DEFAULT 'PENDING',
   `trigger_type`             ENUM('ACQUISITION','CPE_CHANGE','PHYSICAL_ADDON') NOT NULL,
   `charged_amount_bdt`       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -682,13 +684,13 @@ CREATE TABLE IF NOT EXISTS `onetime_invoices` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `transaction_ledger` (
-  `ledger_id`             CHAR(36)      NOT NULL DEFAULT (UUID()),
-  `customer_id`           CHAR(36)      NOT NULL,
-  `product_id`            CHAR(36),
+  `ledger_id`             BINARY(16)      NOT NULL,
+  `customer_id`           BINARY(16)      NOT NULL,
+  `product_id`            BINARY(16),
   `product_name`          VARCHAR(200),
-  `anchor_id`             CHAR(36),
-  `order_id`              CHAR(36),
-  `campaign_id`           CHAR(36),
+  `anchor_id`             BINARY(16),
+  `order_id`              BINARY(16),
+  `campaign_id`           BINARY(16),
   `campaign_name`         VARCHAR(200),
   `trigger_type`          ENUM('ACQUISITION','CPE_CHANGE','PHYSICAL_ADDON'),
   `total_pre_discount_bdt` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -707,11 +709,11 @@ CREATE TABLE IF NOT EXISTS `transaction_ledger` (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `audit_logs` (
-  `log_id`           CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `log_id`           BINARY(16)     NOT NULL,
   `target_table`     VARCHAR(100) NOT NULL,
-  `target_record_id` CHAR(36),
+  `target_record_id` BINARY(16),
   `action_type`      ENUM('CREATE','UPDATE','DELETE','BULK_IMPORT','STATUS_CHANGE') NOT NULL,
-  `admin_id`         CHAR(36),
+  `admin_id`         BINARY(16),
   `ip_address`       VARCHAR(45),
   `previous_state`   JSON,
   `new_state`        JSON,
@@ -720,9 +722,9 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `system_audit_logs` (
-  `log_id`     CHAR(36)     NOT NULL DEFAULT (UUID()),
+  `log_id`     BINARY(16)     NOT NULL,
   `table_name` VARCHAR(100) NOT NULL,
-  `record_id`  CHAR(36),
+  `record_id`  BINARY(16),
   `changed_by` VARCHAR(200),
   `changed_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `old_value`  JSON,
