@@ -16,6 +16,11 @@ vi.mock('../../src/services/phpBridge.js', () => ({
   sendSms: vi.fn(),
 }));
 
+// Redis mock: SET NX always succeeds (treat every request as a new idempotency key)
+vi.mock('../../src/services/redis.js', () => ({
+  getRedis: () => ({ set: vi.fn().mockResolvedValue('OK'), get: vi.fn() }),
+}));
+
 import app from '../../src/app.js';
 import { pool } from '../../src/services/db.js';
 import { sendSms } from '../../src/services/phpBridge.js';
@@ -133,6 +138,7 @@ describe('POST /api/field-execution/leads/:id/accessories', () => {
   it('returns 401 without auth token', async () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/accessories`)
+      .set('Idempotency-Key', 'test-idem-401-post-acc')
       .send({ product_id: PRODUCT_ID });
     expect(res.status).toBe(401);
   });
@@ -141,6 +147,7 @@ describe('POST /api/field-execution/leads/:id/accessories', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/accessories`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-400-post-acc')
       .send({ quantity: 1 });
 
     expect(res.status).toBe(400);
@@ -153,6 +160,7 @@ describe('POST /api/field-execution/leads/:id/accessories', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/accessories`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-201-post-acc')
       .send({ product_id: PRODUCT_ID, quantity: 2, unit_price_bdt: 500 });
 
     expect(res.status).toBe(201);
@@ -165,6 +173,7 @@ describe('POST /api/field-execution/leads/:id/accessories', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/accessories`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-500-post-acc')
       .send({ product_id: PRODUCT_ID });
 
     expect(res.status).toBe(500);
@@ -178,6 +187,7 @@ describe('PATCH /api/field-execution/leads/:id/accessories/:itemId', () => {
   it('returns 401 without auth token', async () => {
     const res = await request(app)
       .patch(`/api/field-execution/leads/${ORDER_ID}/accessories/${ITEM_ID}`)
+      .set('Idempotency-Key', 'test-idem-401-patch-acc')
       .send({ quantity: 3 });
     expect(res.status).toBe(401);
   });
@@ -186,6 +196,7 @@ describe('PATCH /api/field-execution/leads/:id/accessories/:itemId', () => {
     const res = await request(app)
       .patch(`/api/field-execution/leads/${ORDER_ID}/accessories/${ITEM_ID}`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-400-patch-acc')
       .send({});
 
     expect(res.status).toBe(400);
@@ -198,6 +209,7 @@ describe('PATCH /api/field-execution/leads/:id/accessories/:itemId', () => {
     const res = await request(app)
       .patch(`/api/field-execution/leads/${ORDER_ID}/accessories/${ITEM_ID}`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-200-patch-acc')
       .send({ quantity: 3 });
 
     expect(res.status).toBe(200);
@@ -210,6 +222,7 @@ describe('PATCH /api/field-execution/leads/:id/accessories/:itemId', () => {
     const res = await request(app)
       .patch(`/api/field-execution/leads/${ORDER_ID}/accessories/${ITEM_ID}`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-500-patch-acc')
       .send({ quantity: 3 });
 
     expect(res.status).toBe(500);
@@ -255,6 +268,7 @@ describe('POST /api/field-execution/leads/:id/setup-complete', () => {
   it('returns 401 without auth token', async () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/setup-complete`)
+      .set('Idempotency-Key', 'test-idem-401-setup')
       .send(SETUP_BODY);
     expect(res.status).toBe(401);
   });
@@ -263,6 +277,7 @@ describe('POST /api/field-execution/leads/:id/setup-complete', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/setup-complete`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-400-setup')
       .send({ customer_id: CUSTOMER_ID }); // missing anchor_id, service_id, msisdn, message
 
     expect(res.status).toBe(400);
@@ -275,6 +290,7 @@ describe('POST /api/field-execution/leads/:id/setup-complete', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/setup-complete`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-200-setup-sms-true')
       .send(SETUP_BODY);
 
     expect(res.status).toBe(200);
@@ -288,6 +304,7 @@ describe('POST /api/field-execution/leads/:id/setup-complete', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/setup-complete`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-200-setup-sms-false')
       .send(SETUP_BODY);
 
     expect(res.status).toBe(200);
@@ -305,6 +322,7 @@ describe('POST /api/field-execution/leads/:id/setup-complete', () => {
     const res = await request(app)
       .post(`/api/field-execution/leads/${ORDER_ID}/setup-complete`)
       .set('Authorization', `Bearer ${validToken()}`)
+      .set('Idempotency-Key', 'test-idem-500-setup')
       .send(SETUP_BODY);
 
     expect(res.status).toBe(500);
