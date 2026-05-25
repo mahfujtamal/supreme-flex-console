@@ -30,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
             'REAL_IP_API_MOCK'         => config('mock_services.real_ip'),
             'CUSTOMER_LIFECYCLE_MOCK'  => config('mock_services.customer_lifecycle'),
             'APP_DEBUG'                => config('app.debug'),
+            'OTP_DEV_PEEK_ENABLED'     => (bool) env('OTP_DEV_PEEK_ENABLED', false),
         ];
 
         foreach ($banned as $name => $value) {

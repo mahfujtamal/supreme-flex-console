@@ -15,6 +15,16 @@ if (process.env.NODE_ENV === 'production' && process.env.OTP_DEV_PEEK === 'true'
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === 'production') {
+  const mockFlags = ['GPSHOP_MOCK', 'LOCATION_CHANGE_API_MOCK', 'REAL_IP_API_MOCK', 'CUSTOMER_LIFECYCLE_MOCK'];
+  for (const flag of mockFlags) {
+    if (process.env[flag] === 'true') {
+      console.error(`[FATAL] ${flag} must not be enabled in production — refusing to start`);
+      process.exit(1);
+    }
+  }
+}
+
 const port = process.env.PORT || 8001;
 
 // HTTP + WebSocket on same port

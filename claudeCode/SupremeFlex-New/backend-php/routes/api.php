@@ -211,7 +211,9 @@ Route::middleware('auth.jwt')->group(function () {
     });
 
     // Bulk-delete — dev-only, no idempotency (destructive ops are not replayed)
-    foreach ($bulkResources as $resource => $controller) {
-        Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+    if (!app()->environment('production')) {
+        foreach ($bulkResources as $resource => $controller) {
+            Route::delete("{$resource}/bulk", [$controller, 'bulkDestroy']);
+        }
     }
 });
