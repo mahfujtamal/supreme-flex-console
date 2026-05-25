@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { idempotency } from '../middleware/idempotency.js';
 import { pool, toBin, newId } from '../services/db.js';
 import { sendSms } from '../services/phpBridge.js';
 
@@ -54,7 +55,7 @@ router.patch('/leads/:id/status', async (req, res) => {
 });
 
 // POST /api/field-execution/scan-to-fulfill — mark inventory as delivered
-router.post('/scan-to-fulfill', async (req, res) => {
+router.post('/scan-to-fulfill', idempotency, async (req, res) => {
   const { inventory_id, order_id, imei } = req.body;
   if (!inventory_id || !order_id) {
     return res.status(400).json({ message: 'inventory_id and order_id required' });

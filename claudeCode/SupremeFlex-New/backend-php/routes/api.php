@@ -95,11 +95,6 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('invoices',             [InvoiceController::class, 'store']);
     Route::get('transaction-ledger',    [InvoiceController::class, 'ledger']);
 
-    // TODO(p-1.3): add idempotency middleware when AddonOrderController routes are registered (group 2: addon_order_history)
-    // TODO(p-1.3): add idempotency middleware when CpeOrderController routes are registered (group 3: cpe_order_history)
-    // TODO(p-1.3): add idempotency middleware when OttOrderController routes are registered (group 4: ott_order_history)
-    // TODO(p-1.3): add idempotency middleware when RealIpAssignmentController routes are registered (group 5: real_ip_assignments)
-
     // System Config
     Route::get('system-config',          [SystemConfigController::class, 'index']);
     Route::get('system-config/{key}',    [SystemConfigController::class, 'show']);
@@ -107,30 +102,38 @@ Route::middleware('auth.jwt')->group(function () {
     Route::delete('system-config/{key}', [SystemConfigController::class, 'destroy']);
 
     // GPWEB-3730 — order histories + location + real IP
-    Route::get('addon-orders',          [AddonOrderController::class, 'index']);
-    Route::post('addon-orders',         [AddonOrderController::class, 'store']);
-    Route::get('addon-orders/{id}',     [AddonOrderController::class, 'show']);
-    Route::patch('addon-orders/{id}',   [AddonOrderController::class, 'update']);
+    Route::get('addon-orders',        [AddonOrderController::class, 'index']);
+    Route::get('addon-orders/{id}',   [AddonOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('addon-orders',       [AddonOrderController::class, 'store']);
+        Route::patch('addon-orders/{id}', [AddonOrderController::class, 'update']);
+    });
 
-    Route::get('cpe-orders',            [CpeOrderController::class, 'index']);
-    Route::post('cpe-orders',           [CpeOrderController::class, 'store']);
-    Route::get('cpe-orders/{id}',       [CpeOrderController::class, 'show']);
-    Route::patch('cpe-orders/{id}',     [CpeOrderController::class, 'update']);
+    Route::get('cpe-orders',          [CpeOrderController::class, 'index']);
+    Route::get('cpe-orders/{id}',     [CpeOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('cpe-orders',         [CpeOrderController::class, 'store']);
+        Route::patch('cpe-orders/{id}',   [CpeOrderController::class, 'update']);
+    });
 
-    Route::get('ott-orders',            [OttOrderController::class, 'index']);
-    Route::post('ott-orders',           [OttOrderController::class, 'store']);
-    Route::get('ott-orders/{id}',       [OttOrderController::class, 'show']);
-    Route::patch('ott-orders/{id}',     [OttOrderController::class, 'update']);
+    Route::get('ott-orders',          [OttOrderController::class, 'index']);
+    Route::get('ott-orders/{id}',     [OttOrderController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('ott-orders',         [OttOrderController::class, 'store']);
+        Route::patch('ott-orders/{id}',   [OttOrderController::class, 'update']);
+    });
 
-    Route::get('location-changes',      [LocationChangeController::class, 'index']);
-    Route::post('location-changes',     [LocationChangeController::class, 'store']);
-    Route::get('location-changes/{id}', [LocationChangeController::class, 'show']);
+    Route::get('location-changes',        [LocationChangeController::class, 'index']);
+    Route::get('location-changes/{id}',   [LocationChangeController::class, 'show']);
+    Route::post('location-changes',       [LocationChangeController::class, 'store']);
     Route::patch('location-changes/{id}', [LocationChangeController::class, 'update']);
 
-    Route::get('real-ip',               [RealIpController::class, 'index']);
-    Route::post('real-ip',              [RealIpController::class, 'store']);
-    Route::get('real-ip/{id}',          [RealIpController::class, 'show']);
-    Route::delete('real-ip/{id}',       [RealIpController::class, 'destroy']);
+    Route::get('real-ip',             [RealIpController::class, 'index']);
+    Route::get('real-ip/{id}',        [RealIpController::class, 'show']);
+    Route::middleware('idempotency')->group(function () {
+        Route::post('real-ip',            [RealIpController::class, 'store']);
+        Route::delete('real-ip/{id}',     [RealIpController::class, 'destroy']);
+    });
 
     // Asset Lifecycle
     Route::apiResource('assets',                AssetController::class);

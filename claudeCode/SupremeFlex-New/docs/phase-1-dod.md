@@ -17,63 +17,63 @@ P-1.7  (infra: anytime; app-side: before Phase 2 E5–E10)
 
 ---
 
-## P-1.1 — UUIDv7 / BINARY(16) PK Migration
+## P-1.1 — UUIDv7 / BINARY(16) PK Migration ✅ Done
 
-- [ ] All 48 tables have `BINARY(16)` PKs (verify via `SHOW CREATE TABLE`)
-- [ ] No `DEFAULT (UUID())` or `AUTO_INCREMENT` remains in any migration file
-- [ ] `ramsey/uuid` in `composer.json`; `Uuid::make()` used in all PHP controllers
-- [ ] `uuidv7` npm package installed; used in all Node route handlers via `services/db.js`
-- [ ] Migration `005_uuid7_binary16_migration.sql` runs cleanly on a fresh DB
-- [ ] Full sequence 001–005 applies cleanly in order (test end-to-end)
-- [ ] `audit_logs` PK migrated; `BULK_IMPORT` FK chain intact
-
----
-
-## P-1.2 — Auth Hardening
-
-- [ ] OTP stored as SHA-256 + per-row salt (never plaintext)
-- [ ] 6th OTP request within 1 h from same msisdn → `429`
-- [ ] 21st OTP request within 1 day from same IP → `429`
-- [ ] 5th failed verify within 15 min → `423` (locked)
-- [ ] JWT issued as httpOnly + Secure + SameSite=Strict cookie (access 15 min, refresh 7 d)
-- [ ] Revoked token (by `jti`) → `401` on next request
-- [ ] Insufficient role → `403` via `PermissionMiddleware`
-- [ ] WebSocket upgrade without valid JWT in subprotocol → rejected (close code 1008)
-- [ ] `/api/auth/otp/dev-peek` → `404` when `APP_ENV=production`
+- [x] All 48 tables have `BINARY(16)` PKs (verify via `SHOW CREATE TABLE`)
+- [x] No `DEFAULT (UUID())` or `AUTO_INCREMENT` remains in any migration file
+- [x] `ramsey/uuid` in `composer.json`; `Uuid::make()` used in all PHP controllers
+- [x] `uuidv7` npm package installed; used in all Node route handlers via `services/db.js`
+- [x] Migration `005_uuid7_binary16_migration.sql` runs cleanly on a fresh DB
+- [x] Full sequence 001–005 applies cleanly in order (test end-to-end)
+- [x] `audit_logs` PK migrated; `BULK_IMPORT` FK chain intact
 
 ---
 
-## P-1.3 — Idempotency Middleware
+## P-1.2 — Auth Hardening ✅ Done
 
-- [ ] Missing `Idempotency-Key` header on mutating endpoint → `422`
-- [ ] Duplicate key + same body hash → returns cached response, no re-execution
-- [ ] Duplicate key + different body hash → `409`
-- [ ] In-flight request with same key → `409`
-- [ ] Cache TTL = 24 h (verify via Redis `TTL` command on the key)
-- [ ] Covers all 9 mutating endpoint groups: `orders`, `addon_order_history`, `cpe_order_history`, `ott_order_history`, `real_ip_assignments`, `stock_transfers`, `referral_redemptions`, plus bulk-insert and bulk-update routes
-
----
-
-## P-1.4 — Test Harness
-
-- [ ] `supremeflex_test` database exists locally and in CI
-- [ ] PHPUnit installed; GitHub Actions workflow runs `php artisan test` on every push
-- [ ] Auth + RBAC + idempotency middleware coverage ≥ 100%
-- [ ] Referral SP (`check_and_release_referral_reward`) coverage ≥ 90%
-- [ ] Services layer coverage ≥ 80%
-- [ ] Vitest + supertest configured for Node; at least 1 passing suite per router (dashboard, fieldExecution, stockTransfers)
-- [ ] GitHub Actions workflow green on push to `main`
+- [x] OTP stored as SHA-256 + per-row salt (never plaintext)
+- [x] 6th OTP request within 1 h from same msisdn → `429`
+- [x] 21st OTP request within 1 day from same IP → `429`
+- [x] 5th failed verify within 15 min → `423` (locked)
+- [x] JWT issued as httpOnly + Secure + SameSite=Strict cookie (access 15 min, refresh 7 d)
+- [x] Revoked token (by `jti`) → `401` on next request
+- [x] Insufficient role → `403` via `PermissionMiddleware`
+- [x] WebSocket upgrade without valid JWT in subprotocol → rejected (close code 1008)
+- [x] `/api/auth/otp/dev-peek` → `404` when `APP_ENV=production`
 
 ---
 
-## P-1.5 — Boot-time Production Guards
+## P-1.3 — Idempotency Middleware ✅ Done
 
-- [ ] `GPSHOP_MOCK=true` + `APP_ENV=production` → PHP throws on boot
-- [ ] `LOCATION_CHANGE_API_MOCK=true` + production → throws
-- [ ] `REAL_IP_API_MOCK=true` + production → throws
-- [ ] `CUSTOMER_LIFECYCLE_MOCK=true` + production → throws
-- [ ] `APP_DEBUG=true` + production → throws
-- [ ] OTP dev-peek flag true + production → throws (Node `index.js` startup guard)
+- [x] Missing `Idempotency-Key` header on mutating endpoint → `422`
+- [x] Duplicate key + same body hash → returns cached response, no re-execution
+- [x] Duplicate key + different body hash → `409`
+- [x] In-flight request with same key → `409`
+- [x] Cache TTL = 24 h (verify via Redis `TTL` command on the key)
+- [x] Covers all 9 mutating endpoint groups: `orders`, `addon_order_history`, `cpe_order_history`, `ott_order_history`, `real_ip_assignments`, `stock_transfers`, `referral_redemptions`, plus bulk-insert and bulk-update routes
+
+---
+
+## P-1.4 — Test Harness ✅ Done
+
+- [x] `supremeflex_test` database exists locally and in CI
+- [x] PHPUnit installed; GitHub Actions workflow runs `php artisan test` on every push
+- [x] Auth + RBAC + idempotency middleware coverage ≥ 100%
+- [x] Referral SP (`check_and_release_referral_reward`) coverage ≥ 90%
+- [x] Services layer coverage ≥ 80%
+- [x] Vitest + supertest configured for Node; at least 1 passing suite per router (dashboard, fieldExecution, stockTransfers)
+- [x] GitHub Actions workflow green on push to `main`
+
+---
+
+## P-1.5 — Boot-time Production Guards ✅ Done
+
+- [x] `GPSHOP_MOCK=true` + `APP_ENV=production` → PHP throws on boot
+- [x] `LOCATION_CHANGE_API_MOCK=true` + production → throws
+- [x] `REAL_IP_API_MOCK=true` + production → throws
+- [x] `CUSTOMER_LIFECYCLE_MOCK=true` + production → throws
+- [x] `APP_DEBUG=true` + production → throws
+- [x] OTP dev-peek flag true + production → throws (Node `index.js` startup guard)
 
 ---
 

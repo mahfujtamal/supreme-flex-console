@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { idempotency } from '../middleware/idempotency.js';
 import { pool, newId, toBin, fromBin } from '../services/db.js';
 
 const router = Router();
@@ -38,7 +39,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/stock-transfers
-router.post('/', async (req, res) => {
+router.post('/', idempotency, async (req, res) => {
   try {
     const { inventory_id, from_entity_id, from_entity_type, to_entity_id, to_entity_type, notes } = req.body;
     const id = newId();
@@ -57,7 +58,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/stock-transfers/:id/respond
-router.patch('/:id/respond', async (req, res) => {
+router.patch('/:id/respond', idempotency, async (req, res) => {
   const { action } = req.body; // ACCEPTED | REJECTED
   if (!['ACCEPTED', 'REJECTED'].includes(action)) {
     return res.status(400).json({ message: 'action must be ACCEPTED or REJECTED' });

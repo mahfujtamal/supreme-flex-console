@@ -25,9 +25,10 @@ CREATE TABLE IF NOT EXISTS `order_delivery_overrides` (
   `override_type`      ENUM('DH','CHANNEL','SUBCHANNEL','KAM') NOT NULL,
   `override_entity_id` BINARY(16)   NOT NULL,
   `reason`             VARCHAR(255) NULL,
-  `created_by`         CHAR(36)     NULL,
+  `created_by`         BINARY(16)   NULL,
   `created_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_odo_order` (`order_id`),
-  CONSTRAINT `fk_odo_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE CASCADE
+  CONSTRAINT `fk_odo_order`      FOREIGN KEY (`order_id`)   REFERENCES `orders`       (`order_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_odo_created_by` FOREIGN KEY (`created_by`) REFERENCES `user_account` (`id`)       ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
