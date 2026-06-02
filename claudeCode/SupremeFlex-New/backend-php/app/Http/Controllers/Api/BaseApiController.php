@@ -152,18 +152,21 @@ abstract class BaseApiController extends Controller
 
     public function castRecord(?object $record): ?object
     {
+        return self::castRow($record, $this->primaryKey);
+    }
+
+    public static function castRow(?object $record, string $primaryKey = 'id'): ?object
+    {
         if (!$record) return null;
         $r = (array) $record;
         foreach ($r as $key => $value) {
-            // Only convert binary(16) columns: PKs ending in _id, or the explicit primary key
-            $isBinaryCol = str_ends_with($key, '_id') || $key === $this->primaryKey;
+            $isBinaryCol = str_ends_with($key, '_id') || $key === $primaryKey;
             if ($isBinaryCol && is_string($value) && strlen($value) === 16) {
                 $r[$key] = Uuid::fromBin($value);
             }
         }
-        // Add generic `id` alias so the frontend can use r.id universally
-        if (!isset($r['id']) && isset($r[$this->primaryKey])) {
-            $r['id'] = $r[$this->primaryKey];
+        if (!isset($r['id']) && isset($r[$primaryKey])) {
+            $r['id'] = $r[$primaryKey];
         }
         return (object) $r;
     }

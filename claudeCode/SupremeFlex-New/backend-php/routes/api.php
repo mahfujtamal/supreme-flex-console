@@ -71,6 +71,7 @@ Route::middleware('auth.jwt')->group(function () {
     // Product Engine
     Route::apiResource('products',             ProductController::class);
     Route::apiResource('price-versions',       PriceVersionController::class);
+    Route::get('price-components/templates',   [PriceComponentController::class, 'templates']);
     Route::apiResource('price-components',     PriceComponentController::class);
     Route::apiResource('addon-compatibility',  AddonCompatibilityController::class);
 

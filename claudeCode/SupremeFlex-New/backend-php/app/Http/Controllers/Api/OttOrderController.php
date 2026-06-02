@@ -26,7 +26,7 @@ class OttOrderController extends Controller
 
         $total = $query->count();
         $items = $query->offset($page * $perPage)->limit($perPage)->get()
-            ->map(fn($r) => BaseApiController::castRecord($r))->values();
+            ->map(fn($r) => BaseApiController::castRow($r))->values();
 
         return response()->json(['items' => $items, 'total' => $total]);
     }
@@ -53,14 +53,14 @@ class OttOrderController extends Controller
             'updated_at'        => now(),
         ]);
 
-        return response()->json(BaseApiController::castRecord(DB::table('ott_order_history')->where('id', $id)->first()), 201);
+        return response()->json(BaseApiController::castRow(DB::table('ott_order_history')->where('id', $id)->first()), 201);
     }
 
     public function show(string $id)
     {
         $record = DB::table('ott_order_history')->where('id', Uuid::toBin($id))->first();
         if (!$record) return response()->json(['message' => 'Not found'], 404);
-        return response()->json(BaseApiController::castRecord($record));
+        return response()->json(BaseApiController::castRow($record));
     }
 
     public function update(Request $request, string $id)
@@ -78,6 +78,6 @@ class OttOrderController extends Controller
             'updated_at'   => now(),
         ]);
 
-        return response()->json(BaseApiController::castRecord(DB::table('ott_order_history')->where('id', $binId)->first()));
+        return response()->json(BaseApiController::castRow(DB::table('ott_order_history')->where('id', $binId)->first()));
     }
 }

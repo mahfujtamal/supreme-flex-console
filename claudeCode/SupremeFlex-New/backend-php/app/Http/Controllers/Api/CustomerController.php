@@ -43,7 +43,7 @@ class CustomerController extends Controller
 
         $total   = $query->count();
         $records = $query->offset($page * $perPage)->limit($perPage)->get()
-            ->map(fn($r) => BaseApiController::castRecord($r))->values();
+            ->map(fn($r) => BaseApiController::castRow($r))->values();
 
         return response()->json(['items' => $records, 'total' => $total]);
     }
@@ -52,7 +52,7 @@ class CustomerController extends Controller
     {
         $customer = DB::table('customers')->where('customer_id', Uuid::toBin($id))->first();
         if (!$customer) return response()->json(['message' => 'Not found'], 404);
-        return response()->json(BaseApiController::castRecord($customer));
+        return response()->json(BaseApiController::castRow($customer));
     }
 
     public function view360(string $id)
@@ -62,7 +62,7 @@ class CustomerController extends Controller
         $customer = DB::table('customers')->where('customer_id', $binId)->first();
         if (!$customer) return response()->json(['message' => 'Not found'], 404);
 
-        $cast = fn($r) => BaseApiController::castRecord($r);
+        $cast = fn($r) => BaseApiController::castRow($r);
 
         $services        = DB::table('active_services')->where('customer_id', $binId)->get()->map($cast)->values();
         $anchors         = DB::table('anchors')->where('customer_id', $binId)->orderByDesc('created_at')->get()->map($cast)->values();
