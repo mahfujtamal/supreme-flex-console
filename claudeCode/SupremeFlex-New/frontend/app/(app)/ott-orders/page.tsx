@@ -35,7 +35,7 @@ export default function OttOrdersPage() {
     queryKey: ['ott-orders', page, dSearch],
     queryFn: () => phpApi.get('/ott-orders', { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: OttOrder[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: OttOrder[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-4">

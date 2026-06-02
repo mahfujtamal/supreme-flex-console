@@ -1,0 +1,6 @@
+role_id;role_name;role_description;created_at
+649f7626-1120-47ec-813f-cccea24bdf10;Hub Manager;Manages hub-level stock distribution and field agent assignments;2026-03-28 07:20:44.43488+00
+a5cb5ade-4f6b-4d14-96d3-21dda2cd38de;DH Agent;Distribution House agent handling stock at DH level;2026-03-28 07:20:44.43488+00
+e3406186-78aa-424b-a930-75b6f81b65fc;KAM;Key Account Manager handling B2B stock and client relationships;2026-03-28 07:20:44.43488+00
+2a61dd7c-8b86-4715-9721-b74eb2b9357a;DD Rider;Direct Delivery rider fulfilling last-mile stock delivery;2026-03-28 07:20:44.43488+00
+cfacbb52-cdb7-46e1-b108-8361e57349e2;GPFI Sales Manager;Manages bulk inwarding and GPFI staging operations;2026-03-28 07:20:44.43488+00

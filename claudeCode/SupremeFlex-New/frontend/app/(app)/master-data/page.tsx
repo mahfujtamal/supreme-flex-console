@@ -39,7 +39,7 @@ function ResourceTab({
     onSuccess: () => { qc.invalidateQueries({ queryKey: [queryKey] }); setImport(false); },
   });
 
-  const rows: Record<string, string>[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: Record<string, string>[] = Array.isArray(data) ? data : (data?.items ?? []);
   const totalPages: number | undefined = data?.last_page;
 
   return (
@@ -88,45 +88,62 @@ function ResourceTab({
 }
 
 const ZONE_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',       header: 'Name',    cell: r => r.name },
-  { key: 'status',     header: 'Status',  cell: r => <StatusBadge status={r.status} /> },
-  { key: 'created_at', header: 'Created', cell: r => r.created_at?.slice(0, 10) },
+  { key: 'network_zone_name', header: 'Name',    cell: r => r.network_zone_name },
+  { key: '4g_rsrp',          header: '4G RSRP', cell: r => r['4g_rsrp'] ?? '—' },
+  { key: '4g_rsrq',          header: '4G RSRQ', cell: r => r['4g_rsrq'] ?? '—' },
+  { key: '4g_snr',           header: '4G SNR',  cell: r => r['4g_snr'] ?? '—' },
+  { key: '5g_rsrp',          header: '5G RSRP', cell: r => r['5g_rsrp'] ?? '—' },
+  { key: '5g_rsrq',          header: '5G RSRQ', cell: r => r['5g_rsrq'] ?? '—' },
+  { key: '5g_snr',           header: '5G SNR',  cell: r => r['5g_snr'] ?? '—' },
+  { key: 'status',           header: 'Status',  cell: r => <StatusBadge status={r.status} /> },
+  { key: 'created_at',       header: 'Created', cell: r => r.created_at?.slice(0, 10) },
 ];
 const DISTRICT_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',   header: 'Name',   cell: r => r.name },
-  { key: 'status', header: 'Status', cell: r => <StatusBadge status={r.status} /> },
+  { key: 'district_name', header: 'Name',   cell: r => r.district_name },
+  { key: 'status',        header: 'Status', cell: r => <StatusBadge status={r.status} /> },
 ];
 const AREA_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',        header: 'Name',     cell: r => r.name },
-  { key: 'district_id', header: 'District', cell: r => r.district_id },
-  { key: 'status',      header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
+  { key: 'area_name',        header: 'Area',          cell: r => r.area_name },
+  { key: 'district_name',    header: 'District',      cell: r => r.district_name ?? '—' },
+  { key: 'network_zone_name',header: 'Network Zone',  cell: r => r.network_zone_name ?? '—' },
+  { key: 'is_4g_area',       header: '4G',            cell: r => r.is_4g_area ? 'Yes' : 'No' },
+  { key: 'is_5g_area',       header: '5G',            cell: r => r.is_5g_area ? 'Yes' : 'No' },
 ];
 const CHANNEL_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',                  header: 'Name',      cell: r => r.name },
-  { key: 'default_delivery_mode', header: 'Delivery',  cell: r => r.default_delivery_mode ?? '—' },
-  { key: 'inventory_pull_mode',   header: 'Pull Mode', cell: r => r.inventory_pull_mode ?? '—' },
-  { key: 'status',                header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
+  { key: 'channel_name',   header: 'Name',         cell: r => r.channel_name },
+  { key: 'is_assisted',    header: 'Assisted',     cell: r => r.is_assisted ? 'Yes' : 'No' },
+  { key: 'is_self_delivered', header: 'Self-Delivered', cell: r => r.is_self_delivered ? 'Yes' : 'No' },
+  { key: 'status',         header: 'Status',       cell: r => <StatusBadge status={r.status} /> },
 ];
 const SUBCHAN_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',               header: 'Name',     cell: r => r.name },
-  { key: 'channel_id',         header: 'Channel',  cell: r => r.channel_id },
-  { key: 'delivery_ownership', header: 'Delivery', cell: r => r.delivery_ownership ?? '—' },
-  { key: 'status',             header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
+  { key: 'sub_channel_name',  header: 'Name',         cell: r => r.sub_channel_name },
+  { key: 'channel_name',      header: 'Channel',      cell: r => r.channel_name ?? '—' },
+  { key: 'delivery_ownership',header: 'Delivery',     cell: r => r.delivery_ownership ?? '—' },
+  { key: 'inventory_pull_mode',header: 'Pull Mode',   cell: r => r.inventory_pull_mode ?? '—' },
+  { key: 'status',            header: 'Status',       cell: r => <StatusBadge status={r.status} /> },
 ];
 const DH_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',             header: 'Name',    cell: r => r.name },
-  { key: 'manager_admin_id', header: 'Manager', cell: r => r.manager_admin_id ?? '—' },
-  { key: 'status',           header: 'Status',  cell: r => <StatusBadge status={r.status} /> },
+  { key: 'dh_code',        header: 'Code',      cell: r => r.dh_code },
+  { key: 'name',           header: 'Name',      cell: r => r.name },
+  { key: 'territory_name', header: 'Territory', cell: r => r.territory_name ?? '—' },
+  { key: 'cluster_name',   header: 'Cluster',   cell: r => r.cluster_name ?? '—' },
+  { key: 'region_name',    header: 'Region',    cell: r => r.region_name ?? '—' },
+  { key: 'circle_name',    header: 'Circle',    cell: r => r.circle_name ?? '—' },
+  { key: 'phone_number',   header: 'Phone',     cell: r => r.phone_number ? `+880${r.phone_number}` : '—' },
+  { key: 'status',         header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
 ];
 const AGENT_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',   header: 'Name',   cell: r => r.name },
-  { key: 'dh_id',  header: 'DH',     cell: r => r.dh_id ?? '—' },
-  { key: 'status', header: 'Status', cell: r => <StatusBadge status={r.status} /> },
+  { key: 'agent_name',  header: 'Name',        cell: r => r.agent_name },
+  { key: 'parent_type', header: 'Parent Type',  cell: r => r.parent_type ?? '—' },
+  { key: 'parent_name', header: 'Parent',       cell: r => r.parent_name ?? '—' },
+  { key: 'msisdn',      header: 'Phone',        cell: r => r.msisdn ? `+880${r.msisdn}` : '—' },
+  { key: 'status',      header: 'Status',       cell: r => <StatusBadge status={r.status} /> },
 ];
 const KAM_COLS: Column<Record<string, string>>[] = [
-  { key: 'name',   header: 'Name',   cell: r => r.name },
-  { key: 'region', header: 'Region', cell: r => r.region ?? '—' },
-  { key: 'status', header: 'Status', cell: r => <StatusBadge status={r.status} /> },
+  { key: 'name',               header: 'Name',     cell: r => r.name },
+  { key: 'msisdn',             header: 'Phone',    cell: r => r.msisdn ? `+88${r.msisdn}` : '—' },
+  { key: 'segments',           header: 'Segments', cell: r => r.segments ?? '—' },
+  { key: 'status',             header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
 ];
 
 const TABS = [

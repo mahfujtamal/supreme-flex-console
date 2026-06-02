@@ -23,13 +23,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 interface StatusBadgeProps {
-  status: string;
+  status: string | number | boolean;
   className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const color = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
-  const label = status.replace(/_/g, ' ');
+  const normalized = status === 1 || status === true ? 'ACTIVE'
+    : status === 0 || status === false ? 'INACTIVE'
+    : String(status ?? '');
+  const color = STATUS_COLORS[normalized] ?? 'bg-gray-100 text-gray-600';
+  const label = normalized.replace(/_/g, ' ');
   return (
     <span
       className={cn(

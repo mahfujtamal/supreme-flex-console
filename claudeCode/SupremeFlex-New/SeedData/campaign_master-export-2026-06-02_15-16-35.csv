@@ -1,0 +1,6 @@
+campaign_id;campaign_name;description;start_date;end_date;scope;allow_cod_payment;allow_online_payment;on_ownership_transfer_behavior;campaign_trigger_type;status;created_at;updated_at;campaign_rank
+047a2aa6-48d4-4592-8812-48dc8c0f8732;Summer Promo 2026;20% discount on CPE;2026-03-17 00:00:00+00;2026-04-11 00:00:00+00;ACQ;true;false;KEEP;RULE_BASED;true;2026-03-17 17:56:58.906682+00;2026-03-17 17:56:58.906682+00;100
+deb44870-38b5-4cab-8211-c517ee433f09;Referral Program Apr 2026;;2026-04-01 00:00:00+00;2026-04-30 00:00:00+00;ACQ;true;false;KEEP;REFERRAL_BASED;true;2026-03-17 18:41:56.453774+00;2026-03-17 18:41:56.453774+00;100
+2e4f7100-8afb-4021-aa37-9440292bd39d;Coupon Mania;;2026-03-18 00:00:00+00;2026-03-31 00:00:00+00;ACQ;true;false;KEEP;COUPON_BASED;true;2026-03-17 18:46:50.57869+00;2026-03-19 19:07:38.745588+00;100
+8bb9bb86-b9b9-4887-a6ca-c840bf3efb21;Coupon Mania LC;;2026-03-18 00:00:00+00;;LC;true;true;KEEP;RULE_BASED;true;2026-03-19 21:57:31.159048+00;2026-03-19 22:04:45.31557+00;100
+b71f9353-a371-44bf-a106-f99defb59889;Referral Program May 2026;;2026-05-01 00:00:00+00;2026-05-31 00:00:00+00;ACQ;true;false;KEEP;REFERRAL_BASED;true;2026-03-19 23:13:48.441323+00;2026-03-27 13:08:36.468018+00;100

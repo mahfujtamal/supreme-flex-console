@@ -27,7 +27,7 @@ function BulkTab<T extends Record<string, any>>({
     queryKey: [qk, page, dSearch],
     queryFn: () => phpApi.get(ep, { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: T[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: T[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-3 pt-4">

@@ -40,7 +40,7 @@ function AssetLifecycleTab() {
     mutationFn: (id: string) => phpApi.post(`/assets/${id}/replace`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); setReplaceId(null); },
   });
-  const rows: Asset[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: Asset[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const COLS: Column<Asset>[] = [
     { key: 'serial_number', header: 'Serial',   cell: r => <code className="text-xs">{r.serial_number}</code> },
@@ -73,7 +73,7 @@ function CpeHistoryTab() {
     queryKey: ['cpe-orders', page, dSearch],
     queryFn: () => phpApi.get('/cpe-orders', { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: CpeOrder[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: CpeOrder[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const COLS: Column<CpeOrder>[] = [
     { key: 'customer_id',    header: 'Customer',   cell: r => <code className="text-xs">{r.customer_id?.slice(0, 8)}…</code> },

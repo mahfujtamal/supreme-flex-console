@@ -33,7 +33,7 @@ function PagedTab<T extends { id: string }>({ qk, ep, cols }: { qk: string; ep: 
     queryKey: [qk, page, dSearch],
     queryFn: () => phpApi.get(ep, { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: T[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: T[] = Array.isArray(data) ? data : (data?.items ?? []);
   return (
     <div className="space-y-3 pt-4">
       <input className="border rounded px-3 py-1.5 text-sm w-64" placeholder="Search…" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />

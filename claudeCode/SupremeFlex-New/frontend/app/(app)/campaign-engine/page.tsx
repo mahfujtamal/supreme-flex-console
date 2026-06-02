@@ -28,7 +28,7 @@ function SimpleTab<T extends Record<string, any>>({ qk, ep, cols, headers }: { q
     queryKey: [qk, page, dSearch],
     queryFn: () => phpApi.get(ep, { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: T[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: T[] = Array.isArray(data) ? data : (data?.items ?? []);
   return (
     <div className="space-y-3 pt-4">
       <div className="flex gap-3">
@@ -59,7 +59,7 @@ function CampaignsTab() {
     mutationFn: (id: string) => phpApi.post(`/campaigns/${id}/clone`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaigns'] }); setCloneId(null); },
   });
-  const rows: Campaign[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: Campaign[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const cols: Column<Campaign>[] = [
     { key: 'name',                  header: 'Name',    cell: r => r.name },

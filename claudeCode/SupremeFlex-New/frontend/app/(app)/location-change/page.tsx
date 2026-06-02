@@ -37,7 +37,7 @@ function HistoryTab() {
     queryKey: ['location-changes', page, dSearch],
     queryFn: () => phpApi.get('/location-changes', { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: LocationChange[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: LocationChange[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-3 pt-4">

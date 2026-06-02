@@ -41,7 +41,7 @@ export default function PricingEnginePage() {
     },
   });
 
-  const rows: PriceVersion[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: PriceVersion[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-6">

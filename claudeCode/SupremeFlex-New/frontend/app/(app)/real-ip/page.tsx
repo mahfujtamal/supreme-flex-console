@@ -36,7 +36,7 @@ export default function RealIpPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['real-ip'] }); setRelease(null); },
   });
 
-  const rows: RealIp[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: RealIp[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const COLS: Column<RealIp>[] = [
     { key: 'customer_id', header: 'Customer',   cell: r => <code className="text-xs">{r.customer_id?.slice(0, 8)}…</code> },

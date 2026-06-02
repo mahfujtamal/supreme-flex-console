@@ -10,8 +10,8 @@ import { BulkActionBar } from '@/components/ui/BulkActionBar';
 import { BulkImportModal } from '@/components/ui/BulkImportModal';
 import { useDebounce } from '@/hooks/useDebounce';
 
-interface Product      { id: string; name: string; product_category: string; billing_type: string; network_capability: string; status: string }
-interface AddonCompat  { id: string; product_id: string; compatible_with: string; status: string }
+interface Product      { id: string; product_name: string; product_category: string; billing_type: string; network_capability: string; status: string }
+interface AddonCompat  { id: string; addon_name: string; cpe_name: string; status: number | string | boolean; created_at: string }
 interface PriceVersion { id: string; product_id: string; price: string; status: string; effective_from: string }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,7 +28,7 @@ function SearchTable<T extends Record<string, any>>({
     queryKey: [queryKey, page, dSearch],
     queryFn: () => phpApi.get(endpoint, { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: T[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: T[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-3 pt-4">
@@ -44,16 +44,17 @@ function SearchTable<T extends Record<string, any>>({
 }
 
 const PRODUCT_COLS: Column<Product>[] = [
-  { key: 'name',               header: 'Name',     cell: r => r.name },
+  { key: 'product_name',        header: 'Name',     cell: r => r.product_name },
   { key: 'product_category',   header: 'Category', cell: r => <StatusBadge status={r.product_category} /> },
   { key: 'billing_type',       header: 'Billing',  cell: r => r.billing_type },
   { key: 'network_capability', header: 'Network',  cell: r => r.network_capability },
   { key: 'status',             header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
 ];
 const COMPAT_COLS: Column<AddonCompat>[] = [
-  { key: 'product_id',      header: 'Product',         cell: r => r.product_id },
-  { key: 'compatible_with', header: 'Compatible With', cell: r => r.compatible_with },
-  { key: 'status',          header: 'Status',          cell: r => <StatusBadge status={r.status} /> },
+  { key: 'addon_name', header: 'Addon',          cell: r => r.addon_name },
+  { key: 'cpe_name',   header: 'Compatible CPE', cell: r => r.cpe_name },
+  { key: 'status',     header: 'Status',         cell: r => <StatusBadge status={r.status} /> },
+  { key: 'created_at', header: 'Added',          cell: r => r.created_at?.slice(0, 10) },
 ];
 const VERSION_COLS: Column<PriceVersion>[] = [
   { key: 'product_id',     header: 'Product',        cell: r => r.product_id },

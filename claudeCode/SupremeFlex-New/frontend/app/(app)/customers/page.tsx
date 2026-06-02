@@ -36,7 +36,7 @@ export default function CustomersPage() {
     queryKey: ['customers', page, dSearch],
     queryFn: () => phpApi.get('/customers', { params: { page, per_page: 20, search: dSearch } }).then(r => r.data),
   });
-  const rows: Customer[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: Customer[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-4">

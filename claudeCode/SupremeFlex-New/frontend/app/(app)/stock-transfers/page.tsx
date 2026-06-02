@@ -40,7 +40,7 @@ export default function StockTransfersPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['stock-transfers'] }); setPending(null); },
   });
 
-  const rows: StockTransfer[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: StockTransfer[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const COLS: Column<StockTransfer>[] = [
     { key: 'from_entity',     header: 'From',     cell: r => r.from_entity },

@@ -46,7 +46,7 @@ export default function OperationsPage() {
         },
       }).then(r => r.data),
   });
-  const rows: InventoryItem[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const rows: InventoryItem[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-4">

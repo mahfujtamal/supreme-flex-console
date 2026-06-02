@@ -46,13 +46,13 @@ After each test step, write one of:
 
 ## Module 1 — Login
 
-### TC-1.1: Open the application
+### TC-1.1: Open the application - <i>Pass</i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | Open browser and navigate to the system URL | A login page appears with the heading **SupremeFlex** and sub-heading **GPFI Operations Console** |
-| 2 | Observe the page | There is a **Mobile number** field with a `+880` prefix already shown, and a **Send OTP** button |
+| 2 | Observe the page | There is a **Mobile number** field with a `+880` prefix already shown, and a **Send OTP** button |Pass
 
-### TC-1.2: Login with valid mobile number
+### TC-1.2: Login with valid mobile number - <i> #1 is Partially Passed. => 10 digits count is not managed, need to do it. Letters are automatically ignored as tested. Rest from #2 to #6 are passed</i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | Type your 10-digit mobile number (digits only, e.g. `1711086859`) | Only digits are accepted; letters are automatically ignored |
@@ -62,13 +62,13 @@ After each test step, write one of:
 | 5 | Enter the 6-digit OTP | Only digits are accepted; the **Verify OTP** button activates after 6 digits are entered |
 | 6 | Click **Verify OTP** | Page redirects to the main dashboard |
 
-### TC-1.3: Wrong OTP handling
+### TC-1.3: Wrong OTP handling - <i>Passed</i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | Repeat TC-1.2 steps 1–3 to reach the OTP screen | OTP screen visible |
 | 2 | Enter `000000` (an incorrect OTP) and click **Verify OTP** | An error message appears: *Invalid or expired OTP*. The OTP field is cleared. You stay on the OTP screen. |
 
-### TC-1.4: Change number during OTP flow
+### TC-1.4: Change number during OTP flow - <i> Failed. It returns to mobile number entry screen, but it preserves the previous number </i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | On the OTP screen, click **Use a different number** | Returns to the mobile number entry screen with a blank field |
@@ -77,19 +77,19 @@ After each test step, write one of:
 
 ## Module 2 — Dashboard
 
-### TC-2.1: Home dashboard loads
+### TC-2.1: Home dashboard loads - <i> Passed. Note that as there is no data, dashboard is not populating any chargts or cards </i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | After login, observe the main page | A dashboard loads with summary cards or charts |
 | 2 | Look at the left navigation bar | Menu items are visible for all major modules |
 
-### TC-2.2: GPFI Operations Dashboard
+### TC-2.2: GPFI Operations Dashboard - <i> Failed - Not enough data to check. Link is working. It should provide a message if there is not data available </i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | Click **GPFI Dashboard** in the navigation | A dashboard page loads with operational metrics |
 | 2 | Observe the content | Cards and/or charts show connection stats, order volumes, or similar figures |
 
-### TC-2.3: Manager Dashboard
+### TC-2.3: Manager Dashboard - <i> Failed - Not enough data to check. Link is working. It should provide a message if there is not data available </i>
 | Step | Action | Expected Result |
 |------|--------|----------------|
 | 1 | Click **Manager Dashboard** in the navigation | Dashboard loads with manager-level KPIs |

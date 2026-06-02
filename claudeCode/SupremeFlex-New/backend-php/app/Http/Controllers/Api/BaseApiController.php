@@ -150,14 +150,20 @@ abstract class BaseApiController extends Controller
         return response()->json(['deactivated' => count($request->ids)]);
     }
 
-    public static function castRecord(?object $record): ?object
+    public function castRecord(?object $record): ?object
     {
         if (!$record) return null;
         $r = (array) $record;
         foreach ($r as $key => $value) {
-            if (is_string($value) && strlen($value) === 16) {
+            // Only convert binary(16) columns: PKs ending in _id, or the explicit primary key
+            $isBinaryCol = str_ends_with($key, '_id') || $key === $this->primaryKey;
+            if ($isBinaryCol && is_string($value) && strlen($value) === 16) {
                 $r[$key] = Uuid::fromBin($value);
             }
+        }
+        // Add generic `id` alias so the frontend can use r.id universally
+        if (!isset($r['id']) && isset($r[$this->primaryKey])) {
+            $r['id'] = $r[$this->primaryKey];
         }
         return (object) $r;
     }

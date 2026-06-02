@@ -45,7 +45,7 @@ export default function FieldExecutionPage() {
     },
   });
 
-  const leads: Lead[] = Array.isArray(data) ? data : (data?.data ?? []);
+  const leads: Lead[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-4">

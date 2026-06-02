@@ -1,0 +1,2 @@
+kam_id;name;msisdn;assigned_segments;status;created_at;updated_at;hub_manager_id
+KAM_1;KAM_1_Name;01711123456;"[""Prime""]";ACTIVE;2026-03-28 04:59:13.471898+00;2026-03-28 04:59:13.471898+00;
