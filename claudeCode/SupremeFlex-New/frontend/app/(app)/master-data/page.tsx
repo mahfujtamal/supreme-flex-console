@@ -112,8 +112,14 @@ const DISTRICT_COLS: Column<Record<string, string>>[] = [
   { key: 'district_name', header: 'Name',   cell: r => r.district_name },
   { key: 'status',        header: 'Status', cell: r => <StatusBadge status={r.status} /> },
 ];
+const THANA_COLS: Column<Record<string, string>>[] = [
+  { key: 'thana_name',   header: 'Thana',    cell: r => r.thana_name },
+  { key: 'district_name',header: 'District', cell: r => r.district_name ?? '—' },
+  { key: 'status',       header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
+];
 const AREA_COLS: Column<Record<string, string>>[] = [
   { key: 'area_name',        header: 'Area',          cell: r => r.area_name },
+  { key: 'thana_name',       header: 'Thana',         cell: r => r.thana_name ?? '—' },
   { key: 'district_name',    header: 'District',      cell: r => r.district_name ?? '—' },
   { key: 'network_zone_name',header: 'Network Zone',  cell: r => r.network_zone_name ?? '—' },
   { key: 'is_4g_area',       header: '4G',            cell: r => r.is_4g_area ? 'Yes' : 'No' },
@@ -166,7 +172,8 @@ const KAM_COLS: Column<Record<string, string>>[] = [
 const TABS = [
   { value: 'zones',        label: 'Network Zones',       endpoint: '/network-zones',       cols: ZONE_COLS,     headers: ['name', 'status'] },
   { value: 'districts',    label: 'Districts',           endpoint: '/districts',           cols: DISTRICT_COLS, headers: ['name', 'status'] },
-  { value: 'areas',        label: 'Areas',               endpoint: '/areas',               cols: AREA_COLS,     headers: ['name', 'district_id', 'status'] },
+  { value: 'thanas',       label: 'Thanas',              endpoint: '/thanas',              cols: THANA_COLS,    headers: ['name', 'district_id', 'status'] },
+  { value: 'areas',        label: 'Areas',               endpoint: '/areas',               cols: AREA_COLS,     headers: ['name', 'district_id', 'thana_id', 'status'] },
   { value: 'channels',     label: 'Channels',            endpoint: '/channels',            cols: CHANNEL_COLS,  headers: ['name', 'default_delivery_mode', 'inventory_pull_mode', 'status'] },
   { value: 'subchannels',  label: 'Sub-Channels',        endpoint: '/sub-channels',        cols: SUBCHAN_COLS,  headers: ['name', 'channel_id', 'delivery_ownership', 'status'] },
   { value: 'dhs',          label: 'Distribution Houses', endpoint: '/distribution-houses', cols: DH_COLS,       headers: ['name', 'manager_admin_id', 'status'] },

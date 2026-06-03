@@ -11,7 +11,7 @@ class AreaController extends BaseApiController
     protected string $table        = 'areas';
     protected string $primaryKey   = 'area_id';
     protected string $searchColumn = 'area_name';
-    protected array  $fillable     = ['area_name', 'district_id', 'network_zone_id', 'is_4g_area', 'is_5g_area'];
+    protected array  $fillable     = ['area_name', 'district_id', 'thana_id', 'network_zone_id', 'is_4g_area', 'is_5g_area'];
 
     public function index(Request $request)
     {
@@ -21,10 +21,12 @@ class AreaController extends BaseApiController
 
         $query = DB::table('areas as a')
             ->leftJoin('districts as d', 'a.district_id', '=', 'd.district_id')
+            ->leftJoin('thanas as t', 'a.thana_id', '=', 't.thana_id')
             ->leftJoin('network_zones as nz', 'a.network_zone_id', '=', 'nz.network_zone_id')
             ->select(
                 'a.area_id', 'a.area_name',
                 'a.district_id', 'd.district_name',
+                'a.thana_id', 't.thana_name',
                 'a.network_zone_id', 'nz.network_zone_name',
                 'a.is_4g_area', 'a.is_5g_area',
                 'a.created_at', 'a.updated_at'

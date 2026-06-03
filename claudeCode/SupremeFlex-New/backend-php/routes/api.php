@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MasterData\NetworkZoneController;
 use App\Http\Controllers\Api\MasterData\DistrictController;
+use App\Http\Controllers\Api\MasterData\ThanaController;
 use App\Http\Controllers\Api\MasterData\AreaController;
 use App\Http\Controllers\Api\MasterData\ChannelController;
 use App\Http\Controllers\Api\MasterData\SubChannelController;
@@ -61,6 +62,7 @@ Route::middleware('auth.jwt')->group(function () {
     // Master Data
     Route::apiResource('network-zones',        NetworkZoneController::class);
     Route::apiResource('districts',            DistrictController::class);
+    Route::apiResource('thanas',               ThanaController::class);
     Route::apiResource('areas',                AreaController::class);
     Route::apiResource('channels',             ChannelController::class);
     Route::apiResource('sub-channels',         SubChannelController::class);
@@ -180,6 +182,7 @@ Route::middleware('auth.jwt')->group(function () {
     $bulkResources = [
         'network-zones'       => NetworkZoneController::class,
         'districts'           => DistrictController::class,
+        'thanas'              => ThanaController::class,
         'areas'               => AreaController::class,
         'channels'            => ChannelController::class,
         'sub-channels'        => SubChannelController::class,
