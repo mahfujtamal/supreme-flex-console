@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useQuery } from '@tanstack/react-query';
+import { Shield, Users, type LucideIcon } from 'lucide-react';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
 import { BulkImportModal } from '@/components/ui/BulkImportModal';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface AdminUser { id: string; user_name: string; email: string; role_id: string; status: string; created_at: string }
@@ -15,8 +19,8 @@ interface AdminRole { id: string; role_name: string; description: string; status
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function BulkTab<T extends Record<string, any>>({
-  qk, ep, cols, headers,
-}: { qk: string; ep: string; cols: Column<T>[]; headers: string[] }) {
+  qk, ep, cols, headers, emptyIcon: Icon, emptyHeading,
+}: { qk: string; ep: string; cols: Column<T>[]; headers: string[]; emptyIcon: LucideIcon; emptyHeading: string }) {
   const [page, setPage]         = useState(0);
   const [search, setSearch]     = useState('');
   const [sel, setSel]           = useState<Set<string>>(new Set());
@@ -50,17 +54,23 @@ function BulkTab<T extends Record<string, any>>({
         onBulkInsert={() => setImport(true)}
         onClearSelection={() => setSel(new Set())}
       />
-      <DataTable
-        columns={cols}
-        data={rows}
-        rowKey={r => String(r.id)}
-        isLoading={isLoading}
-        page={page}
-        totalPages={data?.last_page}
-        onPageChange={setPage}
-        selectedIds={sel}
-        onSelectionChange={setSel}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Icon} heading={emptyHeading} />
+      ) : (
+        <DataTable
+          columns={cols}
+          data={rows}
+          rowKey={r => String(r.id)}
+          isLoading={false}
+          page={page}
+          totalPages={data?.last_page}
+          onPageChange={setPage}
+          selectedIds={sel}
+          onSelectionChange={setSel}
+        />
+      )}
       <BulkImportModal
         open={importOpen}
         onOpenChange={setImport}
@@ -88,7 +98,7 @@ const ROLE_COLS: Column<AdminRole>[] = [
 export default function GovernancePage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Governance</h1>
+      <PageHero title="Governance" subtitle="Admin users and role management" />
       <Tabs.Root defaultValue="users">
         <Tabs.List className="flex gap-1 border-b">
           {['Admin Users', 'Roles'].map((label, i) => (
@@ -107,6 +117,8 @@ export default function GovernancePage() {
             ep="/admin-users"
             cols={USER_COLS}
             headers={['user_name', 'email', 'role_id', 'status']}
+            emptyIcon={Users}
+            emptyHeading="No admin users found"
           />
         </Tabs.Content>
         <Tabs.Content value="roles">
@@ -115,6 +127,8 @@ export default function GovernancePage() {
             ep="/admin-roles"
             cols={ROLE_COLS}
             headers={['role_name', 'description']}
+            emptyIcon={Shield}
+            emptyHeading="No roles found"
           />
         </Tabs.Content>
       </Tabs.Root>

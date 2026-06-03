@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Truck } from 'lucide-react';
 import { nodeApi } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Lead {
   order_id: string;
@@ -49,7 +53,7 @@ export default function FieldExecutionPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Field Execution</h1>
+      <PageHero title="Field Execution" subtitle="Delivery lead management and status tracking" />
 
       <div className="flex gap-2 flex-wrap">
         {STATUS_FILTERS.map(s => (
@@ -69,9 +73,9 @@ export default function FieldExecutionPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading leads…</p>
+        <SkeletonRows />
       ) : leads.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No leads found.</p>
+        <EmptyState icon={Truck} heading="No leads found" subtext="Change the status filter to see other orders." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {leads.map(lead => {

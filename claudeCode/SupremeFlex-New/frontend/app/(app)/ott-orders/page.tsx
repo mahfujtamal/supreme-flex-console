@@ -5,6 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Tv2 } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface OttOrder {
@@ -39,22 +43,28 @@ export default function OttOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">OTT Orders</h1>
+      <PageHero title="OTT Orders" subtitle="OTT activation and subscription history" />
       <input
         className="border rounded px-3 py-1.5 text-sm w-64"
         placeholder="Search…"
         value={search}
         onChange={e => { setSearch(e.target.value); setPage(0); }}
       />
-      <DataTable
-        columns={COLS}
-        data={rows}
-        rowKey={r => r.id}
-        isLoading={isLoading}
-        page={page}
-        totalPages={data?.last_page}
-        onPageChange={setPage}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Tv2} heading="No OTT orders found" subtext="Try a different search term." />
+      ) : (
+        <DataTable
+          columns={COLS}
+          data={rows}
+          rowKey={r => r.id}
+          isLoading={false}
+          page={page}
+          totalPages={data?.last_page}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }

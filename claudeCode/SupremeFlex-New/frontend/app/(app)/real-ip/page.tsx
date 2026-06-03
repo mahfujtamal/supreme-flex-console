@@ -6,6 +6,10 @@ import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Globe } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface RealIp {
@@ -55,22 +59,28 @@ export default function RealIpPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Real IP Assignments</h1>
+      <PageHero title="Real IP Assignments" subtitle="Static IP allocation and release management" />
       <input
         className="border rounded px-3 py-1.5 text-sm w-64"
         placeholder="Search by IP or customer…"
         value={search}
         onChange={e => { setSearch(e.target.value); setPage(0); }}
       />
-      <DataTable
-        columns={COLS}
-        data={rows}
-        rowKey={r => r.id}
-        isLoading={isLoading}
-        page={page}
-        totalPages={data?.last_page}
-        onPageChange={setPage}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Globe} heading="No IP assignments found" subtext="Try a different search term." />
+      ) : (
+        <DataTable
+          columns={COLS}
+          data={rows}
+          rowKey={r => r.id}
+          isLoading={false}
+          page={page}
+          totalPages={data?.last_page}
+          onPageChange={setPage}
+        />
+      )}
       <ConfirmDialog
         open={!!releaseId}
         onOpenChange={open => { if (!open) setRelease(null); }}

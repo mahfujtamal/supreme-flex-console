@@ -10,7 +10,10 @@ import { BulkActionBar } from '@/components/ui/BulkActionBar';
 import { BulkImportModal } from '@/components/ui/BulkImportModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Copy } from 'lucide-react';
+import { Copy, Megaphone, type LucideIcon } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Campaign { id: string; name: string; scope: string; campaign_trigger_type: string; status: string; start_date: string; end_date: string }
 interface Coupon   { id: string; code: string; discount_type: string; discount_value: string; status: string }
@@ -36,7 +39,13 @@ function SimpleTab<T extends Record<string, any>>({ qk, ep, cols, headers }: { q
         <button onClick={() => setImport(true)} className="ml-auto px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90">+ Bulk Insert</button>
       </div>
       <BulkActionBar selectedCount={sel.size} onBulkInsert={() => setImport(true)} onClearSelection={() => setSel(new Set())} />
-      <DataTable columns={cols} data={rows} rowKey={r => String(r.id)} isLoading={isLoading} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Megaphone} heading="No records found" />
+      ) : (
+        <DataTable columns={cols} data={rows} rowKey={r => String(r.id)} isLoading={false} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      )}
       <BulkImportModal open={importOpen} onOpenChange={setImport} templateHeaders={headers} onImport={() => {}} />
     </div>
   );
@@ -82,7 +91,13 @@ function CampaignsTab() {
         <button onClick={() => setImport(true)} className="ml-auto px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90">+ Bulk Insert</button>
       </div>
       <BulkActionBar selectedCount={sel.size} onBulkInsert={() => setImport(true)} onClearSelection={() => setSel(new Set())} />
-      <DataTable columns={cols} data={rows} rowKey={r => r.id} isLoading={isLoading} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Megaphone} heading="No campaigns found" subtext="Use Bulk Insert to add campaigns." />
+      ) : (
+        <DataTable columns={cols} data={rows} rowKey={r => r.id} isLoading={false} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      )}
       <BulkImportModal open={importOpen} onOpenChange={setImport} templateHeaders={['name','scope','campaign_trigger_type','start_date','end_date']} onImport={() => {}} />
       <ConfirmDialog open={!!cloneId} onOpenChange={open => { if (!open) setCloneId(null); }} title="Clone Campaign" description="A copy will be created in INACTIVE status." confirmLabel="Clone" onConfirm={() => cloneId && clone.mutate(cloneId)} />
     </div>
@@ -109,7 +124,7 @@ const RULE_COLS: Column<Rule>[] = [
 export default function CampaignEnginePage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Campaign Engine</h1>
+      <PageHero title="Campaign Engine" subtitle="Campaigns, coupons, referrals and targeting rules" />
       <Tabs.Root defaultValue="campaigns">
         <Tabs.List className="flex gap-1 border-b overflow-x-auto">
           {['Campaigns','Coupons','Referral Programs','Targeting Rules','Product Rules'].map((label, i) => (

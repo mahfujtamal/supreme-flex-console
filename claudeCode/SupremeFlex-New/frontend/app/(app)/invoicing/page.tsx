@@ -6,6 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Receipt, type LucideIcon } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface Invoice { id: string; customer_id: string; total_amount: string; status: string; created_at: string; is_summary: string }
@@ -37,7 +41,13 @@ function PagedTab<T extends { id: string }>({ qk, ep, cols }: { qk: string; ep: 
   return (
     <div className="space-y-3 pt-4">
       <input className="border rounded px-3 py-1.5 text-sm w-64" placeholder="Search…" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
-      <DataTable columns={cols} data={rows} rowKey={r => r.id} isLoading={isLoading} page={page} totalPages={data?.last_page} onPageChange={setPage} />
+      {isLoading ? (
+      <SkeletonRows />
+    ) : rows.length === 0 ? (
+      <EmptyState icon={Receipt} heading="No records found" />
+    ) : (
+      <DataTable columns={cols} data={rows} rowKey={r => r.id} isLoading={false} page={page} totalPages={data?.last_page} onPageChange={setPage} />
+    )}
     </div>
   );
 }
@@ -92,7 +102,7 @@ const TAB_VALUES = ['invoices', 'ledger', 'generate'];
 export default function InvoicingPage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Invoicing</h1>
+      <PageHero title="Invoicing" subtitle="Invoices, transaction ledger and summary generation" />
       <Tabs.Root defaultValue="invoices">
         <Tabs.List className="flex gap-1 border-b">
           {TABS.map((label, i) => (

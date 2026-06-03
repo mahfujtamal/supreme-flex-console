@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Package } from 'lucide-react';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface InventoryItem {
@@ -50,7 +54,7 @@ export default function OperationsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Operations</h1>
+      <PageHero title="Operations" subtitle="Inventory management and stock visibility" />
       <div className="flex gap-3 flex-wrap">
         <input
           className="border rounded px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -69,17 +73,23 @@ export default function OperationsPage() {
         </select>
       </div>
       <BulkActionBar selectedCount={sel.size} onClearSelection={() => setSel(new Set())} />
-      <DataTable
-        columns={COLS}
-        data={rows}
-        rowKey={r => r.id}
-        isLoading={isLoading}
-        page={page}
-        totalPages={data?.last_page}
-        onPageChange={setPage}
-        selectedIds={sel}
-        onSelectionChange={setSel}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Package} heading="No inventory items found" subtext="Adjust status filter or search." />
+      ) : (
+        <DataTable
+          columns={COLS}
+          data={rows}
+          rowKey={r => r.id}
+          isLoading={false}
+          page={page}
+          totalPages={data?.last_page}
+          onPageChange={setPage}
+          selectedIds={sel}
+          onSelectionChange={setSel}
+        />
+      )}
     </div>
   );
 }

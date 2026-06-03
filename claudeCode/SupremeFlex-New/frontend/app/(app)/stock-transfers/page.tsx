@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeftRight } from 'lucide-react';
 import { nodeApi, phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface StockTransfer {
@@ -62,10 +66,16 @@ export default function StockTransfersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Stock Transfers</h1>
+      <PageHero title="Stock Transfers" subtitle="Inventory movement requests between entities" />
       <input className="border rounded px-3 py-1.5 text-sm w-64" placeholder="Search…" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
       <BulkActionBar selectedCount={sel.size} onClearSelection={() => setSel(new Set())} />
-      <DataTable columns={COLS} data={rows} rowKey={r => r.id} isLoading={isLoading} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={ArrowLeftRight} heading="No stock transfers found" subtext="Try a different search term." />
+      ) : (
+        <DataTable columns={COLS} data={rows} rowKey={r => r.id} isLoading={false} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      )}
       <ConfirmDialog
         open={!!pending}
         onOpenChange={open => { if (!open) setPending(null); }}

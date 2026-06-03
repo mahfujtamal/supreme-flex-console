@@ -6,6 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { MapPin, type LucideIcon } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface LocationChange {
@@ -47,15 +51,21 @@ function HistoryTab() {
         value={search}
         onChange={e => { setSearch(e.target.value); setPage(0); }}
       />
-      <DataTable
-        columns={COLS}
-        data={rows}
-        rowKey={r => r.id}
-        isLoading={isLoading}
-        page={page}
-        totalPages={data?.last_page}
-        onPageChange={setPage}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={MapPin} heading="No location changes found" subtext="Try a different search term." />
+      ) : (
+        <DataTable
+          columns={COLS}
+          data={rows}
+          rowKey={r => r.id}
+          isLoading={false}
+          page={page}
+          totalPages={data?.last_page}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }
@@ -122,7 +132,7 @@ function NewRequestTab() {
 export default function LocationChangePage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Location Change</h1>
+      <PageHero title="Location Change" subtitle="Customer location transfer requests and history" />
       <Tabs.Root defaultValue="history">
         <Tabs.List className="flex gap-1 border-b">
           {[['history', 'History'], ['new', 'New Request']].map(([val, label]) => (

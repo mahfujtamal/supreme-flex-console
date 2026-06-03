@@ -9,6 +9,10 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
 import { BulkImportModal } from '@/components/ui/BulkImportModal';
+import { Layers } from 'lucide-react';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface Product      { id: string; product_name: string; product_category: string; billing_type: string; network_capability: string; status: string }
@@ -39,7 +43,13 @@ function SearchTable<T extends Record<string, any>>({
         <button onClick={() => setImport(true)} className="ml-auto px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90">+ Bulk Insert</button>
       </div>
       <BulkActionBar selectedCount={sel.size} onBulkInsert={() => setImport(true)} onClearSelection={() => setSel(new Set())} />
-      <DataTable columns={columns} data={rows} rowKey={r => String(r.id)} isLoading={isLoading} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Layers} heading="No records found" />
+      ) : (
+        <DataTable columns={columns} data={rows} rowKey={r => String(r.id)} isLoading={false} page={page} totalPages={data?.last_page} onPageChange={setPage} selectedIds={sel} onSelectionChange={setSel} />
+      )}
       <BulkImportModal open={importOpen} onOpenChange={setImport} templateHeaders={templateHeaders} onImport={() => {}} />
     </div>
   );
@@ -429,7 +439,7 @@ function DisplayConfigTab() {
     },
   });
 
-  if (isLoading) return <p className="pt-4 text-sm text-muted-foreground">Loading…</p>;
+  if (isLoading) return <div className="pt-4"><SkeletonRows count={2} /></div>;
   const rows: SysConfig[] = Array.isArray(data) ? data : [];
 
   return (
@@ -470,7 +480,7 @@ const TAB_VALUES = ['products', 'compat', 'versions', 'display-config'];
 export default function ProductEnginePage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Product Engine</h1>
+      <PageHero title="Product Engine" subtitle="Products, pricing versions and addon compatibility" />
       <Tabs.Root defaultValue="products">
         <Tabs.List className="flex gap-1 border-b">
           {TAB_LABELS.map((label, i) => (

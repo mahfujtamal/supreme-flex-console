@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Database } from 'lucide-react';
 import { phpApi } from '@/lib/api';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BulkActionBar } from '@/components/ui/BulkActionBar';
 import { BulkImportModal } from '@/components/ui/BulkImportModal';
+import { PageHero } from '@/components/ui/PageHero';
+import { SkeletonRows } from '@/components/ui/SkeletonRows';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useDebounce } from '@/hooks/useDebounce';
 
 function ResourceTab({
@@ -65,17 +69,23 @@ function ResourceTab({
         onClearSelection={() => setSelected(new Set())}
       />
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        rowKey={r => r.id ?? ''}
-        isLoading={isLoading}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelected}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Database} heading="No records found" subtext="Use Bulk Insert to add entries." />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rows}
+          rowKey={r => r.id ?? ''}
+          isLoading={false}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelected}
+        />
+      )}
 
       <BulkImportModal
         open={importOpen}
@@ -160,7 +170,10 @@ const TABS = [
 export default function MasterDataPage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Master Data</h1>
+      <PageHero
+        title="Master Data"
+        subtitle="Reference tables — geography, channels, distribution, field agents"
+      />
       <Tabs.Root defaultValue="zones">
         <Tabs.List className="flex gap-1 border-b overflow-x-auto">
           {TABS.map(t => (
