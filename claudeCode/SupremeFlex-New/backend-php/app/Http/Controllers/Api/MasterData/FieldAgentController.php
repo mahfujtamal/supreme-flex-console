@@ -11,7 +11,7 @@ class FieldAgentController extends BaseApiController
     protected string $table        = 'field_agents';
     protected string $primaryKey   = 'agent_id';
     protected string $searchColumn = 'agent_name';
-    protected array  $fillable     = ['agent_name', 'dh_id', 'channel_id', 'sub_channel_id', 'msisdn', 'status'];
+    protected array  $fillable     = ['agent_name', 'dh_id', 'channel_id', 'sub_channel_id', 'msisdn', 'agent_category', 'status'];
 
     public function index(Request $request)
     {
@@ -24,7 +24,7 @@ class FieldAgentController extends BaseApiController
             ->leftJoin('channels as ch', 'fa.channel_id', '=', 'ch.channel_id')
             ->leftJoin('sub_channels as sc', 'fa.sub_channel_id', '=', 'sc.sub_channel_id')
             ->select(
-                'fa.agent_id', 'fa.agent_name', 'fa.msisdn', 'fa.status',
+                'fa.agent_id', 'fa.agent_name', 'fa.msisdn', 'fa.agent_category', 'fa.status',
                 'fa.dh_id',          'dh.name as dh_name',
                 'fa.channel_id',     'ch.channel_name',
                 'fa.sub_channel_id', 'sc.sub_channel_name',

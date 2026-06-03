@@ -142,12 +142,19 @@ const DH_COLS: Column<Record<string, string>>[] = [
   { key: 'phone_number',   header: 'Phone',     cell: r => r.phone_number ? `+880${r.phone_number}` : '—' },
   { key: 'status',         header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
 ];
+const AGENT_CATEGORY_LABELS: Record<string, string> = {
+  LEAD_GEN_AND_ACTIVATION: 'Lead Gen & Activation',
+  LEAD_GEN_ONLY:           'Lead Gen Only',
+  ACTIVATION_ONLY:         'Activation Only',
+  NO_LEAD_NO_ACTIVATION:   'No Lead / No Activation',
+};
 const AGENT_COLS: Column<Record<string, string>>[] = [
-  { key: 'agent_name',  header: 'Name',        cell: r => r.agent_name },
-  { key: 'parent_type', header: 'Parent Type',  cell: r => r.parent_type ?? '—' },
-  { key: 'parent_name', header: 'Parent',       cell: r => r.parent_name ?? '—' },
-  { key: 'msisdn',      header: 'Phone',        cell: r => r.msisdn ? `+880${r.msisdn}` : '—' },
-  { key: 'status',      header: 'Status',       cell: r => <StatusBadge status={r.status} /> },
+  { key: 'agent_name',     header: 'Name',        cell: r => r.agent_name },
+  { key: 'agent_category', header: 'Category',    cell: r => AGENT_CATEGORY_LABELS[r.agent_category] ?? r.agent_category ?? '—' },
+  { key: 'parent_type',    header: 'Parent Type', cell: r => r.parent_type ?? '—' },
+  { key: 'parent_name',    header: 'Parent',      cell: r => r.parent_name ?? '—' },
+  { key: 'msisdn',         header: 'Phone',       cell: r => r.msisdn ? `+880${r.msisdn}` : '—' },
+  { key: 'status',         header: 'Status',      cell: r => <StatusBadge status={r.status} /> },
 ];
 const KAM_COLS: Column<Record<string, string>>[] = [
   { key: 'name',               header: 'Name',     cell: r => r.name },
@@ -163,7 +170,7 @@ const TABS = [
   { value: 'channels',     label: 'Channels',            endpoint: '/channels',            cols: CHANNEL_COLS,  headers: ['name', 'default_delivery_mode', 'inventory_pull_mode', 'status'] },
   { value: 'subchannels',  label: 'Sub-Channels',        endpoint: '/sub-channels',        cols: SUBCHAN_COLS,  headers: ['name', 'channel_id', 'delivery_ownership', 'status'] },
   { value: 'dhs',          label: 'Distribution Houses', endpoint: '/distribution-houses', cols: DH_COLS,       headers: ['name', 'manager_admin_id', 'status'] },
-  { value: 'agents',       label: 'Field Agents',        endpoint: '/field-agents',        cols: AGENT_COLS,    headers: ['name', 'dh_id', 'status'] },
+  { value: 'agents',       label: 'Field Agents',        endpoint: '/field-agents',        cols: AGENT_COLS,    headers: ['name', 'dh_id', 'agent_category', 'status'] },
   { value: 'kams',         label: 'KAMs',                endpoint: '/kams',                cols: KAM_COLS,      headers: ['name', 'region', 'status'] },
 ];
 
