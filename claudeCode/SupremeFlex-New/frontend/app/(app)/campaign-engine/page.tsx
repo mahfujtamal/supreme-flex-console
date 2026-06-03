@@ -15,10 +15,11 @@ import { PageHero } from '@/components/ui/PageHero';
 import { SkeletonRows } from '@/components/ui/SkeletonRows';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-interface Campaign { id: string; name: string; scope: string; campaign_trigger_type: string; status: string; start_date: string; end_date: string }
+interface Campaign { id: string; campaign_name: string; scope: string; campaign_trigger_type: string; status: string; start_date: string; end_date: string }
 interface Coupon   { id: string; coupon_code: string; campaign_id: string; global_usage_limit: number | null; current_global_uses: number; max_uses_per_customer: number | null; status: string }
-interface Referral { id: string; name: string; reward_amount: string; status: string }
-interface Rule     { id: string; rule_type: string; description: string; status: string }
+interface Referral { id: string; referral_code_prefix: string | null; referrer_reward_type: string | null; referrer_reward_value: string | null; referrer_reward_unit: string | null; status: string }
+interface TargetingRule { id: string; network_type: string; min_network_age_days: number | null; max_network_age_days: number | null; block_id: string | null }
+interface ProductRule  { id: string; rule_type: string; discount_type: string | null; discount_value: string | null }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function SimpleTab<T extends Record<string, any>>({ qk, ep, cols, headers }: { qk: string; ep: string; cols: Column<T>[]; headers: string[] }) {
@@ -71,7 +72,7 @@ function CampaignsTab() {
   const rows: Campaign[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   const cols: Column<Campaign>[] = [
-    { key: 'name',                  header: 'Name',    cell: r => r.name },
+    { key: 'campaign_name',         header: 'Name',    cell: r => r.campaign_name },
     { key: 'scope',                 header: 'Scope',   cell: r => r.scope },
     { key: 'campaign_trigger_type', header: 'Trigger', cell: r => r.campaign_trigger_type },
     { key: 'start_date',            header: 'Start',   cell: r => r.start_date?.slice(0, 10) },
@@ -112,14 +113,22 @@ const COUPON_COLS: Column<Coupon>[] = [
   { key: 'status',               header: 'Status',          cell: r => <StatusBadge status={r.status} /> },
 ];
 const REFERRAL_COLS: Column<Referral>[] = [
-  { key: 'name',          header: 'Name',         cell: r => r.name },
-  { key: 'reward_amount', header: 'Reward (BDT)', cell: r => r.reward_amount },
-  { key: 'status',        header: 'Status',       cell: r => <StatusBadge status={r.status} /> },
+  { key: 'referral_code_prefix',  header: 'Code Prefix', cell: r => r.referral_code_prefix ?? '—' },
+  { key: 'referrer_reward_type',  header: 'Reward Type', cell: r => r.referrer_reward_type ?? '—' },
+  { key: 'referrer_reward_value', header: 'Value',       cell: r => r.referrer_reward_value ?? '—' },
+  { key: 'referrer_reward_unit',  header: 'Unit',        cell: r => r.referrer_reward_unit ?? '—' },
+  { key: 'status',                header: 'Status',      cell: r => <StatusBadge status={r.status} /> },
 ];
-const RULE_COLS: Column<Rule>[] = [
-  { key: 'rule_type',   header: 'Type',        cell: r => r.rule_type },
-  { key: 'description', header: 'Description', cell: r => r.description },
-  { key: 'status',      header: 'Status',      cell: r => <StatusBadge status={r.status} /> },
+const TARGETING_COLS: Column<TargetingRule>[] = [
+  { key: 'network_type',          header: 'Network',     cell: r => r.network_type },
+  { key: 'min_network_age_days',  header: 'Min Age (d)', cell: r => r.min_network_age_days ?? '—' },
+  { key: 'max_network_age_days',  header: 'Max Age (d)', cell: r => r.max_network_age_days ?? '—' },
+  { key: 'block_id',              header: 'Block',       cell: r => r.block_id ?? '—' },
+];
+const PRODUCT_RULE_COLS: Column<ProductRule>[] = [
+  { key: 'rule_type',      header: 'Type',     cell: r => r.rule_type },
+  { key: 'discount_type',  header: 'Disc Type', cell: r => r.discount_type ?? '—' },
+  { key: 'discount_value', header: 'Value',    cell: r => r.discount_value ?? '—' },
 ];
 
 export default function CampaignEnginePage() {
@@ -137,8 +146,8 @@ export default function CampaignEnginePage() {
         <Tabs.Content value="campaigns"><CampaignsTab /></Tabs.Content>
         <Tabs.Content value="coupons"><SimpleTab<Coupon> qk="coupons" ep="/coupons" cols={COUPON_COLS} headers={['coupon_code','campaign_id','global_usage_limit','max_uses_per_customer']} /></Tabs.Content>
         <Tabs.Content value="referrals"><SimpleTab<Referral> qk="referrals" ep="/referral-programs" cols={REFERRAL_COLS} headers={['name','reward_amount']} /></Tabs.Content>
-        <Tabs.Content value="targeting"><SimpleTab<Rule> qk="targeting-rules" ep="/targeting-rules" cols={RULE_COLS} headers={['rule_type','description']} /></Tabs.Content>
-        <Tabs.Content value="product-rules"><SimpleTab<Rule> qk="product-rules" ep="/product-rules" cols={RULE_COLS} headers={['rule_type','description']} /></Tabs.Content>
+        <Tabs.Content value="targeting"><SimpleTab<TargetingRule> qk="targeting-rules" ep="/targeting-rules" cols={TARGETING_COLS} headers={['campaign_id','network_type']} /></Tabs.Content>
+        <Tabs.Content value="product-rules"><SimpleTab<ProductRule> qk="product-rules" ep="/product-rules" cols={PRODUCT_RULE_COLS} headers={['campaign_id','product_id','rule_type','discount_type','discount_value']} /></Tabs.Content>
       </Tabs.Root>
     </div>
   );
