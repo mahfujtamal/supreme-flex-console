@@ -56,7 +56,7 @@ class DistributionHouseController extends BaseApiController
             ->select('a.area_id', 'a.area_name', 't.thana_name', 'd.district_name')
             ->orderBy('a.area_name')
             ->get()
-            ->map(fn($r) => $this->castRecord($r));
+            ->map(fn($r) => self::castRow($r, 'area_id'));
         return response()->json($rows);
     }
 
