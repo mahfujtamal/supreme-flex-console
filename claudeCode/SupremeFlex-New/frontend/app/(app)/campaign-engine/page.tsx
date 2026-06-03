@@ -16,7 +16,7 @@ import { SkeletonRows } from '@/components/ui/SkeletonRows';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Campaign { id: string; name: string; scope: string; campaign_trigger_type: string; status: string; start_date: string; end_date: string }
-interface Coupon   { id: string; code: string; discount_type: string; discount_value: string; status: string }
+interface Coupon   { id: string; coupon_code: string; campaign_id: string; global_usage_limit: number | null; current_global_uses: number; max_uses_per_customer: number | null; status: string }
 interface Referral { id: string; name: string; reward_amount: string; status: string }
 interface Rule     { id: string; rule_type: string; description: string; status: string }
 
@@ -105,10 +105,11 @@ function CampaignsTab() {
 }
 
 const COUPON_COLS: Column<Coupon>[] = [
-  { key: 'code',           header: 'Code',    cell: r => <code className="font-mono text-xs">{r.code}</code> },
-  { key: 'discount_type',  header: 'Type',    cell: r => r.discount_type },
-  { key: 'discount_value', header: 'Value',   cell: r => r.discount_value },
-  { key: 'status',         header: 'Status',  cell: r => <StatusBadge status={r.status} /> },
+  { key: 'coupon_code',          header: 'Code',            cell: r => <code className="font-mono text-xs">{r.coupon_code}</code> },
+  { key: 'global_usage_limit',   header: 'Global Limit',   cell: r => r.global_usage_limit ?? '∞' },
+  { key: 'current_global_uses',  header: 'Used',            cell: r => r.current_global_uses },
+  { key: 'max_uses_per_customer',header: 'Per Customer',   cell: r => r.max_uses_per_customer ?? '∞' },
+  { key: 'status',               header: 'Status',          cell: r => <StatusBadge status={r.status} /> },
 ];
 const REFERRAL_COLS: Column<Referral>[] = [
   { key: 'name',          header: 'Name',         cell: r => r.name },
@@ -134,7 +135,7 @@ export default function CampaignEnginePage() {
           ))}
         </Tabs.List>
         <Tabs.Content value="campaigns"><CampaignsTab /></Tabs.Content>
-        <Tabs.Content value="coupons"><SimpleTab<Coupon> qk="coupons" ep="/coupons" cols={COUPON_COLS} headers={['code','discount_type','discount_value']} /></Tabs.Content>
+        <Tabs.Content value="coupons"><SimpleTab<Coupon> qk="coupons" ep="/coupons" cols={COUPON_COLS} headers={['coupon_code','campaign_id','global_usage_limit','max_uses_per_customer']} /></Tabs.Content>
         <Tabs.Content value="referrals"><SimpleTab<Referral> qk="referrals" ep="/referral-programs" cols={REFERRAL_COLS} headers={['name','reward_amount']} /></Tabs.Content>
         <Tabs.Content value="targeting"><SimpleTab<Rule> qk="targeting-rules" ep="/targeting-rules" cols={RULE_COLS} headers={['rule_type','description']} /></Tabs.Content>
         <Tabs.Content value="product-rules"><SimpleTab<Rule> qk="product-rules" ep="/product-rules" cols={RULE_COLS} headers={['rule_type','description']} /></Tabs.Content>
