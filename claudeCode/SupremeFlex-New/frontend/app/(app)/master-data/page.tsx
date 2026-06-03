@@ -134,7 +134,10 @@ function ReassignDialog({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const [newDhId, setNewDhId] = useState('');
+  const [newDhId, setNewDhId]       = useState('');
+  const [newDhLabel, setNewDhLabel] = useState('');
+  const [dhSearch, setDhSearch]     = useState('');
+  const [listOpen, setListOpen]     = useState(false);
 
   const { data: dhList } = useQuery({
     queryKey: ['dh-list-all'],
@@ -142,6 +145,14 @@ function ReassignDialog({
       phpApi.get('/distribution-houses', { params: { per_page: 100 } })
             .then(r => (r.data?.items ?? []) as DhRow[]),
   });
+
+  const filtered = (dhList ?? [])
+    .filter(d => d.id !== currentDhId)
+    .filter(d => {
+      if (!dhSearch) return true;
+      const q = dhSearch.toLowerCase();
+      return d.dh_code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q);
+    });
 
   const reassign = useMutation({
     mutationFn: () =>
@@ -165,20 +176,45 @@ function ReassignDialog({
             {area.thana_name ? ` · ${area.thana_name}` : ''}
           </Dialog.Description>
 
-          <select
-            value={newDhId}
-            onChange={e => setNewDhId(e.target.value)}
-            className="mt-4 w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            <option value="">— Select new Distribution House —</option>
-            {dhList
-              ?.filter(d => d.id !== currentDhId)
-              .map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.dh_code} — {d.name}
-                </option>
-              ))}
-          </select>
+          {/* Searchable DH picker */}
+          <div className="mt-4 relative">
+            <input
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Search by DH Code or Name…"
+              value={newDhId ? newDhLabel : dhSearch}
+              onChange={e => {
+                setDhSearch(e.target.value);
+                setNewDhId('');
+                setNewDhLabel('');
+                setListOpen(true);
+              }}
+              onFocus={() => setListOpen(true)}
+              onBlur={() => setTimeout(() => setListOpen(false), 150)}
+            />
+            {listOpen && (
+              <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto border rounded bg-white shadow-lg text-sm">
+                {filtered.length === 0 ? (
+                  <li className="px-3 py-2 text-muted-foreground">No results</li>
+                ) : (
+                  filtered.map(d => (
+                    <li
+                      key={d.id}
+                      onMouseDown={() => {
+                        setNewDhId(d.id);
+                        setNewDhLabel(`${d.dh_code} — ${d.name}`);
+                        setDhSearch('');
+                        setListOpen(false);
+                      }}
+                      className="px-3 py-2 cursor-pointer hover:bg-primary/10"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{d.dh_code}</span>
+                      {d.name}
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
 
           <div className="mt-5 flex justify-end gap-2">
             <button
