@@ -342,8 +342,10 @@ function DhTab() {
     { key: 'cluster_name',   header: 'Cluster',   cell: r => r.cluster_name ?? '—' },
     { key: 'region_name',    header: 'Region',    cell: r => r.region_name ?? '—' },
     { key: 'circle_name',    header: 'Circle',    cell: r => r.circle_name ?? '—' },
-    { key: 'phone_number',   header: 'Phone',     cell: r => r.phone_number ? `+880${r.phone_number}` : '—' },
-    { key: 'status',         header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
+    { key: 'phone_number',  header: 'Phone',      cell: r => r.phone_number ? `+880${r.phone_number}` : '—' },
+    { key: 'onboarded_at',  header: 'Onboarded', cell: r => r.onboarded_at ?? '—' },
+    { key: 'deboarded_at',  header: 'Deboarded', cell: r => r.deboarded_at ?? '—' },
+    { key: 'status',        header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
   ];
 
   return (

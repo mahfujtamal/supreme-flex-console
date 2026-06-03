@@ -12,7 +12,7 @@ class DistributionHouseController extends BaseApiController
     protected string $table        = 'distribution_houses';
     protected string $primaryKey   = 'dh_id';
     protected string $searchColumn = 'name';
-    protected array  $fillable     = ['name', 'dh_code', 'territory_id', 'phone_number', 'status'];
+    protected array  $fillable     = ['name', 'dh_code', 'territory_id', 'phone_number', 'onboarded_at', 'deboarded_at', 'status'];
 
     public function index(Request $request)
     {
@@ -29,7 +29,7 @@ class DistributionHouseController extends BaseApiController
                 'dh.dh_id', 'dh.dh_code', 'dh.name',
                 'dh.territory_id', 't.territory_name',
                 'cl.cluster_name', 'r.region_name', 'ci.circle_name',
-                'dh.phone_number', 'dh.status',
+                'dh.phone_number', 'dh.onboarded_at', 'dh.deboarded_at', 'dh.status',
                 'dh.created_at', 'dh.updated_at'
             )
             ->orderBy('dh.name');
