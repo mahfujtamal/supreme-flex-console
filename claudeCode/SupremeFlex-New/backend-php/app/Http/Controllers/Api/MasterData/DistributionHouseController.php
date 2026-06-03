@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\MasterData;
 
 use App\Http\Controllers\Api\BaseApiController;
+use App\Helpers\Uuid;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -42,5 +43,39 @@ class DistributionHouseController extends BaseApiController
             ->map(fn($r) => $this->castRecord($r))->values();
 
         return response()->json(['items' => $items, 'total' => $total]);
+    }
+
+    public function areas(Request $request, string $id)
+    {
+        $dhId = Uuid::toBin($id);
+        $rows = DB::table('dh_area_assignments as daa')
+            ->join('areas as a', 'daa.area_id', '=', 'a.area_id')
+            ->leftJoin('thanas as t', 'a.thana_id', '=', 't.thana_id')
+            ->leftJoin('districts as d', 'a.district_id', '=', 'd.district_id')
+            ->where('daa.dh_id', $dhId)
+            ->select('a.area_id', 'a.area_name', 't.thana_name', 'd.district_name')
+            ->orderBy('a.area_name')
+            ->get()
+            ->map(fn($r) => $this->castRecord($r));
+        return response()->json($rows);
+    }
+
+    public function reassignArea(Request $request, string $areaId)
+    {
+        $request->validate(['new_dh_id' => 'required|string']);
+        $areaBin  = Uuid::toBin($areaId);
+        $newDhBin = Uuid::toBin($request->new_dh_id);
+
+        DB::table('dh_area_assignments')->where('area_id', $areaBin)->delete();
+        DB::table('dh_area_assignments')->insert([
+            'dh_id'      => $newDhBin,
+            'area_id'    => $areaBin,
+            'created_at' => now(),
+        ]);
+        DB::table('distribution_houses')
+            ->where('dh_id', $newDhBin)
+            ->update(['last_assigned_at' => now()]);
+
+        return response()->json(['ok' => true]);
     }
 }
