@@ -35,7 +35,22 @@ class DistributionHouseController extends BaseApiController
             ->orderBy('dh.name');
 
         if ($search) {
-            $query->where('dh.name', 'LIKE', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('dh.dh_code',       'LIKE', "%{$search}%")
+                  ->orWhere('dh.name',         'LIKE', "%{$search}%")
+                  ->orWhere('dh.phone_number', 'LIKE', "%{$search}%")
+                  ->orWhere('t.territory_name','LIKE', "%{$search}%")
+                  ->orWhere('cl.cluster_name', 'LIKE', "%{$search}%")
+                  ->orWhere('r.region_name',   'LIKE', "%{$search}%")
+                  ->orWhere('ci.circle_name',  'LIKE', "%{$search}%")
+                  ->orWhereExists(function ($sub) use ($search) {
+                      $sub->select(DB::raw(1))
+                          ->from('dh_area_assignments as daa')
+                          ->join('areas as a', 'daa.area_id', '=', 'a.area_id')
+                          ->whereColumn('daa.dh_id', 'dh.dh_id')
+                          ->where('a.area_name', 'LIKE', "%{$search}%");
+                  });
+            });
         }
 
         $total = $query->count();
