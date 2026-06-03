@@ -59,7 +59,7 @@ const PRODUCT_COLS: Column<Product>[] = [
   { key: 'product_name',        header: 'Name',     cell: r => r.product_name },
   { key: 'product_category',   header: 'Category', cell: r => <StatusBadge status={r.product_category} /> },
   { key: 'billing_type',       header: 'Billing',  cell: r => r.billing_type },
-  { key: 'network_capability', header: 'Network',  cell: r => r.network_capability },
+  { key: 'network_capability', header: 'Network',  cell: r => r.network_capability === 'ANY' ? 'BOTH' : r.network_capability },
   { key: 'status',             header: 'Status',   cell: r => <StatusBadge status={r.status} /> },
 ];
 const COMPAT_COLS: Column<AddonCompat>[] = [
