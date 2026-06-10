@@ -29,3 +29,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Independent local/project repos
+claudeCode/SupremeFlex-New/
+claudeCode/product-catchup/
+claudeCode/oneverge/
+claudeCode/product-catchup-doc/
+work-wiki/
+*.xlsx
+.aider.*
