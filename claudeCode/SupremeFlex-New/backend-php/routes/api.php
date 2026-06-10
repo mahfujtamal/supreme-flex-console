@@ -66,8 +66,9 @@ Route::middleware('auth.jwt')->group(function () {
     Route::apiResource('areas',                AreaController::class);
     Route::apiResource('channels',             ChannelController::class);
     Route::apiResource('sub-channels',         SubChannelController::class);
-    Route::get('distribution-houses/{id}/areas',                [DistributionHouseController::class, 'areas']);
-    Route::patch('distribution-houses/areas/{areaId}/reassign', [DistributionHouseController::class, 'reassignArea']);
+    Route::get('distribution-houses/{id}/areas',                      [DistributionHouseController::class, 'areas']);
+    Route::patch('distribution-houses/areas/{areaId}/reassign',       [DistributionHouseController::class, 'reassignArea']);
+    Route::patch('distribution-houses/{id}/transfer-all-areas',       [DistributionHouseController::class, 'transferAllAreas']);
     Route::apiResource('distribution-houses',  DistributionHouseController::class);
     Route::apiResource('field-agents',         FieldAgentController::class);
     Route::apiResource('kams',                 KamController::class);

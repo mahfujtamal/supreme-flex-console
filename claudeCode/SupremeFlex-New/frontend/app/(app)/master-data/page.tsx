@@ -27,6 +27,8 @@ interface DhRow extends Record<string, string> {
   region_name?: string;
   circle_name?: string;
   phone_number?: string;
+  onboarded_at?: string;
+  deboarded_at?: string;
   status: string;
 }
 
@@ -237,11 +239,119 @@ function ReassignDialog({
   );
 }
 
+// ── Transfer All Areas Dialog ─────────────────────────────────────────────────
+
+function TransferAllDialog({
+  dh,
+  onClose,
+}: {
+  dh: DhRow;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [newDhId, setNewDhId]       = useState('');
+  const [newDhLabel, setNewDhLabel] = useState('');
+  const [dhSearch, setDhSearch]     = useState('');
+  const [listOpen, setListOpen]     = useState(false);
+
+  const { data: dhList } = useQuery({
+    queryKey: ['dh-list-all'],
+    queryFn: () =>
+      phpApi.get('/distribution-houses', { params: { per_page: 100 } })
+            .then(r => (r.data?.items ?? []) as DhRow[]),
+  });
+
+  const filtered = (dhList ?? [])
+    .filter(d => d.id !== dh.id)
+    .filter(d => {
+      if (!dhSearch) return true;
+      const q = dhSearch.toLowerCase();
+      return d.dh_code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q);
+    });
+
+  const transfer = useMutation({
+    mutationFn: () =>
+      phpApi.patch(`/distribution-houses/${dh.id}/transfer-all-areas`, { new_dh_id: newDhId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dh-areas', dh.id] });
+      qc.invalidateQueries({ queryKey: ['dhs'] });
+      onClose();
+    },
+  });
+
+  return (
+    <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+          <Dialog.Title className="text-base font-semibold">Transfer All Areas</Dialog.Title>
+          <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+            Move all areas from <span className="font-mono">{dh.dh_code}</span> — {dh.name}
+          </Dialog.Description>
+
+          <div className="mt-4 relative">
+            <input
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Search by DH Code or Name…"
+              value={newDhId ? newDhLabel : dhSearch}
+              onChange={e => {
+                setDhSearch(e.target.value);
+                setNewDhId('');
+                setNewDhLabel('');
+                setListOpen(true);
+              }}
+              onFocus={() => setListOpen(true)}
+              onBlur={() => setTimeout(() => setListOpen(false), 150)}
+            />
+            {listOpen && (
+              <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto border rounded bg-white shadow-lg text-sm">
+                {filtered.length === 0 ? (
+                  <li className="px-3 py-2 text-muted-foreground">No results</li>
+                ) : (
+                  filtered.map(d => (
+                    <li
+                      key={d.id}
+                      onMouseDown={() => {
+                        setNewDhId(d.id);
+                        setNewDhLabel(`${d.dh_code} — ${d.name}`);
+                        setDhSearch('');
+                        setListOpen(false);
+                      }}
+                      className="px-3 py-2 cursor-pointer hover:bg-primary/10"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{d.dh_code}</span>
+                      {d.name}
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button onClick={onClose} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">
+              Cancel
+            </button>
+            <button
+              disabled={!newDhId || transfer.isPending}
+              onClick={() => transfer.mutate()}
+              className="px-3 py-1.5 rounded text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
+            >
+              {transfer.isPending ? 'Transferring…' : 'Transfer All'}
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 // ── DH Code cell with area popover ───────────────────────────────────────────
 
 function DhCodeCell({ dh }: { dh: DhRow }) {
   const [open, setOpen]                 = useState(false);
   const [reassignArea, setReassignArea] = useState<AreaRow | null>(null);
+  const [transferAll, setTransferAll]   = useState(false);
 
   const { data: areas, isLoading } = useQuery({
     queryKey: ['dh-areas', dh.id],
@@ -272,26 +382,36 @@ function DhCodeCell({ dh }: { dh: DhRow }) {
             ) : !areas?.length ? (
               <p className="text-xs text-muted-foreground py-2">No areas assigned.</p>
             ) : (
-              <ul className="max-h-64 overflow-y-auto divide-y text-sm">
-                {areas.map(a => (
-                  <li key={a.id} className="flex items-center justify-between gap-2 py-1.5">
-                    <div className="min-w-0">
-                      <span className="block truncate font-medium">{a.area_name}</span>
-                      {(a.thana_name || a.district_name) && (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {[a.thana_name, a.district_name].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => { setOpen(false); setReassignArea(a); }}
-                      className="shrink-0 text-xs text-blue-600 hover:underline"
-                    >
-                      Change DH
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="max-h-64 overflow-y-auto divide-y text-sm">
+                  {areas.map(a => (
+                    <li key={a.id} className="flex items-center justify-between gap-2 py-1.5">
+                      <div className="min-w-0">
+                        <span className="block truncate font-medium">{a.area_name}</span>
+                        {(a.thana_name || a.district_name) && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[a.thana_name, a.district_name].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { setOpen(false); setReassignArea(a); }}
+                        className="shrink-0 text-xs text-blue-600 hover:underline"
+                      >
+                        Change DH
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 pt-2 border-t">
+                  <button
+                    onClick={() => { setOpen(false); setTransferAll(true); }}
+                    className="w-full text-xs text-amber-700 hover:underline text-left"
+                  >
+                    Transfer All to Another DH…
+                  </button>
+                </div>
+              </>
             )}
             <Popover.Arrow className="fill-white drop-shadow-sm" />
           </Popover.Content>
@@ -305,7 +425,161 @@ function DhCodeCell({ dh }: { dh: DhRow }) {
           onClose={() => setReassignArea(null)}
         />
       )}
+
+      {transferAll && (
+        <TransferAllDialog dh={dh} onClose={() => setTransferAll(false)} />
+      )}
     </>
+  );
+}
+
+// ── Deboard Dialog ────────────────────────────────────────────────────────────
+
+function DeboardDialog({
+  dh,
+  onClose,
+}: {
+  dh: DhRow;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [newDhId, setNewDhId]       = useState('');
+  const [newDhLabel, setNewDhLabel] = useState('');
+  const [dhSearch, setDhSearch]     = useState('');
+  const [listOpen, setListOpen]     = useState(false);
+
+  const { data: areas, isLoading: areasLoading } = useQuery({
+    queryKey: ['dh-areas', dh.id],
+    queryFn: () =>
+      phpApi.get(`/distribution-houses/${dh.id}/areas`).then(r => r.data as AreaRow[]),
+  });
+
+  const { data: dhList } = useQuery({
+    queryKey: ['dh-list-all'],
+    queryFn: () =>
+      phpApi.get('/distribution-houses', { params: { per_page: 100 } })
+            .then(r => (r.data?.items ?? []) as DhRow[]),
+  });
+
+  const areaCount = areas?.length ?? 0;
+  const hasAreas  = !areasLoading && areaCount > 0;
+
+  const filtered = (dhList ?? [])
+    .filter(d => d.id !== dh.id)
+    .filter(d => {
+      if (!dhSearch) return true;
+      const q = dhSearch.toLowerCase();
+      return d.dh_code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q);
+    });
+
+  const transfer = useMutation({
+    mutationFn: () =>
+      phpApi.patch(`/distribution-houses/${dh.id}/transfer-all-areas`, { new_dh_id: newDhId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dh-areas', dh.id] });
+      setNewDhId('');
+      setNewDhLabel('');
+    },
+  });
+
+  const deboard = useMutation({
+    mutationFn: () =>
+      phpApi.patch(`/distribution-houses/${dh.id}`, {
+        deboarded_at: new Date().toISOString().slice(0, 10),
+        status: 'INACTIVE',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dhs'] });
+      onClose();
+    },
+  });
+
+  return (
+    <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <Dialog.Title className="text-base font-semibold text-red-700">
+            Deboard Distribution House
+          </Dialog.Title>
+          <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+            <span className="font-mono">{dh.dh_code}</span> — {dh.name}
+          </Dialog.Description>
+
+          {hasAreas && (
+            <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-3 space-y-3">
+              <p className="text-sm text-amber-800">
+                This DH has <strong>{areaCount}</strong> assigned area{areaCount !== 1 ? 's' : ''}.
+                Transfer them to another DH before deboarding.
+              </p>
+
+              <div className="relative">
+                <input
+                  className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+                  placeholder="Search by DH Code or Name…"
+                  value={newDhId ? newDhLabel : dhSearch}
+                  onChange={e => {
+                    setDhSearch(e.target.value);
+                    setNewDhId('');
+                    setNewDhLabel('');
+                    setListOpen(true);
+                  }}
+                  onFocus={() => setListOpen(true)}
+                  onBlur={() => setTimeout(() => setListOpen(false), 150)}
+                />
+                {listOpen && (
+                  <ul className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto border rounded bg-white shadow-lg text-sm">
+                    {filtered.length === 0 ? (
+                      <li className="px-3 py-2 text-muted-foreground">No results</li>
+                    ) : (
+                      filtered.map(d => (
+                        <li
+                          key={d.id}
+                          onMouseDown={() => {
+                            setNewDhId(d.id);
+                            setNewDhLabel(`${d.dh_code} — ${d.name}`);
+                            setDhSearch('');
+                            setListOpen(false);
+                          }}
+                          className="px-3 py-2 cursor-pointer hover:bg-primary/10"
+                        >
+                          <span className="font-mono text-xs text-muted-foreground mr-2">{d.dh_code}</span>
+                          {d.name}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+
+              <button
+                disabled={!newDhId || transfer.isPending}
+                onClick={() => transfer.mutate()}
+                className="w-full px-3 py-1.5 rounded text-sm text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40"
+              >
+                {transfer.isPending
+                  ? 'Transferring…'
+                  : `Transfer All ${areaCount} Area${areaCount !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          )}
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button onClick={onClose} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">
+              Cancel
+            </button>
+            <button
+              disabled={hasAreas || deboard.isPending || areasLoading}
+              title={hasAreas ? 'Transfer all areas to another DH first' : undefined}
+              onClick={() => deboard.mutate()}
+              className="px-3 py-1.5 rounded text-sm text-white bg-red-600 hover:bg-red-700 disabled:opacity-40"
+            >
+              {deboard.isPending ? 'Deboarding…' : 'Confirm Deboard'}
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -317,6 +591,7 @@ function DhTab() {
   const [search, setSearch]        = useState('');
   const [selectedIds, setSelected] = useState<Set<string>>(new Set());
   const [importOpen, setImport]    = useState(false);
+  const [deboardDh, setDeboardDh]  = useState<DhRow | null>(null);
   const dSearch = useDebounce(search, 400);
 
   const { data, isLoading } = useQuery({
@@ -330,6 +605,16 @@ function DhTab() {
     mutationFn: (rows: Record<string, string>[]) =>
       phpApi.post('/distribution-houses/bulk', rows),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dhs'] }); setImport(false); },
+  });
+
+  const reOnboard = useMutation({
+    mutationFn: (id: string) =>
+      phpApi.patch(`/distribution-houses/${id}`, {
+        deboarded_at: null,
+        status: 'ACTIVE',
+        onboarded_at: new Date().toISOString().slice(0, 10),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dhs'] }),
   });
 
   const rows: DhRow[] = Array.isArray(data) ? data : (data?.items ?? []);
@@ -346,6 +631,26 @@ function DhTab() {
     { key: 'onboarded_at',  header: 'Onboarded', cell: r => r.onboarded_at ?? '—' },
     { key: 'deboarded_at',  header: 'Deboarded', cell: r => r.deboarded_at ?? '—' },
     { key: 'status',        header: 'Status',    cell: r => <StatusBadge status={r.status} /> },
+    {
+      key: 'actions', header: '',
+      cell: r => r.status === 'ACTIVE'
+        ? (
+          <button
+            onClick={() => setDeboardDh(r)}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Deboard
+          </button>
+        ) : (
+          <button
+            onClick={() => reOnboard.mutate(r.id)}
+            disabled={reOnboard.isPending}
+            className="text-xs text-green-700 hover:underline disabled:opacity-40"
+          >
+            Re-onboard
+          </button>
+        ),
+    },
   ];
 
   return (
@@ -395,6 +700,10 @@ function DhTab() {
         templateHeaders={['name', 'dh_code', 'phone_number', 'territory_id', 'status']}
         onImport={rows => bulkInsert.mutate(rows)}
       />
+
+      {deboardDh && (
+        <DeboardDialog dh={deboardDh} onClose={() => setDeboardDh(null)} />
+      )}
     </div>
   );
 }

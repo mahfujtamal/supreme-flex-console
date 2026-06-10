@@ -41,6 +41,7 @@ class DistributionSeeder extends Seeder
             'manager_admin_id'    => null, // linked by GovernanceSeeder
             'inventory_pull_mode' => 'PUSH',
             'phone_number'        => H::nullIfEmpty($r['phone_number']),
+            'onboarded_at'        => date('Y-m-d', rand(strtotime('2025-09-15'), strtotime('2025-10-31'))),
             'last_assigned_at'    => H::ts($r['last_assigned_at']),
             'status'              => $r['status'],
             'created_at'          => H::ts($r['created_at']),

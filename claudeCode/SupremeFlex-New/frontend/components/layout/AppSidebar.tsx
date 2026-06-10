@@ -15,7 +15,6 @@ const navItems = [
   { title: 'Dashboard',        href: '/',                        icon: LayoutDashboard },
   { title: 'Master Data',      href: '/master-data',             icon: Database },
   { title: 'Product Engine',   href: '/product-engine',          icon: Box },
-  { title: 'Pricing Engine',   href: '/pricing-engine',          icon: DollarSign },
   { title: 'Campaign Engine',  href: '/campaign-engine',         icon: Megaphone },
   { title: 'Operations',       href: '/operations',              icon: Settings },
   { title: 'Customers',        href: '/customers',               icon: Users },

@@ -75,6 +75,28 @@ class DistributionHouseController extends BaseApiController
         return response()->json($rows);
     }
 
+    public function transferAllAreas(Request $request, string $id)
+    {
+        $request->validate(['new_dh_id' => 'required|string']);
+        $fromBin = Uuid::toBin($id);
+        $toBin   = Uuid::toBin($request->new_dh_id);
+
+        DB::transaction(function () use ($fromBin, $toBin) {
+            $areaIds = DB::table('dh_area_assignments')
+                ->where('dh_id', $fromBin)->pluck('area_id');
+            if ($areaIds->isEmpty()) return;
+            DB::table('dh_area_assignments')->where('dh_id', $fromBin)->delete();
+            DB::table('dh_area_assignments')->insert(
+                $areaIds->map(fn($a) => ['dh_id' => $toBin, 'area_id' => $a, 'created_at' => now()])
+                        ->values()->toArray()
+            );
+            DB::table('distribution_houses')->where('dh_id', $toBin)
+                ->update(['last_assigned_at' => now()]);
+        });
+
+        return response()->json(['ok' => true]);
+    }
+
     public function reassignArea(Request $request, string $areaId)
     {
         $request->validate(['new_dh_id' => 'required|string']);
